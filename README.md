@@ -1,7 +1,7 @@
 
-# Style Benchmark
+# STEB: Style Text Embedding Benchmark
 
-Measuring the quality of Style Representations across various axes. 
+Measuring the quality of Style Text Embeddings across various axes. 
 
 High-level TODOs:
 - Details on how evaluations are performed, perhaps with an image
