@@ -5,7 +5,7 @@ Measuring the quality of Style Text Embeddings across various axes.
 
 High-level TODOs:
 - Details on how evaluations are performed, perhaps with an image
-- Make it into a package like mteb?
+- Make it into a package like mteb
 - Create the leaderboard
 - Add probing for features (code for this exists in RRS machine but it's extremely hacky atm)
 
@@ -24,14 +24,14 @@ The following will download datasets not available through HF into the "./datase
 ./prepare_datasets.sh
 ```
 
-Results are stored in "./outputs".
-
 ## Running a Debug Evaluation
 
 To run a debug evaluation, run the following:
 ```bash
 ./debug.sh
 ```
+Results are stored in "./outputs".
+
 
 ## Running General Evaluations
 
