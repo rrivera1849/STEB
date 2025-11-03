@@ -6,8 +6,7 @@
         "label_getter": "label"
     },
     "loader_kwargs": {
-        "path": "csv",
-        "data_files": ["./huggingface_datasets/development_CSD.csv"],
+        "path": "billray110/corpus-of-diverse-styles",
         "split": "train"
     }
 }
