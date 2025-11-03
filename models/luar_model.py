@@ -1,5 +1,6 @@
-import torch
 import numpy as np
+import torch
+import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
 from models.base import STEBModel
 from typing import List
@@ -48,6 +49,7 @@ class LUARModel(STEBModel):
                 features = self.model(
                     input_ids=tokenized_batch["input_ids"],
                     attention_mask=tokenized_batch["attention_mask"]
-                ).detach().cpu().numpy()
+                )
+                features = F.normalize(features, p=2, dim=-1).detach().cpu().numpy()
             all_embeddings.append(features)
         return np.concatenate(all_embeddings)
