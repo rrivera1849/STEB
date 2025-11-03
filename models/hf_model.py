@@ -1,6 +1,5 @@
-import numpy as np
 import torch
-import torch.nn.functional as F
+import numpy as np
 from transformers import AutoModel, AutoTokenizer
 from models.base import STEBModel
 from typing import List
@@ -37,7 +36,6 @@ class HFModel(STEBModel):
             with torch.no_grad():
                 features = self.model(**tokenized_batch)
                 features = mean_pooling(features, tokenized_batch["attention_mask"])
-                features = F.normalize(features, p=2, dim=-1)
                 features = features.detach().cpu().numpy()
             all_embeddings.append(features)
         return np.concatenate(all_embeddings)
@@ -70,7 +68,6 @@ class HFModel(STEBModel):
                 episode_size = len(batch[0])
                 features = features.reshape(len(batch), episode_size, -1)
                 features = features.mean(dim=1)
-                features = F.normalize(features, p=2, dim=-1)
 
                 features = features.detach().cpu().numpy()
             all_embeddings.append(features)
