@@ -1,0 +1,12 @@
+{
+    "dataset_name": "rungalileo/20_Newsgroups_Fixed",
+    "type": "huggingface",
+    "record_handler": {
+        "text_getter": "text",
+        "label_getter": "label"
+    },
+    "loader_kwargs": {
+        "path": "rungalileo/20_Newsgroups_Fixed",
+        "split": "test"
+    }
+}
