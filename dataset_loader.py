@@ -146,7 +146,7 @@ class DatasetLoader(object):
         self.config = self._load_config()
 
     def _load_config(self):
-        config_path = os.path.join("datasets", self.dataset_name, "config.json")
+        config_path = os.path.join("data", self.dataset_name, "config.json")
         if not os.path.exists(config_path):
             raise ValueError(f"Configuration file not found for dataset: {self.dataset_name}")
         with open(config_path, "r") as f:

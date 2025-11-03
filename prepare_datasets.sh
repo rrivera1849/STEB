@@ -1,6 +1,6 @@
 #!/bin/sh
-mkdir ./datasets
-cd ./datasets
+mkdir ./data
+cd ./data
 git clone --depth 1 https://github.com/Vicomtech/hate-speech-dataset.git
 rm -rf hate-speech-dataset/.git
 git clone --depth 1 https://github.com/t-davidson/hate-speech-and-offensive-language.git
