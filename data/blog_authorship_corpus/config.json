@@ -1,0 +1,12 @@
+{
+    "dataset_name": "blog_authorship_corpus",
+    "type": "huggingface",
+    "record_handler": {
+        "text_getter": "text",
+        "label_getter": "age"
+    },
+    "loader_kwargs": {
+        "path": "blog_authorship_corpus",
+        "split": "train"
+    }
+}
