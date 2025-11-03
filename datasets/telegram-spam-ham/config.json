@@ -1,0 +1,12 @@
+{
+    "dataset_name": "thehamkercat/telegram-spam-ham",
+    "type": "huggingface",
+    "record_handler": {
+        "text_getter": "text",
+        "label_getter": "text_type"
+    },
+    "loader_kwargs": {
+        "path": "thehamkercat/telegram-spam-ham",
+        "split": "train"
+    }
+}

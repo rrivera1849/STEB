@@ -39,8 +39,33 @@ Results are stored in "./outputs".
 python main.py \
     --dataset <DATASET_NAME> \
     --model_name_or_path <HF_ID_OR_PATH> \
+    --model_type <MODEL_TYPE> \
     -e <NUMBER_OF_SAMPLES_PER_EMBEDDING>
 ```
+
+## Adding a New Model
+
+To add a new model, you need to:
+
+1.  Create a new Python file in the `models` directory (e.g., `models/my_model.py`).
+2.  In this file, create a class that inherits from `STEBModel` (from `models.base`) and implements the `embed_single` and `embed_multiple` methods.
+3.  Register your new model in `models/__init__.py` by adding it to the `MODEL_REGISTRY` dictionary.
+
+## Adding a New Dataset
+
+To add a new dataset, you need to:
+
+1.  Create a new subdirectory in the `datasets` directory with the name of your dataset (e.g., `datasets/my_dataset`).
+2.  Inside this new subdirectory, create a `config.json` file.
+3.  This `config.json` file should contain the following keys:
+    *   `dataset_name`: The name of the dataset.
+    *   `type`: The type of the dataset, either `"huggingface"` or `"custom"`.
+    *   `record_handler`: Specifies how to extract the text and label from a dataset record. It should have `text_getter` and `label_getter` keys.
+    *   If the `type` is `"huggingface"`, you must include `loader_kwargs`: A dictionary of arguments that will be passed to the `load_dataset` function from the Hugging Face `datasets` library.
+    *   If the `type` is `"custom"`, you must include `data_dir`: The path to the dataset's data directory. You will also need to add a new function to the `CUSTOM_LOADERS` dictionary in `dataset_loader.py` that will load your custom dataset.
+    *   If your dataset requires a custom label transformation, you can add a new function to the `CUSTOM_TRANSFORMS` dictionary in `dataset_loader.py` and it will be automatically applied.
+
+Your new dataset will be automatically discovered and made available as a choice for the `--dataset` argument.
 
 ## Corpora Available
 
