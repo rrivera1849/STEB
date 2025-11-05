@@ -6,6 +6,7 @@
     "text_getter": "text",
     "label_getter": "label"
   },
+  "loader_function": "load_hate_speech_dataset",
   "tasks": {
     "pair_classification": {
       "processor": "pair_classification"

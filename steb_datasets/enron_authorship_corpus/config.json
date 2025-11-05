@@ -6,6 +6,7 @@
     "text_getter": "text",
     "label_getter": "label"
   },
+  "loader_function": "load_enron_authorship_corpus",
   "tasks": {
     "pair_classification": {
       "processor": "pair_classification"
