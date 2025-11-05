@@ -1,9 +1,0 @@
-{
-    "dataset_name": "enron_authorship_corpus",
-    "type": "custom",
-    "data_dir": "./datasets/enron_authorship_corpus",
-    "record_handler": {
-        "text_getter": "text",
-        "label_getter": "label"
-    }
-}

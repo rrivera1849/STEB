@@ -3,14 +3,11 @@ import json
 import os
 import sys
 from argparse import ArgumentParser
+import importlib
 
 import numpy as np
 import torch
 from joblib import Memory
-from scipy.interpolate import interp1d
-from scipy.optimize import brentq
-from sklearn.metrics import roc_curve, roc_auc_score
-from sklearn.metrics.pairwise import cosine_similarity
 from termcolor import colored
 from transformers import set_seed
 
@@ -22,12 +19,8 @@ parser = ArgumentParser()
 parser.add_argument("--model_name_or_path",
                     default="rrivera1849/LUAR-CRUD",
                     help="Model name (HF ID), or local path to the model.")
-parser.add_argument("--model_type",
-                    default="luar",
-                    choices=MODEL_REGISTRY.keys(),
-                    help="Type of model to use.")
 parser.add_argument("--dataset",
-                    default="rungalileo/20_Newsgroups_Fixed",
+                    default="20_Newsgroups_Fixed",
                     choices=DATASET_REGISTRY,
                     help="Dataset to evaluate on.")
 parser.add_argument("--cache_dir",
@@ -44,18 +37,13 @@ parser.add_argument("--seed", type=int, default=43)
 FLAGS = parser.parse_args()
 set_seed(FLAGS.seed)
 
-def calculate_eer(y_true, y_score):
-    fpr, tpr, _ = roc_curve(y_true, y_score, pos_label=1)
-    eer = brentq(lambda x: 1. - x - interp1d(fpr, tpr)(x), 0., 1.)
-    return eer
-
-def get_scores_path(episode_size):
+def get_scores_path(episode_size, task_name):
     model_str = os.path.basename(FLAGS.model_name_or_path)
     if model_str == "":
         model_str = os.path.basename(os.path.dirname(FLAGS.model_name_or_path))
     
     dset_str = os.path.basename(FLAGS.dataset)
-    scores_path = f"./outputs/{dset_str}/{model_str}/{episode_size}_{FLAGS.n_episodes_per_class}"
+    scores_path = f"./outputs/{dset_str}/{model_str}/{episode_size}_{FLAGS.n_episodes_per_class}/{task_name}"
     return scores_path
 
 def main():
@@ -71,7 +59,13 @@ def main():
     memory.clear()
 
     print(FLAGS.model_name_or_path)
-    model_class = MODEL_REGISTRY[FLAGS.model_type]
+    model_class = None
+    for model_cls in MODEL_REGISTRY.values():
+        if FLAGS.model_name_or_path in model_cls.supported_models:
+            model_class = model_cls
+            break
+    if model_class is None:
+        model_class = MODEL_REGISTRY["hf"]
     model = model_class(FLAGS.model_name_or_path)
 
     @memory.cache
@@ -90,44 +84,47 @@ def main():
 
     for episode_size in FLAGS.episode_sizes:
     
-        dataset = DatasetLoader(
+        dset_loader = DatasetLoader(
             dataset_name=FLAGS.dataset,
             episode_size=episode_size,
             n_episodes_per_class=FLAGS.n_episodes_per_class,
             force_reload=FLAGS.force_reload,
-        ).load()
+        )
+        dataset = dset_loader.load()
         
         if len(dataset) <= 0:
             continue
 
         X, y = extract_features(dataset, episode_size, FLAGS.n_episodes_per_class, FLAGS.batch_size)
-        scores = cosine_similarity(
-            np.array(X).reshape(-1, X[0].shape[-1]), 
-            np.array(X).reshape(-1, X[0].shape[-1])
-        ) # pairwise cosine similarities
-        labels = np.array(y).reshape(-1, 1) == np.array(y).reshape(1, -1)
-        scores = scores[np.triu_indices(scores.shape[0], k=1)]
-        labels = labels[np.triu_indices(labels.shape[0], k=1)]
-
-        eer = calculate_eer(labels, scores)
-        auc = roc_auc_score(labels, scores)
-        auc_threshold = roc_auc_score(labels, scores, max_fpr=0.01)
         
-        scores_path = get_scores_path(episode_size)
-        os.makedirs(scores_path, exist_ok=True)
-        with open(os.path.join(scores_path, "scores.npy"), "wb") as ouf:
-            np.savez(ouf, scores=np.array(scores), labels=np.array(labels))
-        with open(os.path.join(scores_path, "metrics.json"), "w+") as ouf:
-            ouf.write(
-                json.dumps(
-                    {
-                        "eer": eer,
-                        "auc": auc,
-                        "auc_threshold": auc_threshold
-                    }
+        # Load dataset config to get tasks
+        with open(dset_loader.config_path) as f:
+            config = json.load(f)
+
+        for task_name, task_config in config.get("tasks", {}).items():
+            # Dynamically import and instantiate processor
+            processor_module = importlib.import_module(f"processors.{task_config['processor']}")
+            processor_class = getattr(processor_module, f"{task_config['processor'].replace('_', ' ').title().replace(' ', '')}Processor")
+            processor = processor_class()
+
+            # Process data
+            processed_data = processor.process(X, y)
+
+            # Dynamically import and instantiate task
+            task_module = importlib.import_module(f"tasks.{task_name}")
+            task_class = getattr(task_module, f"{task_name.replace('_', ' ').title().replace(' ', '')}Task")
+            task = task_class()
+
+            # Evaluate task
+            metrics = task.evaluate(*processed_data)
+
+            scores_path = get_scores_path(episode_size, task_name)
+            os.makedirs(scores_path, exist_ok=True)
+            with open(os.path.join(scores_path, "metrics.json"), "w+") as ouf:
+                ouf.write(
+                    json.dumps(metrics)
                 )
-            )
-        print(f"{FLAGS.dataset}; episode size: {episode_size}; N: {FLAGS.n_episodes_per_class}; EER: {eer}; AUC: {auc}, AUC (FPR <= 0.01): {auc_threshold}")
+            print(f"{FLAGS.dataset}; episode size: {episode_size}; N: {FLAGS.n_episodes_per_class}; Task: {task_name}; Metrics: {metrics}")
 
     return 0
 
