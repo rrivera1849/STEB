@@ -1,0 +1,17 @@
+{
+  "dataset_name": "ag_news",
+  "type": "huggingface",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "loader_kwargs": {
+    "path": "ag_news",
+    "split": "test"
+  },
+  "tasks": {
+    "pair_classification": {
+      "processor": "pair_classification"
+    }
+  }
+}

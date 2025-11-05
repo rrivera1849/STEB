@@ -10,6 +10,8 @@ def mean_pooling(model_output, attention_mask):
     return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
 class HFModel(STEBModel):
+    supported_models = []
+
     def __init__(self, model_name_or_path: str):
         self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)

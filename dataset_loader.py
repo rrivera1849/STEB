@@ -143,14 +143,14 @@ class DatasetLoader(object):
         self.episode_size = episode_size
         self.n_episodes_per_class = n_episodes_per_class
         self.force_reload = force_reload
-        self.config = self._load_config()
+        self.config_path, self.config = self._load_config()
 
     def _load_config(self):
-        config_path = os.path.join("data", self.dataset_name, "config.json")
+        config_path = os.path.join("steb_datasets", self.dataset_name, "config.json")
         if not os.path.exists(config_path):
             raise ValueError(f"Configuration file not found for dataset: {self.dataset_name}")
         with open(config_path, "r") as f:
-            return json.load(f)
+            return config_path, json.load(f)
 
     def load(self):
         dataset_path = self._get_dataset_path()
@@ -188,6 +188,7 @@ class DatasetLoader(object):
             dataset[record["label"]].append(record["text"])
 
         dataset = {k: v for k, v in dataset.items() if len(v) == N}
+        os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
         with open(dataset_path, "w") as f:
             print(f"Saving dataset to {dataset_path}")
             f.write(json.dumps(dataset))

@@ -5,6 +5,8 @@ from models.base import STEBModel
 from typing import List
 
 class LUARModel(STEBModel):
+    supported_models = ["rrivera1849/LUAR-CRUD"]
+
     def __init__(self, model_name_or_path: str):
         self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)

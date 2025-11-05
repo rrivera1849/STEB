@@ -1,0 +1,18 @@
+{
+  "dataset_name": "financial_phrasebank",
+  "type": "huggingface",
+  "record_handler": {
+    "text_getter": "sentence",
+    "label_getter": "label"
+  },
+  "loader_kwargs": {
+    "path": "financial_phrasebank",
+    "name": "sentences_allagree",
+    "split": "train"
+  },
+  "tasks": {
+    "pair_classification": {
+      "processor": "pair_classification"
+    }
+  }
+}
