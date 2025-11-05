@@ -3,11 +3,13 @@
   "type": "huggingface",
   "record_handler": {
     "text_getter": "text",
-    "label_getter": "age"
+        "label_getter": "age",
+        "label_getter_function": "blog_authorship_labelgetter"
   },
   "loader_kwargs": {
     "path": "blog_authorship_corpus",
-    "split": "train"
+    "split": "train",
+    "trust_remote_code": true
   },
   "tasks": {
     "pair_classification": {
