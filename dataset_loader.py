@@ -1,24 +1,15 @@
 
 import json
 import os
-import configparser
 import importlib
 from collections import defaultdict
 from functools import partial
 from typing import Dict, List
 
-import pandas as pd
-import spacy
 from datasets import load_dataset
 from termcolor import colored
-from tqdm import tqdm
 
-from utils import *
-
-config = configparser.ConfigParser()
-config.read('config.ini')
-PROCESSED_DATA_DIR = config['Application_Paths']['processed_dataset_dir']
-CACHE_DIR = config['Application_Paths']['cache_dir']
+from utils import CACHE_DIR, PROCESSED_DATA_DIR
 
 def record_handler(example, text_getter, label_getter, label_transform=None):
     text = example[text_getter]

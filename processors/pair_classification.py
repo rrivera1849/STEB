@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, List
 from processors.base import Processor
 
 class PairClassificationProcessor(Processor):
