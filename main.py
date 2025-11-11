@@ -14,6 +14,7 @@ from transformers import set_seed
 from dataset_loader import DatasetLoader
 from models import MODEL_REGISTRY
 from steb_datasets import DATASET_REGISTRY
+from utils import CACHE_DIR
 
 def get_supported_datasets(task_name):
     supported_datasets = []
@@ -34,9 +35,6 @@ def main():
     base_parser.add_argument("--model_name_or_path",
                         default="rrivera1849/LUAR-CRUD",
                         help="Model name (HF ID), or local path to the model.")
-    base_parser.add_argument("--cache_dir",
-                        default="/tmp/riverasoto1",
-                        help="Location to a temporary cache directory.")
     base_parser.add_argument("-e", "--episode_sizes", type=int, action="append", default=None, required=True,
                         help="Number of atomic units to form writing sample.")
     base_parser.add_argument("--n_episodes_per_class", type=int, default=50,
@@ -80,7 +78,7 @@ def main():
     else:
         print(colored("WARNING: No GPU detected", "red"))
 
-    memory = Memory(FLAGS.cache_dir, verbose=1)
+    memory = Memory(CACHE_DIR, verbose=1)
     memory.clear()
 
     print(FLAGS.model_name_or_path)
