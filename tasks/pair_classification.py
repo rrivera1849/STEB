@@ -7,12 +7,36 @@ from sklearn.metrics.pairwise import cosine_similarity
 from tasks.base import Task
 
 def calculate_eer(y_true, y_score):
+    """
+    Calculates the Equal Error Rate (EER).
+
+    Args:
+        y_true: The true labels.
+        y_score: The predicted scores.
+
+    Returns:
+        The EER score.
+    """
     fpr, tpr, _ = roc_curve(y_true, y_score, pos_label=1)
     eer = brentq(lambda x: 1. - x - interp1d(fpr, tpr)(x), 0., 1.)
     return eer
 
+
 class PairClassificationTask(Task):
+    """
+    A task for evaluating pair classification performance.
+    """
     def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
+        """
+        Evaluates the performance of a pair classification model using EER and AUC.
+
+        Args:
+            embeddings: The embeddings to evaluate.
+            labels: The corresponding labels.
+
+        Returns:
+            A dictionary of evaluation metrics, including EER, AUC, and AUC at various FPR thresholds.
+        """
         scores = cosine_similarity(
             np.array(embeddings).reshape(-1, embeddings[0].shape[-1]),
             np.array(embeddings).reshape(-1, embeddings[0].shape[-1])

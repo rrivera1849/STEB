@@ -5,14 +5,35 @@ from models.base import STEBModel
 from typing import List
 
 def mean_pooling(model_output, attention_mask):
+    """
+    Performs mean pooling on the model output.
+
+    Args:
+        model_output: The output of the model.
+        attention_mask: The attention mask.
+
+    Returns:
+        The pooled output.
+    """
     token_embeddings = model_output[0]
     input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
     return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
+
 class HFModel(STEBModel):
+    """
+    A generic Hugging Face model for style text embedding.
+    This class serves as a fallback for any model that is not explicitly supported.
+    """
     supported_models = []
 
     def __init__(self, model_name_or_path: str):
+        """
+        Initializes the HFModel.
+
+        Args:
+            model_name_or_path: The name or path of the Hugging Face model.
+        """
         self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -20,6 +41,16 @@ class HFModel(STEBModel):
         self.model.eval()
 
     def embed_single(self, texts: List[str], batch_size: int) -> np.ndarray:
+        """
+        Embeds a list of single texts.
+
+        Args:
+            texts: A list of strings to embed.
+            batch_size: The batch size to use for embedding.
+
+        Returns:
+            A numpy array of embeddings.
+        """
         all_embeddings = []
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i+batch_size]
@@ -43,6 +74,16 @@ class HFModel(STEBModel):
         return np.concatenate(all_embeddings)
 
     def embed_multiple(self, episodes: List[List[str]], batch_size: int) -> np.ndarray:
+        """
+        Embeds a list of episodes, where each episode is a list of texts.
+
+        Args:
+            episodes: A list of episodes to embed.
+            batch_size: The batch size to use for embedding.
+
+        Returns:
+            A numpy array of embeddings.
+        """
         all_embeddings = []
         for i in range(0, len(episodes), batch_size):
             batch = episodes[i:i+batch_size]

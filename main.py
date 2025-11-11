@@ -16,7 +16,20 @@ from models import MODEL_REGISTRY
 from steb_datasets import DATASET_REGISTRY
 from utils import CACHE_DIR
 
+"""
+This is the main script for running evaluations in the Style Text Embedding Benchmark (STEB).
+It handles command-line argument parsing, model loading, dataset processing, and task evaluation.
+"""
 def get_supported_datasets(task_name):
+    """
+    Retrieves a list of datasets that support the given task.
+
+    Args:
+        task_name: The name of the task.
+
+    Returns:
+        A list of supported dataset names.
+    """
     supported_datasets = []
     for dataset_name in DATASET_REGISTRY:
         config_path = os.path.join("steb_datasets", dataset_name, "config.json")
@@ -27,6 +40,11 @@ def get_supported_datasets(task_name):
     return supported_datasets
 
 def main():
+    """
+    The main function for the STEB evaluation script.
+    Parses command-line arguments, loads the specified model and datasets,
+    and runs the evaluation for the specified task.
+    """
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(dest="task", required=True)
 
@@ -62,6 +80,9 @@ def main():
     set_seed(FLAGS.seed)
 
     def get_scores_path(episode_size, task_name, dataset_name):
+        """
+        Generates the path for saving the evaluation scores.
+        """
         model_str = os.path.basename(FLAGS.model_name_or_path)
         if model_str == "":
             model_str = os.path.basename(os.path.dirname(FLAGS.model_name_or_path))
@@ -93,6 +114,10 @@ def main():
 
     @memory.cache
     def extract_features(dataset, episode_size, n_episodes_per_class, batch_size):
+        """
+        Extracts features from the dataset using the specified model.
+        This function is cached to avoid re-extracting features on subsequent runs.
+        """
         episodes_by_label = {}
         for label, episodes in dataset.items():
             episodes_by_label[label] = [episodes[i:i+episode_size] for i in range(0, len(episodes), episode_size)]
