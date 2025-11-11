@@ -1,9 +1,0 @@
-{
-    "dataset_name": "hate_speech",
-    "type": "custom",
-    "data_dir": "./datasets/hate-speech-dataset",
-    "record_handler": {
-        "text_getter": "text",
-        "label_getter": "label"
-    }
-}

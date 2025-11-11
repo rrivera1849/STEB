@@ -1,0 +1,15 @@
+{
+  "dataset_name": "hate_speech_and_offensive_language",
+  "type": "custom",
+  "data_dir": "./raw_datasets/hate-speech-and-offensive-language/data",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "loader_function": "load_hate_speech_and_offensive_language",
+  "tasks": {
+    "pair_classification": {
+      "processor": "pair_classification"
+    }
+  }
+}

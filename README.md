@@ -18,7 +18,9 @@ python spacy -m download en_core_web_sm
 ```
 ## Downloading Datasets
 
-The following will download datasets not available through HF into the "./datasets" folder:
+**Note:** The `jigsaw_toxicity_pred` dataset is not downloaded automatically. You will need to download it manually from [Kaggle](https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/data) and place it in the `steb_datasets` directory.
+
+The following will download datasets not available through HF into the "./steb_datasets" folder:
 
 ```bash
 ./prepare_datasets.sh
@@ -55,15 +57,15 @@ To add a new model, you need to:
 
 To add a new dataset, you need to:
 
-1.  Create a new subdirectory in the `datasets` directory with the name of your dataset (e.g., `datasets/my_dataset`).
+1.  Create a new subdirectory in the `steb_datasets` directory with the name of your dataset (e.g., `steb_datasets/my_dataset`).
 2.  Inside this new subdirectory, create a `config.json` file.
 3.  This `config.json` file should contain the following keys:
     *   `dataset_name`: The name of the dataset.
     *   `type`: The type of the dataset, either `"huggingface"` or `"custom"`.
     *   `record_handler`: Specifies how to extract the text and label from a dataset record. It should have `text_getter` and `label_getter` keys.
     *   If the `type` is `"huggingface"`, you must include `loader_kwargs`: A dictionary of arguments that will be passed to the `load_dataset` function from the Hugging Face `datasets` library.
-    *   If the `type` is `"custom"`, you must include `data_dir`: The path to the dataset's data directory. You will also need to add a new function to the `CUSTOM_LOADERS` dictionary in `dataset_loader.py` that will load your custom dataset.
-    *   If your dataset requires a custom label transformation, you can add a new function to the `CUSTOM_TRANSFORMS` dictionary in `dataset_loader.py` and it will be automatically applied.
+    *   If the `type` is `"custom"`, you must include `data_dir`: The path to the dataset's data directory. You will also need to create a `loader.py` file in the same directory and specify the loader function in the `config.json` with the `loader_function` key.
+    *   If your dataset requires a custom label transformation, you can add the function to the `loader.py` file and specify it in the `config.json` with the `label_getter_function` key.
 
 Your new dataset will be automatically discovered and made available as a choice for the `--dataset` argument.
 
@@ -78,7 +80,6 @@ The following corpora are available:
 * rungalileo/20_Newsgroups_Fixed
 * financial_phrasebank
 * osanseviero/twitter-airline-sentiment
-* blog_authorship_corpus
 * sms_spam
 * SetFit/enron_spam
 * thehamkercat/telegram-spam-ham
