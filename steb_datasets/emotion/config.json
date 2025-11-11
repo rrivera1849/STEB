@@ -12,6 +12,9 @@
   "tasks": {
     "pair_classification": {
       "processor": "pair_classification"
+    },
+    "clustering": {
+      "processor": "clustering"
     }
   }
 }
