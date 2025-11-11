@@ -8,7 +8,8 @@
   "loader_kwargs": {
     "path": "reuters21578",
     "name": "ModLewis",
-    "split": "test"
+    "split": "test",
+    "trust_remote_code": true
   },
   "tasks": {
     "pair_classification": {
