@@ -12,7 +12,7 @@
       "processor": "pair_classification"
     },
     "clustering": {
-      "processor": "noop"
+      "processor": "clustering"
     }
   }
 }
