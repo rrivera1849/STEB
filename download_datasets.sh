@@ -1,6 +1,6 @@
 #!/bin/sh
-mkdir -p ./steb_datasets
-cd ./steb_datasets
+mkdir -p ./raw_datasets
+cd ./raw_datasets
 
 # Clean up directories from previous runs to ensure idempotency
 rm -rf hate-speech-dataset
@@ -28,3 +28,7 @@ unzip Enron-Authorship-Verification-Corpus.zip
 rm n77w7mygwg-1.zip
 rm Enron-Authorship-Verification-Corpus.zip
 mv 'Enron (80 authors)' enron_authorship_corpus
+
+gdown https://drive.google.com/file/d/17eLjiDLhXXtrfqC1FzToHKrwTcwsAolN/view?usp=sharing --fuzzy
+tar zxvf jigsaw-toxic-comment-classification-challenge.tar.gz
+rm jigsaw-toxic-comment-classification-challenge.tar.gz

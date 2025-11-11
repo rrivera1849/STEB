@@ -7,7 +7,7 @@
   },
   "loader_kwargs": {
     "path": "jigsaw_toxicity_pred",
-    "data_dir": "./steb_datasets/jigsaw-toxic-comment-classification-challenge/",
+    "data_dir": "./raw_datasets/jigsaw-toxic-comment-classification-challenge/",
     "split": "test",
     "trust_remote_code": true
   },

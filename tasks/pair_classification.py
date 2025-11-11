@@ -24,10 +24,13 @@ class PairClassificationTask(Task):
 
         eer = calculate_eer(labels, scores)
         auc = roc_auc_score(labels, scores)
-        auc_threshold = roc_auc_score(labels, scores, max_fpr=0.01)
 
-        return {
+        return_d = {
             "eer": eer,
             "auc": auc,
-            "auc_threshold": auc_threshold
         }
+        for fpr in [0.01, 0.05, 0.10, 0.20, 0.30, 0.50]:
+            auc_threshold = roc_auc_score(labels, scores, max_fpr=fpr)
+            return_d["auc@{:.2f}".format(fpr)] = auc_threshold
+
+        return return_d

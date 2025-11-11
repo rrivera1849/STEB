@@ -13,7 +13,7 @@ from transformers import set_seed
 
 from dataset_loader import DatasetLoader
 from models import MODEL_REGISTRY
-from data import DATASET_REGISTRY
+from steb_datasets import DATASET_REGISTRY
 
 parser = ArgumentParser()
 parser.add_argument("--model_name_or_path",
