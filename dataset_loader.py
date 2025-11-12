@@ -12,6 +12,18 @@ from termcolor import colored
 from utils import CACHE_DIR, PROCESSED_DATA_DIR
 
 def record_handler(example, text_getter, label_getter, label_transform=None):
+    """
+    Extracts text and a single label from a dataset record.
+
+    Args:
+        example: The input data record.
+        text_getter: The key to access the text in the example.
+        label_getter: The key to access the label in the example.
+        label_transform: An optional function to transform the label.
+
+    Returns:
+        A dictionary with "text" and "label" keys, or None if the text or label is missing.
+    """
     text = example[text_getter]
     label = example[label_getter]
     if isinstance(label, list):
@@ -26,7 +38,9 @@ def record_handler(example, text_getter, label_getter, label_transform=None):
     return {"text": text, "label": label}
 
 class DatasetLoader(object):
-    """This class is responsible for loading the dataset and creating the episodes.
+    """
+    This class is responsible for loading datasets, processing them into episodes, and caching the results.
+    It can handle both Hugging Face datasets and custom local datasets.
     """
     def __init__(
         self,
@@ -35,6 +49,15 @@ class DatasetLoader(object):
         n_episodes_per_class: int = 50,
         force_reload: bool = False,
     ):
+        """
+        Initializes the DatasetLoader.
+
+        Args:
+            dataset_name: The name of the dataset to load.
+            episode_size: The number of text samples per episode.
+            n_episodes_per_class: The number of episodes to generate for each class.
+            force_reload: If True, forces reprocessing of the dataset.
+        """
         self.dataset_name = dataset_name
         self.episode_size = episode_size
         self.n_episodes_per_class = n_episodes_per_class
@@ -42,6 +65,9 @@ class DatasetLoader(object):
         self.config_path, self.config = self._load_config()
 
     def _load_config(self):
+        """
+        Loads the config.json file for the specified dataset.
+        """
         config_path = os.path.join("steb_datasets", self.dataset_name, "config.json")
         if not os.path.exists(config_path):
             raise ValueError(f"Configuration file not found for dataset: {self.dataset_name}")
@@ -49,6 +75,11 @@ class DatasetLoader(object):
             return config_path, json.load(f)
 
     def load(self):
+        """
+        Loads, processes, and returns the dataset.
+        Handles loading from cache, downloading from Hugging Face or a custom source,
+        processing records, and saving the processed data to cache.
+        """
         dataset_path = self._get_dataset_path()
         
         if os.path.exists(dataset_path) and not self.force_reload:
@@ -95,12 +126,16 @@ class DatasetLoader(object):
         return dataset
     
     def _get_dataset_path(self):
+        """
+        Generates the file path for the cached, processed dataset.
+        """
         base_str = f"{os.path.basename(self.dataset_name)}_{self.n_episodes_per_class}_{self.episode_size}"
         return os.path.join(PROCESSED_DATA_DIR, base_str + ".json")
     
     def get_valid_labels(self, dataset_iter, handler):
-        """Gets all the labels for classes that surpass:
-            - self.episode_size * self.n_episodes_per_class
+        """
+        Gets all the labels for classes that have enough samples.
+        A class is considered valid if it has at least `self.episode_size * self.n_episodes_per_class` samples.
         """
         N = self.episode_size * self.n_episodes_per_class
 

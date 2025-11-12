@@ -1,51 +1,71 @@
-
 # STEB: Style Text Embedding Benchmark
 
-Measuring the quality of Style Text Embeddings across various axes. 
+STEB (Style Text Embedding Benchmark) is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is designed to be modular and extensible, allowing researchers and developers to easily add new models, datasets, and evaluation tasks.
 
-High-level TODOs:
-- Details on how evaluations are performed, perhaps with an image
-- Make it into a package like mteb
-- Create the leaderboard
-- Add probing for features (code for this exists in RRS machine but it's extremely hacky atm)
+## Installation
 
-## Installing Requirements
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/rrivera1849/STEB.git
+    cd STEB
+    ```
 
-After creating a virtual environment, download and install the requirements as follows:
-```bash
-pip install -r requirements.txt
-python spacy -m download en_core_web_sm
-```
+2.  **Create a virtual environment and install dependencies:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    ```
+
 ## Downloading Datasets
 
-**Note:** The `jigsaw_toxicity_pred` dataset is not downloaded automatically. You will need to download it manually from [Kaggle](https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/data) and place it in the `steb_datasets` directory.
-
-The following will download datasets not available through HF into the "./steb_datasets" folder:
+Some of the datasets used in this benchmark need to be downloaded manually. The `download_datasets.sh` script will download and set up these datasets for you.
 
 ```bash
-./prepare_datasets.sh
+./download_datasets.sh
 ```
 
-## Running a Debug Evaluation
+**Note:** The `jigsaw_toxicity_pred` dataset is downloaded via `gdown`, which may require you to have `gdown` installed and authenticated with your Google account.
 
-To run a debug evaluation, run the following:
+## Running Evaluations
+
+You can run evaluations for different tasks using the `main.py` script. The two main tasks (for now) are `clustering` and `pair_classification`. The outputs will be stored under a new `./outputs` directory.
+
+### Clustering
+
+Here's an example of how to run a clustering evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
+
 ```bash
-./debug.sh
+python main.py clustering \
+    --dataset corpus-of-diverse-styles \
+    --model_name_or_path "rrivera1849/LUAR-MUD" \
+    -e 5
 ```
-Results are stored in "./outputs".
 
+### Pair Classification
 
-## Running General Evaluations
+Here's an example of how to run a pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
 
 ```bash
-python main.py \
-    --dataset <DATASET_NAME> \
-    --model_name_or_path <HF_ID_OR_PATH> \
-    --model_type <MODEL_TYPE> \
-    -e <NUMBER_OF_SAMPLES_PER_EMBEDDING>
+python main.py pair_classification \
+    --dataset corpus-of-diverse-styles \
+    --model_name_or_path "rrivera1849/LUAR-MUD" \
+    -e 5
 ```
 
-## Adding a New Model
+## Developer Guide
+
+This guide is for developers who want to extend the STEB framework by adding new models, datasets, or tasks.
+
+### Core Abstractions
+
+The STEB framework is built around three core abstractions:
+
+*   **`STEBModel`**: An abstract base class for style text embedding models. It defines the interface for embedding single texts and episodes (lists of texts).
+*   **`Processor`**: An abstract base class for data processors. It defines the interface for processing embeddings and labels before they are passed to a task for evaluation.
+*   **`Task`**: An abstract base class for evaluation tasks. It defines the interface for evaluating embeddings and labels and returning a dictionary of metrics.
+
+### Adding a New Model
 
 To add a new model, you need to:
 
@@ -53,7 +73,7 @@ To add a new model, you need to:
 2.  In this file, create a class that inherits from `STEBModel` (from `models.base`) and implements the `embed_single` and `embed_multiple` methods.
 3.  Register your new model in `models/__init__.py` by adding it to the `MODEL_REGISTRY` dictionary.
 
-## Adding a New Dataset
+### Adding a New Dataset
 
 To add a new dataset, you need to:
 
@@ -62,6 +82,7 @@ To add a new dataset, you need to:
 3.  This `config.json` file should contain the following keys:
     *   `dataset_name`: The name of the dataset.
     *   `type`: The type of the dataset, either `"huggingface"` or `"custom"`.
+    *   `tasks`: A dictionary that maps task names to their configurations.
     *   `record_handler`: Specifies how to extract the text and label from a dataset record. It should have `text_getter` and `label_getter` keys.
     *   If the `type` is `"huggingface"`, you must include `loader_kwargs`: A dictionary of arguments that will be passed to the `load_dataset` function from the Hugging Face `datasets` library.
     *   If the `type` is `"custom"`, you must include `data_dir`: The path to the dataset's data directory. You will also need to create a `loader.py` file in the same directory and specify the loader function in the `config.json` with the `loader_function` key.
@@ -69,21 +90,27 @@ To add a new dataset, you need to:
 
 Your new dataset will be automatically discovered and made available as a choice for the `--dataset` argument.
 
-## Corpora Available
+Here's an example of such a configuration for a dataset available in HuggingFace:
 
-The following corpora are available:
-* reuters21578
-* billray110/corpus-of-diverse-styles
-* jigsaw_toxicity_pred
-* emotion
-* ag_news
-* rungalileo/20_Newsgroups_Fixed
-* financial_phrasebank
-* osanseviero/twitter-airline-sentiment
-* sms_spam
-* SetFit/enron_spam
-* thehamkercat/telegram-spam-ham
-* yelp_polarity
-* hate_speech
-* hate_speech_and_offensive_language
-* enron_authorship_corpus
+```
+{
+  "dataset_name": "billray110/corpus-of-diverse-styles",
+  "type": "huggingface",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "loader_kwargs": {
+    "path": "billray110/corpus-of-diverse-styles",
+    "split": "train"
+  },
+  "tasks": {
+    "pair_classification": {
+      "processor": "pair_classification"
+    },
+    "clustering": {
+      "processor": "clustering"
+    }
+  }
+}
+```
