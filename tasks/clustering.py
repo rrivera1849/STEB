@@ -5,9 +5,19 @@ from sklearn.metrics import v_measure_score
 from tasks.base import Task
 
 class ClusteringTask(Task):
+    """
+    A task for evaluating clustering performance.
+    """
     def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
         """
-        Train a K-Means model and evaluate its performance using V-measure.
+        Trains a K-Means model and evaluates its performance using V-measure.
+
+        Args:
+            embeddings: The embeddings to evaluate.
+            labels: The corresponding labels.
+
+        Returns:
+            A dictionary containing the V-measure score.
         """
         if embeddings.ndim == 1:
             embeddings = np.array(embeddings).reshape(-1, 1)
