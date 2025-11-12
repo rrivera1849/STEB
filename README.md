@@ -15,7 +15,6 @@ STEB (Style Text Embedding Benchmark) is a framework for evaluating style text e
     python3 -m venv venv
     source venv/bin/activate
     pip install -r requirements.txt
-    python -m spacy download en_core_web_sm
     ```
 
 ## Downloading Datasets
@@ -30,36 +29,28 @@ Some of the datasets used in this benchmark need to be downloaded manually. The 
 
 ## Running Evaluations
 
-You can run evaluations for different tasks using the `main.py` script. The two main tasks are `clustering` and `pair_classification`.
+You can run evaluations for different tasks using the `main.py` script. The two main tasks (for now) are `clustering` and `pair_classification`. The outputs will be stored under a new `./outputs` directory.
 
 ### Clustering
 
-Here's an example of how to run a clustering evaluation on the `20_Newsgroups_Fixed` dataset with the `LUAR-MUD` model:
+Here's an example of how to run a clustering evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
 
 ```bash
 python main.py clustering \
-    --dataset 20_Newsgroups_Fixed \
+    --dataset corpus-of-diverse-styles \
     --model_name_or_path "rrivera1849/LUAR-MUD" \
     -e 5
 ```
 
 ### Pair Classification
 
-Here's an example of how to run a pair classification evaluation on the `enron_authorship_corpus` dataset with the `LUAR-MUD` model:
+Here's an example of how to run a pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
 
 ```bash
 python main.py pair_classification \
-    --dataset enron_authorship_corpus \
+    --dataset corpus-of-diverse-styles \
     --model_name_or_path "rrivera1849/LUAR-MUD" \
-    -e 1
-```
-
-### Running All Tests
-
-You can run a full suite of tests using the `test.sh` script. This will run evaluations for all supported datasets.
-
-```bash
-./test.sh
+    -e 5
 ```
 
 ## Developer Guide
@@ -98,3 +89,28 @@ To add a new dataset, you need to:
     *   If your dataset requires a custom label transformation, you can add the function to the `loader.py` file and specify it in the `config.json` with the `label_getter_function` key.
 
 Your new dataset will be automatically discovered and made available as a choice for the `--dataset` argument.
+
+Here's an example of such a configuration for a dataset available in HuggingFace:
+
+```
+{
+  "dataset_name": "billray110/corpus-of-diverse-styles",
+  "type": "huggingface",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "loader_kwargs": {
+    "path": "billray110/corpus-of-diverse-styles",
+    "split": "train"
+  },
+  "tasks": {
+    "pair_classification": {
+      "processor": "pair_classification"
+    },
+    "clustering": {
+      "processor": "clustering"
+    }
+  }
+}
+```
