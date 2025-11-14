@@ -14,7 +14,7 @@ STEB (Style Text Embedding Benchmark) is a framework for evaluating style text e
     ```bash
     python3 -m venv venv
     source venv/bin/activate
-    pip install -r requirements.txt
+    pip install -e .
     ```
 
 ## Downloading Datasets
@@ -27,30 +27,35 @@ Some of the datasets used in this benchmark need to be downloaded manually. The 
 
 **Note:** The `jigsaw_toxicity_pred` dataset is downloaded via `gdown`, which may require you to have `gdown` installed and authenticated with your Google account.
 
-## Running Evaluations
+## Programmatic Usage
 
-You can run evaluations for different tasks using the `main.py` script. The two main tasks (for now) are `clustering` and `pair_classification`. The outputs will be stored under a new `./outputs` directory.
+You can use STEB programmatically to evaluate your models. Here's an example:
 
-### Clustering
+```python
+import steb
 
-Here's an example of how to run a clustering evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
+# Select model
+model_name = "rrivera1849/LUAR-MUD"
+model = steb.get_model(model_name)
 
-```bash
-python main.py clustering \
-    --dataset corpus-of-diverse-styles \
-    --model_name_or_path "rrivera1849/LUAR-MUD" \
-    -e 5
+# Select datasets
+datasets = steb.get_datasets(datasets=["sms_spam"])
+
+# Evaluate
+results = steb.evaluate(model, datasets=datasets, episode_sizes=[1])
 ```
 
-### Pair Classification
+## Running Evaluations from the CLI
 
-Here's an example of how to run a pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
+You can also run evaluations from the command line using the `steb` tool. The outputs will be stored under a new `./results` directory by default.
+
+Here's an example of how to run an evaluation on the `sms_spam` dataset with the `LUAR-MUD` model:
 
 ```bash
-python main.py pair_classification \
-    --dataset corpus-of-diverse-styles \
-    --model_name_or_path "rrivera1849/LUAR-MUD" \
-    -e 5
+steb run \
+    -t "sms_spam" \
+    -m "rrivera1849/LUAR-MUD" \
+    -e 1
 ```
 
 ## Developer Guide
@@ -69,15 +74,15 @@ The STEB framework is built around three core abstractions:
 
 To add a new model, you need to:
 
-1.  Create a new Python file in the `models` directory (e.g., `models/my_model.py`).
-2.  In this file, create a class that inherits from `STEBModel` (from `models.base`) and implements the `embed_single` and `embed_multiple` methods.
-3.  Register your new model in `models/__init__.py` by adding it to the `MODEL_REGISTRY` dictionary.
+1.  Create a new Python file in the `steb/models` directory (e.g., `steb/models/my_model.py`).
+2.  In this file, create a class that inherits from `STEBModel` (from `steb.models.base`) and implements the `embed_single` and `embed_multiple` methods.
+3.  Register your new model in `steb/models/__init__.py` by adding it to the `MODEL_REGISTRY` dictionary.
 
 ### Adding a New Dataset
 
 To add a new dataset, you need to:
 
-1.  Create a new subdirectory in the `steb_datasets` directory with the name of your dataset (e.g., `steb_datasets/my_dataset`).
+1.  Create a new subdirectory in the `steb/steb_datasets` directory with the name of your dataset (e.g., `steb/steb_datasets/my_dataset`).
 2.  Inside this new subdirectory, create a `config.json` file.
 3.  This `config.json` file should contain the following keys:
     *   `dataset_name`: The name of the dataset.
@@ -88,7 +93,7 @@ To add a new dataset, you need to:
     *   If the `type` is `"custom"`, you must include `data_dir`: The path to the dataset's data directory. You will also need to create a `loader.py` file in the same directory and specify the loader function in the `config.json` with the `loader_function` key.
     *   If your dataset requires a custom label transformation, you can add the function to the `loader.py` file and specify it in the `config.json` with the `label_getter_function` key.
 
-Your new dataset will be automatically discovered and made available as a choice for the `--dataset` argument.
+Your new dataset will be automatically discovered and made available as a choice for the `-t`/`--tasks` argument.
 
 Here's an example of such a configuration for a dataset available in HuggingFace:
 
