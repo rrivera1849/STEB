@@ -19,6 +19,7 @@ def main():
     base_parser.add_argument("--batch-size", type=int, default=32, help="Batch size for embedding.")
     base_parser.add_argument("--output-folder", default="results", help="Folder to save the results to.")
     base_parser.add_argument("--force-reload", default=False, action="store_true", help="Whether to force reload the datasets.")
+    base_parser.add_argument("--progress-bar", default=False, action="store_true", help="Show a progress bar.")
     base_parser.add_argument("--seed", type=int, default=42, help="The random seed to use.")
 
     # 'all' task parser
@@ -69,6 +70,7 @@ def main():
         batch_size=args.batch_size,
         output_folder=args.output_folder,
         force_reload=args.force_reload,
+        progress_bar=args.progress_bar,
         seed=args.seed,
     )
 

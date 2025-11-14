@@ -6,6 +6,7 @@ from typing import List, Dict, Optional
 
 from joblib import Memory
 from termcolor import colored
+from tqdm import tqdm
 from transformers import set_seed
 
 from .dataset_loader import DatasetLoader
@@ -73,6 +74,7 @@ def evaluate(
     n_episodes_per_class: int = 50,
     batch_size: int = 32,
     force_reload: bool = False,
+    progress_bar: bool = False,
     output_folder: str = "results",
     seed: int = 42,
 ):
@@ -87,6 +89,7 @@ def evaluate(
         n_episodes_per_class: The number of episodes per class.
         batch_size: The batch size for embedding.
         force_reload: Whether to force reload the datasets.
+        progress_bar: Whether to show a progress bar.
         output_folder: The folder to save the results to.
         seed: The random seed to use.
     """
@@ -112,8 +115,10 @@ def evaluate(
         X = model.embed_multiple(all_episodes, batch_size)
         return X, y
 
-    for dataset_name in datasets:
+    dataset_iterator = tqdm(datasets, desc="Evaluating Datasets", disable=not progress_bar)
+    for dataset_name in dataset_iterator:
         for episode_size in episode_sizes:
+            print(colored(f"--- Evaluating {dataset_name} (episode size: {episode_size}) ---", "cyan"))
             dset_loader = DatasetLoader(
                 dataset_name=dataset_name,
                 episode_size=episode_size,
@@ -133,6 +138,7 @@ def evaluate(
             tasks_to_run = [task_name] if task_name else config.get("tasks", {}).keys()
 
             for current_task_name in tasks_to_run:
+                print(colored(f"  - Running task: {current_task_name}", "blue"))
                 task_config = config.get("tasks", {}).get(current_task_name)
                 if not task_config:
                     print(colored(f"Task '{current_task_name}' not supported by dataset '{dataset_name}'. Skipping.", "yellow"))
@@ -163,4 +169,4 @@ def evaluate(
                 with open(os.path.join(scores_path, "metrics.json"), "w+") as ouf:
                     ouf.write(json.dumps(metrics))
 
-                print(f"{dataset_name}; episode size: {episode_size}; N: {n_episodes_per_class}; Task: {current_task_name}; Metrics: {metrics}")
+                print(colored(f"    -> Metrics: {metrics}", "green"))

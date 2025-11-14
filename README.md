@@ -79,6 +79,11 @@ steb clustering "rrivera1849/LUAR-MUD" -e 1
 steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam" -e 1
 ```
 
+### Additional Flags
+
+*   `--force-reload`: Force the reprocessing of datasets.
+*   `--progress-bar`: Show a progress bar during evaluation.
+
 ## Developer Guide
 
 This guide is for developers who want to extend the STEB framework by adding new models, datasets, or tasks.
