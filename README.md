@@ -38,24 +38,45 @@ import steb
 model_name = "rrivera1849/LUAR-MUD"
 model = steb.get_model(model_name)
 
-# Select datasets
-datasets = steb.get_datasets(datasets=["sms_spam"])
+# Select datasets for a specific task
+datasets = steb.get_supported_datasets(task_name="clustering")
 
 # Evaluate
-results = steb.evaluate(model, datasets=datasets, episode_sizes=[1])
+results = steb.evaluate(model, datasets=datasets, task_name="clustering", episode_sizes=[1])
 ```
 
 ## Running Evaluations from the CLI
 
 You can also run evaluations from the command line using the `steb` tool. The outputs will be stored under a new `./results` directory by default.
 
-Here's an example of how to run an evaluation on the `sms_spam` dataset with the `LUAR-MUD` model:
+### Listing Datasets
+
+To see the available datasets for a specific task, use the `--list-datasets` flag:
 
 ```bash
-steb run \
-    -t "sms_spam" \
-    -m "rrivera1849/LUAR-MUD" \
-    -e 1
+steb clustering --list-datasets
+```
+
+### Running Evaluations
+
+Here are some examples of how to run evaluations:
+
+**Run all tasks on all supported datasets for a given model:**
+
+```bash
+steb all "rrivera1849/LUAR-MUD" -e 1
+```
+
+**Run the clustering task on all supported datasets:**
+
+```bash
+steb clustering "rrivera1849/LUAR-MUD" -e 1
+```
+
+**Run the clustering task on a specific dataset:**
+
+```bash
+steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam" -e 1
 ```
 
 ## Developer Guide
@@ -93,7 +114,7 @@ To add a new dataset, you need to:
     *   If the `type` is `"custom"`, you must include `data_dir`: The path to the dataset's data directory. You will also need to create a `loader.py` file in the same directory and specify the loader function in the `config.json` with the `loader_function` key.
     *   If your dataset requires a custom label transformation, you can add the function to the `loader.py` file and specify it in the `config.json` with the `label_getter_function` key.
 
-Your new dataset will be automatically discovered and made available as a choice for the `-t`/`--tasks` argument.
+Your new dataset will be automatically discovered and made available as a choice for the `--dataset` argument.
 
 Here's an example of such a configuration for a dataset available in HuggingFace:
 
