@@ -2,7 +2,7 @@ from typing import Dict, Any, List
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import v_measure_score
-from tasks.base import Task
+from .base import Task
 
 class ClusteringTask(Task):
     """

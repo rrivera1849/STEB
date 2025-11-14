@@ -4,7 +4,7 @@ from scipy.interpolate import interp1d
 from scipy.optimize import brentq
 from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.metrics.pairwise import cosine_similarity
-from tasks.base import Task
+from .base import Task
 
 def calculate_eer(y_true, y_score):
     """
