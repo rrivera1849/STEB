@@ -6,8 +6,6 @@ set -u
 
 pip install -e .
 
-steb run \
-    -t "sms_spam" \
-    -m "rrivera1849/LUAR-MUD" \
-    --force-reload \
-    -e 1
+steb clustering --list-datasets
+
+steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam" --force-reload -e 1
