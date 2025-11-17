@@ -33,7 +33,11 @@ You can run evaluations for different tasks using the `main.py` script. The two 
 
 ### Clustering
 
-Here's an example of how to run a clustering evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
+The clustering task evaluates how well embeddings form clusters that align with style-based class labels (e.g., authorship). 
+Each class is represented by multiple "episodes" (groups of texts from the same style-based class). These episodes are embedded (e.g., by averaging embeddings for each text in the group), and K-Means clustering is applied to the embeddings. 
+The quality of the clustering is measured using [V-measure score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.v_measure_score.html), which is the harmonic mean of homogeneity (all cluster members belong to the same class) and completeness (all members of a class are in the same cluster). 
+
+Here's an example of how to run a clustering evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
 
 ```bash
 python main.py clustering \
