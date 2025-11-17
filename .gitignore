@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Do not include IDE folders
+*/.idea/
+*/.vscode/
+*/.vscode-test/
