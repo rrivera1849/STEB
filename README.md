@@ -48,7 +48,14 @@ python main.py clustering \
 
 ### Pair Classification
 
-Here's an example of how to run a pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
+The pair classification task evaluates how well embeddings can distinguish whether two text groups (again controlled via episode parameter) come from the same style-based class (e.g., same author) or different classes. This is calculated using cosine similarity between the embeddings of the two text groups. 
+
+**Metrics:**
+- **EER (Equal Error Rate)**: The error rate at the threshold where false positive rate equals false negative rate. Lower is better.
+- **AUC (Area Under ROC Curve)**: Measures overall discriminative ability. Higher is better (range 0-1).
+- **AUC@FPR**: AUC calculated at specific false positive rate thresholds (0.01, 0.05, 0.10, 0.20, 0.30, 0.50), useful for understanding performance at different operating points.
+
+Here's an example of how to run a pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
 
 ```bash
 python main.py pair_classification \
