@@ -12,8 +12,8 @@ STEB (Style Text Embedding Benchmark) is a framework for evaluating style text e
 
 2.  **Create a virtual environment and install dependencies:**
     ```bash
-    python3 -m venv venv
-    source venv/bin/activate
+    python3.12 -m venv .venv
+    source .venv/bin/activate
     pip install -r requirements.txt
     ```
 
@@ -33,7 +33,11 @@ You can run evaluations for different tasks using the `main.py` script. The two 
 
 ### Clustering
 
-Here's an example of how to run a clustering evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
+The clustering task evaluates how well embeddings form clusters that align with style-based class labels (e.g., authorship). 
+Each class is represented by multiple "episodes" (groups of texts from the same style-based class). These episodes are embedded (e.g., by averaging embeddings for each text in the group), and K-Means clustering is applied to the embeddings. 
+The quality of the clustering is measured using [V-measure score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.v_measure_score.html), which is the harmonic mean of homogeneity (all cluster members belong to the same class) and completeness (all members of a class are in the same cluster). 
+
+Here's an example of how to run a clustering evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
 
 ```bash
 python main.py clustering \
@@ -44,7 +48,14 @@ python main.py clustering \
 
 ### Pair Classification
 
-Here's an example of how to run a pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model:
+The pair classification task evaluates how well embeddings can distinguish whether two text groups (again controlled via episode parameter) come from the same style-based class (e.g., same author) or different classes. This is calculated using cosine similarity between the embeddings of the two text groups. 
+
+**Metrics:**
+- **EER (Equal Error Rate)**: The error rate at the threshold where false positive rate equals false negative rate. Lower is better.
+- **AUC (Area Under ROC Curve)**: Measures overall discriminative ability. Higher is better (range 0-1).
+- **AUC@FPR**: AUC calculated at specific false positive rate thresholds (0.01, 0.05, 0.10, 0.20, 0.30, 0.50), useful for understanding performance at different operating points.
+
+Here's an example of how to run a pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
 
 ```bash
 python main.py pair_classification \
