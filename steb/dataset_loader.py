@@ -9,7 +9,7 @@ from typing import Dict, List
 from datasets import load_dataset
 from termcolor import colored
 
-from utils import CACHE_DIR, PROCESSED_DATA_DIR
+from .utils import CACHE_DIR, PROCESSED_DATA_DIR
 
 def record_handler(example, text_getter, label_getter, label_transform=None):
     """
@@ -68,7 +68,8 @@ class DatasetLoader(object):
         """
         Loads the config.json file for the specified dataset.
         """
-        config_path = os.path.join("steb_datasets", self.dataset_name, "config.json")
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(package_dir, "steb_datasets", self.dataset_name, "config.json")
         if not os.path.exists(config_path):
             raise ValueError(f"Configuration file not found for dataset: {self.dataset_name}")
         with open(config_path, "r") as f:
@@ -91,7 +92,7 @@ class DatasetLoader(object):
             loader_kwargs["cache_dir"] = CACHE_DIR
             dataset_iter = load_dataset(**loader_kwargs)
         elif self.config["type"] == "custom":
-            loader_module = importlib.import_module(f"steb_datasets.{self.dataset_name}.loader")
+            loader_module = importlib.import_module(f"steb.steb_datasets.{self.dataset_name}.loader")
             loader_fn = getattr(loader_module, self.config["loader_function"])
             dataset_iter = loader_fn(self.config["data_dir"])
         else:
@@ -101,7 +102,7 @@ class DatasetLoader(object):
         label_getter = self.config["record_handler"]["label_getter"]
         label_transform = None
         if "label_getter_function" in self.config["record_handler"]:
-            loader_module = importlib.import_module(f"steb_datasets.{self.dataset_name}.loader")
+            loader_module = importlib.import_module(f"steb.steb_datasets.{self.dataset_name}.loader")
             label_transform = getattr(loader_module, self.config["record_handler"]["label_getter_function"])
 
         handler = partial(record_handler, text_getter=text_getter, label_getter=label_getter, label_transform=label_transform)
