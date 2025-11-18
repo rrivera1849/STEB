@@ -76,6 +76,13 @@ def main():
                                            default=None,
                                            help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
 
+    # Order alignment task parser
+    order_alignment_parser = subparsers.add_parser("order_alignment", help="Run order alignment task.", parents=[base_parser])
+    order_alignment_parser.add_argument("--dataset",
+                                        choices=get_supported_datasets("order_alignment"),
+                                        default=None,
+                                        help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
+
     FLAGS = parser.parse_args()
     set_seed(FLAGS.seed)
 

@@ -64,6 +64,14 @@ python main.py pair_classification \
     -e 5
 ```
 
+### Order Alignment
+
+The order alignment task evaluates how well embeddings can be used to align the stylistic order of one unordered set of texts to that of another, ordered set of texts. The ordered set of texts has to be meaningfully ordered in a style-based graded dimension (e.g., the first text is the least formal, the second text is more formal, and so on). The other set of texts has to vary along the same graded dimension, but is unordered. There is no training involved in this task, it evalautes the intrinsic sensitivity of the embeddings to the investigated graded stylistic dimension. This is a generalization of the STEL task.
+
+Method: The unordered set of text is embedded and then ordered by reframing the problem as an Assignment problem and using scipy's optimize.linear_sum_assignment, which maximizes the total cosine similarity between the embeddings of the ordered set and the embeddings at the same position of the newly ordered set.
+
+Evaluation: The quality of the alignment is measured using Spearman's rank correlation coefficient between the predicted order and the true order.
+
 ## Developer Guide
 
 This guide is for developers who want to extend the STEB framework by adding new models, datasets, or tasks.
