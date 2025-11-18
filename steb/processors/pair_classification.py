@@ -1,5 +1,5 @@
 from typing import Any, List
-from processors.base import Processor
+from .base import Processor
 
 class PairClassificationProcessor(Processor):
     """

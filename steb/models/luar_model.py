@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from transformers import AutoModel, AutoTokenizer
-from models.base import STEBModel
+from .base import STEBModel
 from typing import List
 
 class LUARModel(STEBModel):
@@ -17,6 +17,7 @@ class LUARModel(STEBModel):
         Args:
             model_name_or_path: The name or path of the LUAR model.
         """
+        self.model_name_or_path = model_name_or_path
         self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
