@@ -47,42 +47,54 @@ results = steb.evaluate(model, datasets=datasets, task_name="clustering", episod
 
 ## Running Evaluations from the CLI
 
-You can also run evaluations from the command line using the `steb` tool. The outputs will be stored under a new `./results` directory by default.
+You can also run evaluations from the command line using the `steb` tool. The outputs will be stored under a new `./outputs` directory by default, but can be modified with the `--output-folder` flag.
 
-### Listing Datasets
-
-To see the available datasets for a specific task, use the `--list-datasets` flag:
+CLI Examples:
 
 ```bash
+# List available datasets that support the "clustering" task:
 steb clustering --list-datasets
-```
 
-### Running Evaluations
-
-Here are some examples of how to run evaluations:
-
-**Run all tasks on all supported datasets for a given model:**
-
-```bash
+# Run all tasks on all supported datasets for a given model:
 steb all "rrivera1849/LUAR-MUD" -e 1
-```
 
-**Run the clustering task on all supported datasets:**
+# Run the clustering task on all supported datasets:
+steb clustering rrivera1849/LUAR-MUD -e 1
 
-```bash
-steb clustering "rrivera1849/LUAR-MUD" -e 1
-```
-
-**Run the clustering task on a specific dataset:**
-
-```bash
+# Run the clustering task on a specific dataset:
 steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam" -e 1
 ```
 
-### Additional Flags
+## Task Descriptions
 
-*   `--force-reload`: Force the reprocessing of datasets.
-*   `--progress-bar`: Show a progress bar during evaluation.
+In what follows, we detail the various tasks and the metrics they calculate.
+
+### Clustering
+
+The clustering task evaluates how well embeddings form clusters that align with style-based class labels (e.g., authorship). 
+Each class is represented by multiple "episodes" (groups of texts from the same style-based class). These episodes are embedded (e.g., by averaging embeddings for each text in the group), and K-Means clustering is applied to the embeddings. 
+The quality of the clustering is measured using [V-measure score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.v_measure_score.html), which is the harmonic mean of homogeneity (all cluster members belong to the same class) and completeness (all members of a class are in the same cluster). 
+
+Here's an example of how to run a clustering evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
+
+```bash
+steb clustering rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
+```
+
+### Pair Classification
+
+The pair classification task evaluates how well embeddings can distinguish whether two text groups (again controlled via episode parameter) come from the same style-based class (e.g., same author) or different classes. This is calculated using cosine similarity between the embeddings of the two text groups. 
+
+**Metrics:**
+- **EER (Equal Error Rate)**: The error rate at the threshold where false positive rate equals false negative rate. Lower is better.
+- **AUC (Area Under ROC Curve)**: Measures overall discriminative ability. Higher is better (range 0-1).
+- **AUC@FPR**: AUC calculated at specific false positive rate thresholds (0.01, 0.05, 0.10, 0.20, 0.30, 0.50), useful for understanding performance at different operating points.
+
+Here's an example of how to run a pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
+
+```bash
+steb pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
+```
 
 ## Developer Guide
 
