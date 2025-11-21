@@ -12,16 +12,14 @@ class MockModel:
         """
         embeddings = []
         for episode in episodes:
-            # For single text episodes, use the text length as a simple feature
             text = episode[0] if isinstance(episode, list) else episode
-            # Create a simple embedding based on text characteristics
             length_feature = len(text) / 100.0
-            embeddings.append(np.array([length_feature, length_feature * 0.5]))
+            embeddings.append(np.array([length_feature, 1 - length_feature]))
         return np.array(embeddings)
 
 def test_order_alignment():
     """
-    Test the order_alignment task with dummy data.
+    Test the order_alignment task with dummy data including distractors.
     Should return aggregated metrics across all test cases.
     """
     print("Testing order_alignment task...")
@@ -36,7 +34,6 @@ def test_order_alignment():
     # Create mock model
     model = MockModel()
 
-    # Collect all data from records
     all_ordered_embeddings = []
     all_unordered_embeddings = []
     all_true_indices = []
@@ -51,35 +48,34 @@ def test_order_alignment():
         unordered_texts = record["unordered_texts"]
         true_indices = record["true_indices"]
 
-        # Embed both sets
-        ordered_embeddings = model.embed_multiple([[text] for text in ordered_texts], batch_size=32)
-        unordered_embeddings = model.embed_multiple([[text] for text in unordered_texts], batch_size=32)
+        ordered_embeddings = model.embed_multiple(ordered_texts, batch_size=32)
+        unordered_embeddings = model.embed_multiple(unordered_texts, batch_size=32)
 
         all_ordered_embeddings.append(ordered_embeddings)
         all_unordered_embeddings.append(unordered_embeddings)
         all_true_indices.append(true_indices)
 
-    # Process with processor (should handle multiple records and aggregate)
     from processors.order_alignment import OrderAlignmentProcessor
     processor = OrderAlignmentProcessor()
     processed_data = processor.process(all_ordered_embeddings, all_unordered_embeddings, all_true_indices)
 
-    # Evaluate with task (should return aggregated metrics)
     from tasks.order_alignment import OrderAlignmentTask
     task = OrderAlignmentTask()
     metrics = task.evaluate(*processed_data)
 
     print(f"\nOverall Metrics: {metrics}")
 
-    # Verify expected metrics are present
     assert "spearman_correlation" in metrics, "Should have spearman_correlation"
+    assert "f1_score" in metrics, "Should have f1_score"
     assert isinstance(metrics["spearman_correlation"], (float, np.floating)), "Correlation should be a float"
+    assert isinstance(metrics["f1_score"], (float, np.floating)), "F1 score should be a float"
 
-    # Check that correlation is in valid range [-1, 1]
     assert -1.0 <= metrics["spearman_correlation"] <= 1.0, f"Correlation {metrics['spearman_correlation']} out of range"
+    assert 0.0 <= metrics["f1_score"] <= 1.0, f"F1 score {metrics['f1_score']} out of range"
 
     print("✓ Order alignment test passed!")
     print(f"✓ Overall Spearman correlation: {metrics['spearman_correlation']:.3f}")
+    print(f"✓ Overall F1 score: {metrics['f1_score']:.3f}")
     return metrics
 
 if __name__ == "__main__":
