@@ -70,7 +70,7 @@ The order alignment task evaluates how well embeddings can be used to align the 
 
 Method: The unordered and ordered sets of texts are embedded and then aligned by reframing the problem as an Assignment problem and using scipy's optimize.linear_sum_assignment, which maximizes the total cosine similarity between the embeddings of the ordered set and the selected embeddings at the same position of the newly ordered set. 
 
-Evaluation: The quality of the alignment is measured using Spearman's rank correlation coefficient between the predicted order and the true order.
+Evaluation: The quality of the alignment is measured using Spearman's rank correlation coefficient between the predicted order and the true order. If distractors are present, there is an additional evaluation metric, a f1 score measuring how well the method identified and excluded distractors from the alignment.
 
 ## Developer Guide
 
