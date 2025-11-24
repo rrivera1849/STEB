@@ -16,6 +16,9 @@
     },
     "clustering": {
       "processor": "clustering"
+    },
+    "order_alignment": {
+      "processor": "order_alignment"
     }
   }
 }
