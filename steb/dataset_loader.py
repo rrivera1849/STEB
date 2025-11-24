@@ -4,14 +4,20 @@ import os
 import importlib
 from collections import defaultdict
 from functools import partial
-from typing import Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from datasets import load_dataset
 from termcolor import colored
 
 from .utils import CACHE_DIR, PROCESSED_DATA_DIR
 
-def record_handler(example, text_getter, label_getter, label_transform=None):
+def record_handler(
+    example: Dict[str, Any],
+    text_getter: str,
+    label_getter: str,
+    label_transform: Optional[Callable[[Any], Any]] = None,
+    custom_record_handler: Optional[Callable[[Dict[str, Any]], Optional[Dict[str, Any]]]] = None,
+) -> Optional[Dict[str, Any]]:
     """
     Extracts text and a single label from a dataset record.
 
@@ -20,10 +26,17 @@ def record_handler(example, text_getter, label_getter, label_transform=None):
         text_getter: The key to access the text in the example.
         label_getter: The key to access the label in the example.
         label_transform: An optional function to transform the label.
+        custom_record_handler: An optional custom function to preprocess the record,
+            returns None to skip the record, or a modified record with text_getter and label_getter keys.
 
     Returns:
         A dictionary with "text" and "label" keys, or None if the text or label is missing.
     """
+    if custom_record_handler:
+        example = custom_record_handler(example)
+        if example is None:
+            return None
+
     text = example[text_getter]
     label = example[label_getter]
     if isinstance(label, list):
@@ -34,6 +47,16 @@ def record_handler(example, text_getter, label_getter, label_transform=None):
 
     if label_transform:
         label = label_transform(label)
+
+    if isinstance(text, str):
+        text = [text]
+    elif isinstance(text, list):
+        text = [t for t in text if isinstance(t, str)]
+    else:
+        return None
+
+    if len(text) == 0:
+        return None
     
     return {"text": text, "label": label}
 
@@ -104,11 +127,21 @@ class DatasetLoader(object):
         if "label_getter_function" in self.config["record_handler"]:
             loader_module = importlib.import_module(f"steb.steb_datasets.{self.dataset_name}.loader")
             label_transform = getattr(loader_module, self.config["record_handler"]["label_getter_function"])
+        custom_record_handler = None
+        if "custom_record_handler_function" in self.config["record_handler"]:
+            loader_module = importlib.import_module(f"steb.steb_datasets.{self.dataset_name}.loader")
+            custom_record_handler = getattr(loader_module, self.config["record_handler"]["custom_record_handler_function"])
 
-        handler = partial(record_handler, text_getter=text_getter, label_getter=label_getter, label_transform=label_transform)
+        handler = partial(
+            record_handler,
+            text_getter=text_getter,
+            label_getter=label_getter,
+            label_transform=label_transform,
+            custom_record_handler=custom_record_handler,
+        )
         
         N = self.episode_size * self.n_episodes_per_class
-        dataset: Dict[str, List[str]] = defaultdict(list)
+        dataset: Dict[str, List[List[str]]] = defaultdict(list)
         valid_labels = self.get_valid_labels(dataset_iter, handler)
 
         for example in dataset_iter:
