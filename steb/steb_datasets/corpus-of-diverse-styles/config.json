@@ -3,7 +3,8 @@
   "type": "huggingface",
   "record_handler": {
     "text_getter": "text",
-    "label_getter": "label"
+    "label_getter": "label",
+    "custom_record_handler_function": "corpus_of_diverse_styles_record_handler"
   },
   "loader_kwargs": {
     "path": "billray110/corpus-of-diverse-styles",
