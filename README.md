@@ -96,6 +96,14 @@ Here's an example of how to run a pair classification evaluation on the `corpus-
 steb pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
 ```
 
+### Order Alignment
+
+The order alignment task evaluates how well embeddings can be used to align the stylistic order of one unordered set of texts to that of another, ordered set of texts. The ordered set of texts has to be meaningfully ordered in a style-based graded dimension (e.g., the first text is the least formal, the second text is more formal, and so on). The other set of texts has to vary along the same graded dimension, but is unordered. There is no training involved in this task, it evalautes the intrinsic sensitivity of the embeddings to the investigated graded stylistic dimension. This is a generalization of the STEL task. This set of problems includes tasks where the unordered set includes "distractor" texts that are too dissimilar in style to be aligned to any text in the ordered set, for example, they have a completely different style, but might be interesting to test because they are about the same topic. In a setup with a one element ordered set, and with a two element unordered set including one distractor, this is equivalent to the STEL-or-Content task.
+
+Method: The unordered and ordered sets of texts are embedded and then aligned by reframing the problem as an Assignment problem and using scipy's optimize.linear_sum_assignment, which maximizes the total cosine similarity between the embeddings of the ordered set and the selected embeddings at the same position of the newly ordered set.
+
+Evaluation: The quality of the alignment is measured using Spearman's rank correlation coefficient between the predicted order and the true order. If distractors are present, there is an additional evaluation metric, a f1 score measuring how well the method identified and excluded distractors from the alignment.
+
 ## Developer Guide
 
 This guide is for developers who want to extend the STEB framework by adding new models, datasets, or tasks.
