@@ -1,0 +1,15 @@
+{
+  "dataset_name": "dummy_order_alignment",
+  "type": "custom",
+  "data_dir": "./steb/steb_datasets/dummy_order_alignment",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "loader_function": "load_dummy_order_alignment_dataset",
+  "tasks": {
+    "order_alignment": {
+      "processor": "order_alignment"
+    }
+  }
+}
