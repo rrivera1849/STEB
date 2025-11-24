@@ -36,6 +36,11 @@ def main():
     pair_classification_parser.add_argument("--dataset", choices=get_supported_datasets("pair_classification"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     pair_classification_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
+    # 'order_alignment' task parser
+    order_alignment_parser = subparsers.add_parser("order_alignment", help="Run order alignment task.", parents=[base_parser])
+    order_alignment_parser.add_argument("--dataset", choices=get_supported_datasets("order_alignment"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
+    order_alignment_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
+
     # Handle --list-datasets before full parsing to avoid required arg errors
     if "--list-datasets" in sys.argv:
         task = sys.argv[1]
