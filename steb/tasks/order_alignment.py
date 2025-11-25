@@ -42,7 +42,10 @@ def align_and_score(emb_src: np.ndarray, emb_tgt: np.ndarray) -> Dict[str, float
     Assumes cosine similarity (embeddings already normalized).
     """
     n_src = emb_src.shape[0]
-    if n_src < 2:
+    n_tgt = emb_tgt.shape[0]
+
+    # Need at least 2 positions in target to have meaningful ordering
+    if n_tgt < 2:
         return {"accuracy": 0.0, "spearman": 0.0}
 
     # cosine since normalized
