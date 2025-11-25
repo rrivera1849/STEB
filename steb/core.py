@@ -130,12 +130,13 @@ def evaluate(
         all_episodes = [episode for label, episodes in episodes_by_label.items() for episode in episodes]
         y = [label for label, episodes in episodes_by_label.items() for _ in episodes]
 
-        # Flatten episodes for embedding: [[[pos0], [pos1], ...], ...] -> [[pos0], [pos1], [pos0], [pos1], ...]
+        # Flatten episodes for embedding: [[[pos0s], [pos1s], ...], ...] -> [[pos0s], [pos1s], [pos0s], [pos1s], ...]
         flat_episodes = [position for episode in all_episodes for position in episode]
-
-        # Embed all positions, TODO: check if we want to change embed_multiple input expectations
+        # Embed all positions,
+        # TODO:
+        #   - check if we want this to do sth different depending on the task (if only 0th entry needed, this might do too much)
+        #   - check if we want to rewrite embed_multiple to accept the format we actually use
         X_flat = model.embed_multiple(flat_episodes, batch_size)
-
         # Reshape back to episode structure
         num_positions = len(all_episodes[0])  # All episodes have same number of positions
         X = [X_flat[i:i+num_positions] for i in range(0, len(X_flat), num_positions)]
