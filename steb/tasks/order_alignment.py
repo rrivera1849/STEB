@@ -22,11 +22,16 @@ def group_indices_by_label(labels: List[Hashable]) -> Dict[Hashable, List[int]]:
     return label_to_indices
 
 
-def align_and_score(emb_src: np.ndarray, emb_tgt: np.ndarray) -> Dict[str, float]:
+def align_and_score(emb_src: np.ndarray, emb_tgt: np.ndarray, offset: int = 0) -> Dict[str, float]:
     """
     Align positions from emb_src to emb_tgt with Hungarian algorithm and compute
     alignment accuracy. emb_src has shape (n_src, dim), emb_tgt (n_tgt, dim).
     Assumes cosine similarity (embeddings already normalized).
+
+    Args:
+        emb_src: Source embeddings to align.
+        emb_tgt: Target embeddings to align to.
+        offset: Position offset for expected alignment (e.g., if src starts at position 1, offset=1).
     """
     n_src = emb_src.shape[0]
     n_tgt = emb_tgt.shape[0]
@@ -46,7 +51,8 @@ def align_and_score(emb_src: np.ndarray, emb_tgt: np.ndarray) -> Dict[str, float
     order = np.argsort(row_indices)
     predicted_positions = col_indices[order]
 
-    true_positions = np.arange(n_src)
+    # Expected positions account for offset (e.g., [1, 2, 3] if offset=1)
+    true_positions = np.arange(n_src) + offset
     accuracy = float(np.mean(predicted_positions == true_positions))
 
     return {"accuracy": accuracy}
@@ -123,7 +129,7 @@ class OrderAlignmentTask(Task):
                 emb_j_distr_first = emb_j.copy()
                 emb_j_distr_first[0] = emb_i[0]         # j's first replaced by i's first
 
-                distr_first_scores = align_and_score(emb_i_ref_first, emb_j_distr_first)
+                distr_first_scores = align_and_score(emb_i_ref_first, emb_j_distr_first, offset=1)
                 distractor_first_accuracies.append(distr_first_scores["accuracy"])
 
         # Calculate mean of both distractor variants
