@@ -18,7 +18,7 @@ rm -rf hate-speech-dataset/.git
 git clone --depth 1 https://github.com/t-davidson/hate-speech-and-offensive-language.git
 rm -rf hate-speech-and-offensive-language/.git
 git clone --depth 1 https://github.com/mhjabreel/CharCnn_Keras.git
-rm -rf CharCnn_Keraalso as/.git
+rm -rf CharCnn_Keras/.git
 
 # Note: The blog_authorship_corpus download is currently disabled due to an unreliable server.
 # curl -k -O http://www.cs.biu.ac.il/~koppel/blogs/blogs.zip
