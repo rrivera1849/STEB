@@ -183,4 +183,8 @@ class DatasetLoader(object):
         label_to_count = {k: v for k, v in label_to_count.items() if v >= N}
         valid_labels = list(label_to_count.keys())
 
+        if not valid_labels:
+            raise Warning(f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
+                          f"This might be expected for dummy datasets.")
+
         return valid_labels
