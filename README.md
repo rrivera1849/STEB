@@ -153,6 +153,24 @@ To add a new dataset, you need to:
 
 Your new dataset will be automatically discovered and made available as a choice for the `--dataset` argument.
 
+### Running Tests
+
+To run the test suite locally:
+
+1. Follow the installation steps above (**`pip install -e .`** inside your virtualenv).
+
+2. Install test-only dependencies:
+
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+3. Run the tests from the project root:
+
+   ```bash
+   pytest
+   ```
+
 Here's an example of such a configuration for a dataset available in HuggingFace:
 
 ```

@@ -67,7 +67,7 @@ class OrderAlignmentTask(Task):
     Includes a distractor variant where the least-intense item from i is moved
     into j and removed from i.
     """
-    def evaluate(self, embeddings: np.ndarray, labels: List[Hashable]) -> Dict[str, float]:
+    def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
         """
         Args:
             embeddings: The embeddings to evaluate.
