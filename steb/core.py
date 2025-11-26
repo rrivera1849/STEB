@@ -130,6 +130,11 @@ def evaluate(
         all_episodes = [episode for label, episodes in episodes_by_label.items() for episode in episodes]
         y = [label for label, episodes in episodes_by_label.items() for _ in episodes]
 
+        # assert all elements in all_episodes have same length
+        num_positions = len(all_episodes[0])
+        assert all([len(episode) == num_positions for episode in all_episodes]), \
+            ("All entries must have the same number of positions, "
+             "functionality for variable-length text sets not implemented.")
         # Flatten episodes for embedding: [[[pos0s], [pos1s], ...], ...] -> [[pos0s], [pos1s], [pos0s], [pos1s], ...]
         flat_episodes = [position for episode in all_episodes for position in episode]
         # Embed all positions,
@@ -138,7 +143,6 @@ def evaluate(
         #   - check if we want to rewrite embed_multiple to accept the format we actually use
         X_flat = model.embed_multiple(flat_episodes, batch_size)
         # Reshape back to episode structure
-        num_positions = len(all_episodes[0])  # All episodes have same number of positions
         X = [X_flat[i:i+num_positions] for i in range(0, len(X_flat), num_positions)]
 
         return X, y
