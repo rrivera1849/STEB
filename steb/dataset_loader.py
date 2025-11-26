@@ -2,6 +2,7 @@
 import json
 import os
 import importlib
+import warnings
 from collections import defaultdict
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional
@@ -184,7 +185,7 @@ class DatasetLoader(object):
         valid_labels = list(label_to_count.keys())
 
         if not valid_labels:
-            raise Warning(f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
+            raise warnings.warn(f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
                           f"This might be expected for dummy datasets.")
 
         return valid_labels
