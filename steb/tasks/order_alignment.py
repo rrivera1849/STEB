@@ -115,7 +115,10 @@ class OrderAlignmentTask(Task):
                 if emb_i.shape[0] < 2:
                     continue
 
-                # TODO: this is not symmetric, would we want to change sth about itertools.combinations?
+                # TODO: this is not symmetric (itertools.combinations only selects 2 unique elements)
+                #  to reduce and avoid exponential compute
+                #       I expect the averaged scores not to change much,
+                #       but ordering of elements in datasets might affect result scores like this
                 # Distractor variant 1: Replace last (least-intense) position
                 emb_i_ref_last = emb_i[:-1]             # i without its last (least-intense) item
                 emb_j_distr_last = emb_j.copy()
