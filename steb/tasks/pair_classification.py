@@ -30,16 +30,21 @@ class PairClassificationTask(Task):
         """
         Evaluates the performance of a pair classification model using EER and AUC.
 
+        Always uses the 0th entries (pos0_emb), so the "most" style entries in the processed dataset.
+
         Args:
-            embeddings: The embeddings to evaluate.
+            embeddings: The embeddings to evaluate. Expected format: [[pos0_emb, pos1_emb, ...], ...]
             labels: The corresponding labels.
 
         Returns:
             A dictionary of evaluation metrics, including EER, AUC, and AUC at various FPR thresholds.
         """
+        # Extract the 0th position (most style) from record
+        embeddings_flat = np.array([episode[0] for episode in embeddings])
+
         scores = cosine_similarity(
-            np.array(embeddings).reshape(-1, embeddings[0].shape[-1]),
-            np.array(embeddings).reshape(-1, embeddings[0].shape[-1])
+            embeddings_flat.reshape(-1, embeddings_flat[0].shape[-1]),
+            embeddings_flat.reshape(-1, embeddings_flat[0].shape[-1])
         )
         y = np.array(labels)
         labels = y.reshape(-1, 1) == y.reshape(1, -1)

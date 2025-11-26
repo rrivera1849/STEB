@@ -8,6 +8,7 @@ rm -rf hate-speech-and-offensive-language
 rm -rf CharCnn_Keras
 rm -rf enron_authorship_corpus
 rm -rf 'Enron (80 authors)'
+rm -rf STEL
 rm -f blogs.zip
 rm -f n77w7mygwg-1.zip
 rm -f Enron-Authorship-Verification-Corpus.zip
@@ -32,3 +33,9 @@ mv 'Enron (80 authors)' enron_authorship_corpus
 gdown https://drive.google.com/file/d/17eLjiDLhXXtrfqC1FzToHKrwTcwsAolN/view?usp=sharing --fuzzy
 tar zxvf jigsaw-toxic-comment-classification-challenge.tar.gz
 rm jigsaw-toxic-comment-classification-challenge.tar.gz
+
+git clone --depth 1 --filter=blob:none --sparse https://github.com/nlpsoc/STEL.git STEL
+cd STEL
+git sparse-checkout set Data/STEL
+rm -rf .git
+cd ..
