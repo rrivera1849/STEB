@@ -107,7 +107,7 @@ The order alignment task evaluates how well embeddings can be used to align the 
 
 **Evaluation**: The task includes two variants:
 1. **Baseline**: Compares full position sequences and measures alignment accuracy (proportion of positions correctly matched)
-2. **Distractor variant**: Moves the least-intense position from one sample into another, testing robustness to style distractors
+2. **Distractor variant**: Moves the least-intense position and the most-intense position from one sample into another, testing robustness to style distractors
 
 **Metrics:**
 - **acc_mean**: Average alignment accuracy across all pairs (baseline variant)
