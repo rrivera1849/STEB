@@ -101,18 +101,50 @@ def evaluate(
     def extract_features(dataset, episode_size, n_episodes_per_class, batch_size):
         """
         Extracts features from the dataset using the specified model.
+
+        Expects dataset format:
+            {"label": [[seq1_most, ..., seq1_least], [seq2_most, ..., seq2_least], ...]}
+
+        Each label maps to a list of ordered sequences. Sequences are grouped into
+        episodes, then organized by position (most X, ..., least X).
+
         This function is cached to avoid re-extracting features on subsequent runs.
         """
         episodes_by_label = {}
-        for label, episodes in dataset.items():
-            episodes_by_label[label] = [episodes[i:i+episode_size] for i in range(0, len(episodes), episode_size)]
+        for label, text_list in dataset.items():
+            # Validate nested list format
+            assert text_list and isinstance(text_list[0], list), \
+                f"Dataset for label '{label}' must be a list of lists (ordered sequences)"
+
+            seq_len = len(text_list[0])
+
+            # Group sequences into episodes, organize by position
+            episodes_by_label[label] = [
+                [[seq[pos] for seq in text_list[i:i+episode_size]] for pos in range(seq_len)]
+                for i in range(0, len(text_list), episode_size)
+            ]
+
             assert len(episodes_by_label[label]) == n_episodes_per_class
-            assert all([len(episode) == episode_size for episode in episodes_by_label[label]])
+            assert all([len(episode[0]) == episode_size for episode in episodes_by_label[label]])
 
         all_episodes = [episode for label, episodes in episodes_by_label.items() for episode in episodes]
         y = [label for label, episodes in episodes_by_label.items() for _ in episodes]
 
-        X = model.embed_multiple(all_episodes, batch_size)
+        # assert all elements in all_episodes have same length
+        num_positions = len(all_episodes[0])
+        assert all([len(episode) == num_positions for episode in all_episodes]), \
+            ("All entries must have the same number of positions, "
+             "functionality for variable-length text sets not implemented.")
+        # Flatten episodes for embedding: [[[pos0s], [pos1s], ...], ...] -> [[pos0s], [pos1s], [pos0s], [pos1s], ...]
+        flat_episodes = [position for episode in all_episodes for position in episode]
+        # Embed all positions,
+        # TODO:
+        #   - check if we want this to do sth different depending on the task (if only 0th entry needed, this might do too much)
+        #   - check if we want to rewrite embed_multiple to accept the format we actually use
+        X_flat = model.embed_multiple(flat_episodes, batch_size)
+        # Reshape back to episode structure
+        X = [X_flat[i:i+num_positions] for i in range(0, len(X_flat), num_positions)]
+
         return X, y
 
     dataset_iterator = tqdm(datasets, desc="Evaluating Datasets", disable=not progress_bar)

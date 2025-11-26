@@ -96,6 +96,24 @@ Here's an example of how to run a pair classification evaluation on the `corpus-
 steb pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
 ```
 
+### Order Alignment
+
+The order alignment task evaluates how well embeddings can be used to align the stylistic order of one unordered set of text groups to that of another, ordered set of text groups. Each text group is an episode (controlled via the episode parameter, similar to clustering and pair classification tasks). The ordered set of text groups has to be meaningfully ordered in a style-based graded dimension (e.g., the first text group is the least formal, the second text group is more formal, and so on). The other set of text groups has to vary along the same graded dimension, but is unordered. There is no training involved in this task, it evaluates the intrinsic sensitivity of the embeddings to the investigated graded stylistic dimension. This is a generalization of the STEL task. Every order alignment task also performs a "distractor" version of the same task, where the unordered set includes "distractor" text groups that are too dissimilar in style to be aligned to any text group in the ordered set, for example, they have a completely different style, but might be interesting to test because they are about the same topic. In a setup with a one element ordered set, and with a two element unordered set including one distractor, this is equivalent to the STEL-or-Content task.
+
+**Method**:
+- For each pair of text sets with matching labels, embeddings are computed for all positions (most style → least style)
+- The Hungarian algorithm (`scipy.optimize.linear_sum_assignment`) finds the optimal one-to-one matching between positions that maximizes total cosine similarity
+- Negative similarities are clamped to 0, and the cost matrix uses distance (1 - similarity)
+
+**Evaluation**: The task includes two variants:
+1. **Baseline**: Compares full position sequences and measures alignment accuracy (proportion of positions correctly matched)
+2. **Distractor variant**: Moves the least-intense position and the most-intense position from one sample into another, testing robustness to style distractors
+
+**Metrics:**
+- **acc_mean**: Average alignment accuracy across all pairs (baseline variant)
+- **distractor_acc_mean**: Average alignment accuracy with style distractors present
+
+
 ## Developer Guide
 
 This guide is for developers who want to extend the STEB framework by adding new models, datasets, or tasks.
@@ -127,11 +145,31 @@ To add a new dataset, you need to:
     *   `type`: The type of the dataset, either `"huggingface"` or `"custom"`.
     *   `tasks`: A dictionary that maps task names to their configurations.
     *   `record_handler`: Specifies how to extract the text and label from a dataset record. It should have `text_getter` and `label_getter` keys.
+        *   For simple cases, `text_getter` and `label_getter` are field names to extract from each record.
+        *   For complex processing, you can specify `custom_record_handler_function` in the `record_handler` to point to a custom function in `loader.py` that processes each record and returns the desired format.
     *   If the `type` is `"huggingface"`, you must include `loader_kwargs`: A dictionary of arguments that will be passed to the `load_dataset` function from the Hugging Face `datasets` library.
     *   If the `type` is `"custom"`, you must include `data_dir`: The path to the dataset's data directory. You will also need to create a `loader.py` file in the same directory and specify the loader function in the `config.json` with the `loader_function` key.
     *   If your dataset requires a custom label transformation, you can add the function to the `loader.py` file and specify it in the `config.json` with the `label_getter_function` key.
 
 Your new dataset will be automatically discovered and made available as a choice for the `--dataset` argument.
+
+### Running Tests
+
+To run the test suite locally:
+
+1. Follow the installation steps above (**`pip install -e .`** inside your virtualenv).
+
+2. Install test-only dependencies:
+
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+3. Run the tests from the project root:
+
+   ```bash
+   pytest
+   ```
 
 Here's an example of such a configuration for a dataset available in HuggingFace:
 
