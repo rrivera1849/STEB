@@ -1,0 +1,16 @@
+{
+  "dataset_name": "STEL",
+  "type": "custom",
+  "data_dir": "raw_datasets/STEL",
+  "loader_function": "load_stel",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label",
+    "custom_record_handler_function": "stel_record_handler"
+  },
+  "tasks": {
+    "order_alignment": {
+      "processor": "order_alignment"
+    }
+  }
+}
