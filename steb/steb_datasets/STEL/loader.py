@@ -145,6 +145,25 @@ def split_id_components(id_part: str, style_type: str) -> List[str]:
     return components
 
 
+def parse_stel_id(id_str: str) -> Optional[Tuple[str, str]]:
+    """
+    Parse a full STEL ID string of the form
+        QQ_<anchor_ids>_<alt_ids>--<number>
+    and return (anchor_ids, alt_ids).
+    """
+    id_str = id_str.strip()
+    if not id_str:
+        return None
+
+    match = re.match(r"QQ_([^_]+)_([^_]+)", id_str)
+    if not match:
+        return None
+
+    anchor_ids = match.group(1)
+    alt_ids = match.group(2)
+    return anchor_ids, alt_ids
+
+
 def extract_pairs_from_row(row: Dict[str, str], style_type: str) -> List[Tuple[str, str]]:
     """
     Extract ordered text pairs from a row in the TSV file.
@@ -163,12 +182,11 @@ def extract_pairs_from_row(row: Dict[str, str], style_type: str) -> List[Tuple[s
 
     # Parse ID: format is typically "QQ_<anchor_ids>_<alt_ids>--<number>"
     # e.g., "QQ_i-454-f-454_f-2482-i-2482--1"
-    match = re.match(r'QQ_([^_]+)_([^_]+)', id_str)
-    if not match:
+    parsed = parse_stel_id(id_str)
+    if not parsed:
         return pairs
 
-    anchor_ids = match.group(1)
-    alt_ids = match.group(2)
+    anchor_ids, alt_ids = parsed
 
     # Split anchor IDs (e.g., "i-454-f-454" or "s-t1-101-c-101")
     anchor_components = split_id_components(anchor_ids, style_type)
