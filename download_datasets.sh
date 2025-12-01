@@ -34,6 +34,11 @@ gdown https://drive.google.com/file/d/17eLjiDLhXXtrfqC1FzToHKrwTcwsAolN/view?usp
 tar zxvf jigsaw-toxic-comment-classification-challenge.tar.gz
 rm jigsaw-toxic-comment-classification-challenge.tar.gz
 
+mkdir ./dummy_retrieval
+cd ./dummy_retrieval
+gdown https://drive.google.com/file/d/17HkJs9E5nnwuDfONiUy3sw0-Nj53SwvL/view?usp=sharing --fuzzy
+cd ..
+
 git clone --depth 1 --filter=blob:none --sparse https://github.com/nlpsoc/STEL.git STEL
 cd STEL
 git sparse-checkout set Data/STEL
