@@ -108,6 +108,7 @@ class DatasetLoader(object):
         dataset_path = self._get_dataset_path()
         
         if os.path.exists(dataset_path) and not self.force_reload:
+            # Re-load from cache if it exists and we're not forcing a reload
             print(colored(f"Loading dataset from {dataset_path}", "green"))
             return json.loads(open(dataset_path, "r").read())
 
@@ -116,21 +117,36 @@ class DatasetLoader(object):
             loader_kwargs["cache_dir"] = CACHE_DIR
             dataset_iter = load_dataset(**loader_kwargs)
         elif self.config["type"] == "custom":
-            loader_module = importlib.import_module(f"steb.steb_datasets.{self.dataset_name}.loader")
+            if "loader_module" in self.config:
+                loader_module_name = self.config["loader_module"]
+            else:
+                loader_module_name = f"steb.steb_datasets.{self.dataset_name}.loader"
+            
+            loader_module = importlib.import_module(loader_module_name)
             loader_fn = getattr(loader_module, self.config["loader_function"])
             dataset_iter = loader_fn(self.config["data_dir"])
         else:
             raise ValueError(f"Unknown dataset type: {self.config['type']}")
 
-        text_getter = self.config["record_handler"]["text_getter"]
-        label_getter = self.config["record_handler"]["label_getter"]
+        text_getter = self.config["record_handler"].get("text_getter")
+        label_getter = self.config["record_handler"].get("label_getter")
+        
         label_transform = None
         if "label_getter_function" in self.config["record_handler"]:
-            loader_module = importlib.import_module(f"steb.steb_datasets.{self.dataset_name}.loader")
+            if "loader_module" in self.config:
+                loader_module_name = self.config["loader_module"]
+            else:
+                loader_module_name = f"steb.steb_datasets.{self.dataset_name}.loader"
+            loader_module = importlib.import_module(loader_module_name)
             label_transform = getattr(loader_module, self.config["record_handler"]["label_getter_function"])
+            
         custom_record_handler = None
         if "custom_record_handler_function" in self.config["record_handler"]:
-            loader_module = importlib.import_module(f"steb.steb_datasets.{self.dataset_name}.loader")
+            if "loader_module" in self.config:
+                loader_module_name = self.config["loader_module"]
+            else:
+                loader_module_name = f"steb.steb_datasets.{self.dataset_name}.loader"
+            loader_module = importlib.import_module(loader_module_name)
             custom_record_handler = getattr(loader_module, self.config["record_handler"]["custom_record_handler_function"])
 
         handler = partial(
@@ -143,6 +159,7 @@ class DatasetLoader(object):
         
         N = self.episode_size * self.n_episodes_per_class
         dataset: Dict[str, List[List[str]]] = defaultdict(list)
+
         valid_labels = self.get_valid_labels(dataset_iter, handler)
 
         for example in dataset_iter:

@@ -41,6 +41,10 @@ def main():
     order_alignment_parser.add_argument("--dataset", choices=get_supported_datasets("order_alignment"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     order_alignment_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
+    retrieval_parser = subparsers.add_parser("retrieval", help="Run retrieval task.", parents=[base_parser])
+    retrieval_parser.add_argument("--dataset", choices=get_supported_datasets("retrieval"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
+    retrieval_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
+
     # Handle --list-datasets before full parsing to avoid required arg errors
     if "--list-datasets" in sys.argv:
         task = sys.argv[1]
