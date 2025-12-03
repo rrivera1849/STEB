@@ -195,7 +195,7 @@ def evaluate(
                     model_str = os.path.basename(os.path.dirname(model.model_name_or_path))
 
                 dset_str = os.path.basename(dataset_name)
-                scores_path = f"./{output_folder}/{dset_str}/{model_str}/{episode_size}_{n_episodes_per_class}/{current_task_name}"
+                scores_path = os.path.join(output_folder, dset_str, model_str, f"{episode_size}_{n_episodes_per_class}", current_task_name)
 
                 os.makedirs(scores_path, exist_ok=True)
                 with open(os.path.join(scores_path, "metrics.json"), "w+") as ouf:
