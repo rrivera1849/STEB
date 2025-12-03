@@ -39,6 +39,20 @@ cd ./dummy_retrieval
 gdown https://drive.google.com/file/d/17HkJs9E5nnwuDfONiUy3sw0-Nj53SwvL/view?usp=sharing --fuzzy
 cd ..
 
+mkdir fanfiction_retrieval
+cd fanfiction_retrieval
+gdown https://drive.google.com/file/d/1imzUA2kg4782WnYWxlKICyk1MmPCCtsV/view?usp=sharing --fuzzy
+tar zxvf fanfiction_retrieval.tar.gz
+rm fanfiction_retrieval.tar.gz
+cd ..
+
+mkdir amazon_retrieval
+cd amazon_retrieval
+gdown https://drive.google.com/file/d/1HFWoFk3V7vqM_DbZzd8ixecdbjHp29c4/view?usp=sharing --fuzzy
+tar zxvf amazon_retrieval.tar.gz
+rm amazon_retrieval.tar.gz
+cd ..
+
 git clone --depth 1 --filter=blob:none --sparse https://github.com/nlpsoc/STEL.git STEL
 cd STEL
 git sparse-checkout set Data/STEL
