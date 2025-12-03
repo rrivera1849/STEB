@@ -125,7 +125,10 @@ The retrieval task evaluates how well embeddings can retrieve relevant texts bas
 Here's an example of how to run a retrieval evaluation on a dataset with the `LUAR-MUD` model:
 
 ```bash
-steb retrieval rrivera1849/LUAR-MUD --dataset <dataset_name> -e 50
+# --n-episodes-per-class set to 1 signifies that we'll only have one query 
+# and one target per label
+# It's not necessary to set it to one, but many authorship attribution datasets make this assumption:
+steb retrieval rrivera1849/LUAR-MUD --dataset <dataset_name> -e 50 --n-episodes-per-class 1
 ```
 
 **Default Loader:**
