@@ -54,7 +54,18 @@ class RetrievalTask(Task):
         query_labels = np.array(query_labels)
         target_labels = np.array(target_labels)
 
-        sim_matrix = cosine_similarity(embeddings_query, embeddings_target)
+        # Filter to only include labels present in both sets
+        common_labels = np.intersect1d(query_labels, target_labels)
+        
+        valid_query_indices = np.isin(query_labels, common_labels)
+        embeddings_query = embeddings_query[valid_query_indices]
+        query_labels = query_labels[valid_query_indices]
+
+        valid_target_indices = np.isin(target_labels, common_labels)
+        embeddings_target = embeddings_target[valid_target_indices]
+        target_labels = target_labels[valid_target_indices]
+
+        sim_matrix = cosine_similarity(embeddings_query, embeddings_target, n_jobs=-1)
         
         mrr_sum = 0.0
         rank_sum = 0.0
