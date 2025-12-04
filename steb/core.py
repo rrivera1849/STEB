@@ -97,8 +97,8 @@ def evaluate(
     memory = Memory(CACHE_DIR, verbose=1)
     memory.clear()
 
-    @memory.cache
-    def extract_features(dataset, episode_size, n_episodes_per_class, batch_size):
+    @memory.cache(ignore=['show_progress'])
+    def extract_features(dataset, episode_size, n_episodes_per_class, batch_size, show_progress=False):
         """
         Extracts features from the dataset using the specified model.
 
@@ -141,7 +141,7 @@ def evaluate(
         # TODO:
         #   - check if we want this to do sth different depending on the task (if only 0th entry needed, this might do too much)
         #   - check if we want to rewrite embed_multiple to accept the format we actually use
-        X_flat = model.embed_multiple(flat_episodes, batch_size)
+        X_flat = model.embed_multiple(flat_episodes, batch_size, show_progress=show_progress)
         # Reshape back to episode structure
         X = [X_flat[i:i+num_positions] for i in range(0, len(X_flat), num_positions)]
 
@@ -162,7 +162,7 @@ def evaluate(
             if len(dataset) <= 0:
                 continue
 
-            X, y = extract_features(dataset, episode_size, n_episodes_per_class, batch_size)
+            X, y = extract_features(dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar)
 
             with open(dset_loader.config_path) as f:
                 config = json.load(f)
