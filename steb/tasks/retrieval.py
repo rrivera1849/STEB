@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Dict, Any, List
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import pairwise_distances
 from .base import Task
 
 def l2_normalize(embeddings: np.ndarray) -> np.ndarray:
@@ -65,7 +65,7 @@ class RetrievalTask(Task):
         embeddings_target = embeddings_target[valid_target_indices]
         target_labels = target_labels[valid_target_indices]
 
-        sim_matrix = cosine_similarity(embeddings_query, embeddings_target, n_jobs=-1)
+        dist_matrix = pairwise_distances(embeddings_query, embeddings_target, metric="cosine", n_jobs=-1)
         
         mrr_sum = 0.0
         rank_sum = 0.0
@@ -75,8 +75,8 @@ class RetrievalTask(Task):
         
         for i in range(n_queries):
             query_label = query_labels[i]
-            scores = sim_matrix[i]
-            sorted_indices = np.argsort(-scores)
+            scores = dist_matrix[i]
+            sorted_indices = np.argsort(scores)
             ranks = np.where(query_label == target_labels[sorted_indices])[0]
             ranks += 1
             
