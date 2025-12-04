@@ -157,7 +157,11 @@ class DatasetLoader(object):
             custom_record_handler=custom_record_handler,
         )
         
-        N = self.episode_size * self.n_episodes_per_class
+        if self.episode_size == -1:
+            N = 1
+        else:
+            N = self.episode_size * self.n_episodes_per_class
+            
         dataset: Dict[str, List[List[str]]] = defaultdict(list)
 
         valid_labels = self.get_valid_labels(dataset_iter, handler)
@@ -166,11 +170,13 @@ class DatasetLoader(object):
             record = handler(example)
             if record is None or record["label"] not in valid_labels:
                 continue
-            elif len(dataset[record["label"]]) >= N:
+            elif self.episode_size != -1 and len(dataset[record["label"]]) >= N:
                 continue
             dataset[record["label"]].append(record["text"])
 
-        dataset = {k: v for k, v in dataset.items() if len(v) == N}
+        if self.episode_size != -1:
+            dataset = {k: v for k, v in dataset.items() if len(v) == N}
+        
         os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
         with open(dataset_path, "w") as f:
             print(f"Saving dataset to {dataset_path}")
@@ -189,7 +195,10 @@ class DatasetLoader(object):
         Gets all the labels for classes that have enough samples.
         A class is considered valid if it has at least `self.episode_size * self.n_episodes_per_class` samples.
         """
-        N = self.episode_size * self.n_episodes_per_class
+        if self.episode_size == -1:
+            N = 1
+        else:
+            N = self.episode_size * self.n_episodes_per_class
 
         label_to_count: Dict[str, int] = defaultdict(int)
         for example in dataset_iter:
