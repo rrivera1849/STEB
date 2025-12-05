@@ -113,6 +113,26 @@ The order alignment task evaluates how well embeddings can be used to align the 
 - **acc_mean**: Average alignment accuracy across all pairs (baseline variant)
 - **distractor_acc_mean**: Average alignment accuracy with style distractors present
 
+### Retrieval
+
+The retrieval task evaluates how well embeddings can retrieve relevant texts based on style similarity. Given a set of query texts and a set of target texts, the goal is to retrieve the correct target text for each query text. The query and target texts are paired based on their labels (e.g., same author, same style).
+
+**Metrics:**
+- **MRR (Mean Reciprocal Rank)**: The average of the reciprocal ranks of the correct target texts. Higher is better (range 0-1).
+- **Mean Rank**: The average rank of the correct target texts. Lower is better.
+- **Recall@K**: The proportion of queries for which the correct target text is retrieved within the top K results. Higher is better (range 0-1).
+
+Here's an example of how to run a retrieval evaluation on a dataset with the `LUAR-MUD` model:
+
+```bash
+# --n-episodes-per-class set to 1 signifies that we'll only have one query 
+# and one target per label
+# It's not necessary to set it to one, but many authorship attribution datasets make this assumption:
+steb retrieval rrivera1849/LUAR-MUD --dataset <dataset_name> -e 50 --n-episodes-per-class 1
+```
+
+**Default Loader:**
+For datasets that follow a standard format (JSONL files with `text`, `label`, `is_query` fields), you can use the default retrieval loader provided in `steb/loaders/retrieval.py`. This loader automatically handles the separation of query and target texts based on the `is_query` field. Please look at the `config.json` file under `steb/steb_datasets/dummy_retrieval/` for an example of how to set up a dataset for retrieval.
 
 ## Developer Guide
 

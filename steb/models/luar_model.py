@@ -3,6 +3,7 @@ import numpy as np
 from transformers import AutoModel, AutoTokenizer
 from .base import STEBModel
 from typing import List
+from tqdm import tqdm
 
 class LUARModel(STEBModel):
     """
@@ -24,34 +25,40 @@ class LUARModel(STEBModel):
         self.model.to(self.device)
         self.model.eval()
 
-    def embed_single(self, texts: List[str], batch_size: int) -> np.ndarray:
+    def embed_single(self, texts: List[str], batch_size: int, show_progress: bool = False) -> np.ndarray:
         """
         Embeds a list of single texts by treating them as episodes of size 1.
 
         Args:
             texts: A list of strings to embed.
             batch_size: The batch size to use for embedding.
+            show_progress: Whether to show a progress bar.
 
         Returns:
             A numpy array of embeddings.
         """
         # Treat single texts as episodes of size 1
         episodes = [[text] for text in texts]
-        return self.embed_multiple(episodes, batch_size)
+        return self.embed_multiple(episodes, batch_size, show_progress=show_progress)
 
-    def embed_multiple(self, episodes: List[List[str]], batch_size: int) -> np.ndarray:
+    def embed_multiple(self, episodes: List[List[str]], batch_size: int, show_progress: bool = False) -> np.ndarray:
         """
         Embeds a list of episodes, where each episode is a list of texts.
 
         Args:
             episodes: A list of episodes to embed.
             batch_size: The batch size to use for embedding.
+            show_progress: Whether to show a progress bar.
 
         Returns:
             A numpy array of embeddings.
         """
         all_embeddings = []
-        for i in range(0, len(episodes), batch_size):
+        iterator = range(0, len(episodes), batch_size)
+        if show_progress:
+            iterator = tqdm(iterator, desc="Embedding", total=len(iterator))
+
+        for i in iterator:
             batch = episodes[i:i+batch_size]
 
             # Flatten the batch of episodes into a single list of texts
