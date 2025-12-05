@@ -97,8 +97,8 @@ def evaluate(
     memory = Memory(CACHE_DIR, verbose=1)
     memory.clear()
 
-    @memory.cache
-    def extract_features(dataset, episode_size, n_episodes_per_class, batch_size):
+    @memory.cache(ignore=['show_progress'])
+    def extract_features(dataset, episode_size, n_episodes_per_class, batch_size, show_progress=False):
         """
         Extracts features from the dataset using the specified model.
 
@@ -118,14 +118,23 @@ def evaluate(
 
             seq_len = len(text_list[0])
 
-            # Group sequences into episodes, organize by position
-            episodes_by_label[label] = [
-                [[seq[pos] for seq in text_list[i:i+episode_size]] for pos in range(seq_len)]
-                for i in range(0, len(text_list), episode_size)
-            ]
+            seq_len = len(text_list[0])
 
-            assert len(episodes_by_label[label]) == n_episodes_per_class
-            assert all([len(episode[0]) == episode_size for episode in episodes_by_label[label]])
+            if episode_size == -1:
+                # Group all sequences into a single episode
+                episodes_by_label[label] = [
+                    [[seq[pos] for seq in text_list] for pos in range(seq_len)]
+                ]
+            else:
+                # Group sequences into episodes, organize by position
+                episodes_by_label[label] = [
+                    [[seq[pos] for seq in text_list[i:i+episode_size]] for pos in range(seq_len)]
+                    for i in range(0, len(text_list), episode_size)
+                ]
+
+            if episode_size != -1:
+                assert len(episodes_by_label[label]) == n_episodes_per_class
+                assert all([len(episode[0]) == episode_size for episode in episodes_by_label[label]])
 
         all_episodes = [episode for label, episodes in episodes_by_label.items() for episode in episodes]
         y = [label for label, episodes in episodes_by_label.items() for _ in episodes]
@@ -141,7 +150,10 @@ def evaluate(
         # TODO:
         #   - check if we want this to do sth different depending on the task (if only 0th entry needed, this might do too much)
         #   - check if we want to rewrite embed_multiple to accept the format we actually use
-        X_flat = model.embed_multiple(flat_episodes, batch_size)
+        
+        # If episode_size is -1, we force batch_size to 1 because episodes will have different sizes
+        current_batch_size = batch_size if episode_size != -1 else 1
+        X_flat = model.embed_multiple(flat_episodes, current_batch_size, show_progress=show_progress)
         # Reshape back to episode structure
         X = [X_flat[i:i+num_positions] for i in range(0, len(X_flat), num_positions)]
 
@@ -150,6 +162,9 @@ def evaluate(
     dataset_iterator = tqdm(datasets, desc="Evaluating Datasets", disable=not progress_bar)
     for dataset_name in dataset_iterator:
         for episode_size in episode_sizes:
+            if episode_size == -1 and task_name != "retrieval":
+                raise ValueError("Episode size -1 is only supported for the retrieval task.")
+
             print(colored(f"--- Evaluating {dataset_name} (episode size: {episode_size}) ---", "cyan"))
             dset_loader = DatasetLoader(
                 dataset_name=dataset_name,
@@ -162,7 +177,7 @@ def evaluate(
             if len(dataset) <= 0:
                 continue
 
-            X, y = extract_features(dataset, episode_size, n_episodes_per_class, batch_size)
+            X, y = extract_features(dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar)
 
             with open(dset_loader.config_path) as f:
                 config = json.load(f)
@@ -195,7 +210,7 @@ def evaluate(
                     model_str = os.path.basename(os.path.dirname(model.model_name_or_path))
 
                 dset_str = os.path.basename(dataset_name)
-                scores_path = f"./{output_folder}/{dset_str}/{model_str}/{episode_size}_{n_episodes_per_class}/{current_task_name}"
+                scores_path = os.path.join(output_folder, dset_str, model_str, f"{episode_size}_{n_episodes_per_class}", current_task_name)
 
                 os.makedirs(scores_path, exist_ok=True)
                 with open(os.path.join(scores_path, "metrics.json"), "w+") as ouf:
