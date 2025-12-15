@@ -1,9 +1,9 @@
 from typing import Any, List
 from .base import Processor
 
-class PairClassificationProcessor(Processor):
+class AllToAllPairClassificationProcessor(Processor):
     """
-    A processor for pair classification tasks.
+    A processor for all-to-all pair classification tasks.
     This processor simply returns the embeddings and labels as is.
     """
     def process(self, embeddings: Any, labels: List[Any]) -> Any:

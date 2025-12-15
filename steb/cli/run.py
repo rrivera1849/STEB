@@ -31,10 +31,15 @@ def main():
     clustering_parser.add_argument("--dataset", choices=get_supported_datasets("clustering"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     clustering_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
-    # 'pair_classification' task parser
-    pair_classification_parser = subparsers.add_parser("pair_classification", help="Run pair classification task.", parents=[base_parser])
-    pair_classification_parser.add_argument("--dataset", choices=get_supported_datasets("pair_classification"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
-    pair_classification_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
+    # 'all_to_all_pair_classification' task parser
+    all_to_all_pair_classification_parser = subparsers.add_parser("all_to_all_pair_classification", help="Run all-to-all pair classification task.", parents=[base_parser])
+    all_to_all_pair_classification_parser.add_argument("--dataset", choices=get_supported_datasets("all_to_all_pair_classification"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
+    all_to_all_pair_classification_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
+
+    # 'pre_defined_pair_classification' task parser
+    pre_defined_pair_classification_parser = subparsers.add_parser("pre_defined_pair_classification", help="Run pre-defined pair classification task.", parents=[base_parser])
+    pre_defined_pair_classification_parser.add_argument("--dataset", choices=get_supported_datasets("pre_defined_pair_classification"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
+    pre_defined_pair_classification_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
     # 'order_alignment' task parser
     order_alignment_parser = subparsers.add_parser("order_alignment", help="Run order alignment task.", parents=[base_parser])
@@ -58,6 +63,11 @@ def main():
 
     if not args.model_name_or_path:
         parser.error("the following arguments are required: model_name_or_path")
+    
+    if args.task == "pre_defined_pair_classification":
+        args.episode_sizes = [1]
+        args.n_episodes_per_class = 2
+
     if not args.episode_sizes:
         parser.error("the following arguments are required: -e/--episode-sizes")
 

@@ -22,9 +22,9 @@ def calculate_eer(y_true, y_score):
     return eer
 
 
-class PairClassificationTask(Task):
+class AllToAllPairClassificationTask(Task):
     """
-    A task for evaluating pair classification performance.
+    A task for evaluating pair classification performance (All-to-All).
     """
     def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
         """

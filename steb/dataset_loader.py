@@ -113,10 +113,12 @@ class DatasetLoader(object):
             return json.loads(open(dataset_path, "r").read())
 
         if self.config["type"] == "huggingface":
+            print("HF")
             loader_kwargs = self.config["loader_kwargs"]
             loader_kwargs["cache_dir"] = CACHE_DIR
             dataset_iter = load_dataset(**loader_kwargs)
         elif self.config["type"] == "custom":
+            print("Custom")
             if "loader_module" in self.config:
                 loader_module_name = self.config["loader_module"]
             else:
@@ -181,6 +183,7 @@ class DatasetLoader(object):
         with open(dataset_path, "w") as f:
             print(f"Saving dataset to {dataset_path}")
             f.write(json.dumps(dataset))
+
         return dataset
     
     def _get_dataset_path(self):
