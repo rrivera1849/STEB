@@ -8,8 +8,8 @@
   },
   "loader_function": "load_hate_speech_and_offensive_language",
   "tasks": {
-    "pair_classification": {
-      "processor": "pair_classification"
+    "all_to_all_pair_classification": {
+      "processor": "all_to_all_pair_classification"
     },
     "clustering": {
       "processor": "clustering"
