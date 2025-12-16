@@ -181,6 +181,7 @@ class DatasetLoader(object):
         with open(dataset_path, "w") as f:
             print(f"Saving dataset to {dataset_path}")
             f.write(json.dumps(dataset))
+
         return dataset
     
     def _get_dataset_path(self):
