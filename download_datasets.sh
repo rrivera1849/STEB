@@ -58,3 +58,15 @@ cd STEL
 git sparse-checkout set Data/STEL
 rm -rf .git
 cd ..
+
+# PAN AV-15
+wget https://zenodo.org/records/3737563/files/pan15-authorship-verification-test-and-training.zip
+unzip pan15-authorship-verification-test-and-training.zip
+unzip pan15-authorship-verification-test-dataset2-2015-04-19.zip
+rm pan15-authorship-verification-test-and-training.zip
+rm pan15-authorship-verification-test-dataset2-2015-04-19.zip
+rm pan15-authorship-verification-training-dataset-2015-04-19.zip
+cd pan15-authorship-verification-test-dataset2-2015-04-19
+unzip "*.zip"
+rm *.zip
+cd ../

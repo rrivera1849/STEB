@@ -1,5 +1,4 @@
 import os
-import json
 
 def load_pan15_dataset(data_dir):
     """
