@@ -81,19 +81,35 @@ Here's an example of how to run a clustering evaluation on the `corpus-of-divers
 steb clustering rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
 ```
 
-### Pair Classification
+### All-to-All Pair Classification
 
-The pair classification task evaluates how well embeddings can distinguish whether two text groups (again controlled via episode parameter) come from the same style-based class (e.g., same author) or different classes. This is calculated using cosine similarity between the embeddings of the two text groups. 
+The all-to-all pair classification task evaluates how well embeddings can distinguish whether two text groups (again controlled via episode parameter) come from the same style-based class (e.g., same author) or different classes. This is calculated using cosine similarity between the embeddings of the two text groups. 
 
 **Metrics:**
 - **EER (Equal Error Rate)**: The error rate at the threshold where false positive rate equals false negative rate. Lower is better.
 - **AUC (Area Under ROC Curve)**: Measures overall discriminative ability. Higher is better (range 0-1).
 - **AUC@FPR**: AUC calculated at specific false positive rate thresholds (0.01, 0.05, 0.10, 0.20, 0.30, 0.50), useful for understanding performance at different operating points.
 
-Here's an example of how to run a pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
+Here's an example of how to run an all-to-all pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
 
 ```bash
-steb pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
+steb all_to_all_pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
+```
+
+### Pre-defined Pair Classification
+
+The pre-defined pair classification task evaluates how well embeddings can distinguish whether two pre-defined text groups come from the same style-based class or different classes. This is similar to the standard pair classification task, but operates on datasets that provide explicit pairs of texts (e.g., verification problems) rather than generating pairs from all available data.
+
+**Metrics:**
+- Same as [All-to-All Pair Classification](#all-to-all-pair-classification), including EER and AUC.
+
+**Note:**
+- You do not need to specify `-e` (episode size) or `--n-episodes-per-class` as these defaults are handled automatically for this task.
+
+Here is an example of how to run a pre-defined pair classification evaluation on the `pan15_authorship_verification_test` dataset with the `LUAR-MUD` model:
+
+```bash
+steb pre_defined_pair_classification rrivera1849/LUAR-MUD --dataset pan15_authorship_verification_english_test
 ```
 
 ### Order Alignment
