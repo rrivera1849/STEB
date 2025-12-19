@@ -8,8 +8,8 @@ from huggingface_hub import hf_hub_download
 from transformers import set_seed
 from typing import List, Tuple
 
-import pydevd_pycharm
-pydevd_pycharm.settrace('hpcs05', port=5678, stdout_to_server=True, stderr_to_server=True)
+# import pydevd_pycharm
+# pydevd_pycharm.settrace('hpcs05', port=5678, stdout_to_server=True, stderr_to_server=True)
 
 def load_tinystyler_model(device: str):
     """Load the TinyStyler model and tokenizer from HuggingFace."""
@@ -27,21 +27,6 @@ def load_tinystyler_model(device: str):
     tokenizer, model = get_tinystyler_model(device)
 
     return tokenizer, model, get_target_style_embeddings
-
-# Import TinyStyler
-tinystyler_module = importlib.util.module_from_spec(
-    importlib.util.spec_from_file_location(
-        "tinystyler",
-        hf_hub_download(repo_id="tinystyler/tinystyler", filename="tinystyler.py"),
-    )
-)
-tinystyler_module.__spec__.loader.exec_module(tinystyler_module)
-get_tinystyler_model, get_target_style_embeddings = tinystyler_module.get_tinystyler_model, tinystyler_module.get_target_style_embeddings
-
-# Load the TinyStyler model
-device = "cuda" if torch.cuda.is_available() else "cpu"
-tokenizer, model = get_tinystyler_model(device)
-set_seed(42)
 
 
 def calculate_interpolated_style_embeddings(
@@ -128,29 +113,56 @@ def main():
     print("Model loaded successfully!\n")
 
     # Define inputs
-    source_text = "I want to see the football game"
-
+    source_text = "I would like to see the football game."
+    source_style_texts = [source_text]
     # Examples of source style (formal):
-    source_style_texts = [
-        "I would like to attend the meeting.",
-        "Please submit the report by Friday.",
-        "We appreciate your cooperation."
-    ]
+    # source_style_texts = [
+    #     # "I would like to attend the meeting.",
+    #     # "Please submit the report by Friday.",
+    #     # "We appreciate your cooperation."
+    #     "He has a very distinct walk.",
+    #     "Santa was excessively overweight while the woman was driving.",
+    #     "They cannot see anything in the beginning.",
+    #     "Take a look at yourself in the mirror and laugh.",
+    #     "And the indication is: At the moment, the Hip Hop genre is decreasing in quality!"
+    # ]
 
     # Examples of target style (informal):
     target_style_texts = [
         "idk.....but i have faith in you lol",
         "cant wait for a new album from him.",
-        "i can't believe it!!1"
+        "i can't believe it!!1",
+        "But has a lil slang 2 his walk.",
+        "santa was to fat, and the woman was driving.",
+        "Well, they probably can't see anything at first.",
+        "LOOK AT UR FACE IN THE MIRROR ************LOL****",
+        "And it says: Right now, Hip Hop music is going DOWNHILL!!!!!!!!!!!"
     ]
+
+    # source_style_texts = [
+    #     "I was tired, so I went to bed early.",
+    #     "The student did not understand the lesson.",
+    #     "It was raining, so we stayed inside.",
+    #     "I think this movie is good.",
+    #     "He missed the bus and arrived late."
+    # ]
+
+    # target_style_texts = [
+    #     "Due to a significant sense of physical and mental fatigue, I made the deliberate decision to retire for the evening at an earlier-than-usual hour.",
+    #     "The learner experienced difficulty comprehending the instructional material presented during the lesson.",
+    #     "Because persistent rainfall created unfavorable outdoor conditions, we chose to remain indoors for the duration of the period.",
+    #     "In my assessment, the film demonstrates a high level of quality and is deserving of positive evaluation.",
+    #     "After failing to catch the scheduled bus, he consequently arrived at his destination later than intended."
+    # ]
 
     print(f"Source text: '{source_text}'")
     print(f"\nSource style examples (formal): {source_style_texts}")
     print(f"Target style examples (informal): {target_style_texts}")
     print("\n" + "="*80 + "\n")
+    print(f"[0.0] {"ORIGINAL":20s} → '{source_text}'")
 
     # Generate outputs for interpolation factors from 0.0 to 1.0
-    interpolation_values = [i / 10 for i in range(11)]  # [0.0, 0.1, 0.2, ..., 1.0]
+    interpolation_values = [i / 5 for i in range(1,6)]  # [0.0, 0.1, 0.2, ..., 1.0]
 
     for factor in interpolation_values:
         style_embeddings = calculate_interpolated_style_embeddings(
@@ -170,11 +182,10 @@ def main():
         )
 
         # Format the output nicely
-        style_label = "SOURCE (formal)" if factor == 0.0 else "TARGET (informal)" if factor == 1.0 else "INTERPOLATED"
+        style_label = "INTERPOLATED"
         print(f"[{factor:.1f}] {style_label:20s} → '{generated_text}'")
 
     print("\n" + "="*80)
-    print("\nNote: 0.0 = pure source style, 1.0 = pure target style")
 
 
 if __name__ == "__main__":
