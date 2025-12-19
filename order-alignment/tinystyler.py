@@ -8,6 +8,8 @@ from huggingface_hub import hf_hub_download
 from transformers import set_seed
 from typing import List, Tuple
 
+import pydevd_pycharm
+pydevd_pycharm.settrace('hpcs05', port=5678, stdout_to_server=True, stderr_to_server=True)
 
 def load_tinystyler_model(device: str):
     """Load the TinyStyler model and tokenizer from HuggingFace."""
@@ -18,13 +20,28 @@ def load_tinystyler_model(device: str):
         )
     )
     tinystyler_module.__spec__.loader.exec_module(tinystyler_module)
-    
+
     get_tinystyler_model = tinystyler_module.get_tinystyler_model
     get_target_style_embeddings = tinystyler_module.get_target_style_embeddings
-    
+
     tokenizer, model = get_tinystyler_model(device)
-    
+
     return tokenizer, model, get_target_style_embeddings
+
+# Import TinyStyler
+tinystyler_module = importlib.util.module_from_spec(
+    importlib.util.spec_from_file_location(
+        "tinystyler",
+        hf_hub_download(repo_id="tinystyler/tinystyler", filename="tinystyler.py"),
+    )
+)
+tinystyler_module.__spec__.loader.exec_module(tinystyler_module)
+get_tinystyler_model, get_target_style_embeddings = tinystyler_module.get_tinystyler_model, tinystyler_module.get_target_style_embeddings
+
+# Load the TinyStyler model
+device = "cuda" if torch.cuda.is_available() else "cpu"
+tokenizer, model = get_tinystyler_model(device)
+set_seed(42)
 
 
 def calculate_interpolated_style_embeddings(
@@ -36,23 +53,23 @@ def calculate_interpolated_style_embeddings(
 ) -> torch.Tensor:
     """
     Calculate interpolated style embeddings between source and target styles.
-    
+
     Args:
         source_texts: List of example texts representing the source style
         target_texts: List of example texts representing the target style
         interpolation_factor: Value between 0.0 (pure source) and 1.0 (pure target)
         get_style_embeddings_fn: Function to calculate style embeddings
         device: Device to use for computations
-        
+
     Returns:
         Interpolated style embeddings tensor
     """
     source_embeddings = get_style_embeddings_fn([source_texts], device).to(device)
     target_embeddings = get_style_embeddings_fn([target_texts], device).to(device)
-    
+
     # Linear interpolation: (1 - a) * source + a * target
     interpolated = (1 - interpolation_factor) * source_embeddings + interpolation_factor * target_embeddings
-    
+
     return interpolated
 
 
@@ -68,7 +85,7 @@ def generate_text_with_style(
 ) -> str:
     """
     Generate text with the given style embeddings.
-    
+
     Args:
         source_text: The input text to transform
         style_embeddings: The style embeddings to apply
@@ -78,14 +95,14 @@ def generate_text_with_style(
         max_new_tokens: Maximum number of tokens to generate
         temperature: Sampling temperature
         top_p: Nucleus sampling parameter
-        
+
     Returns:
         Generated text string
     """
     inputs = tokenizer(
         [source_text], padding="longest", truncation=True, return_tensors="pt"
     ).to(device)
-    
+
     output = model.generate(
         **inputs,
         style=style_embeddings,
@@ -94,7 +111,7 @@ def generate_text_with_style(
         top_p=top_p,
         max_new_tokens=max_new_tokens,
     )
-    
+
     generated_text = tokenizer.batch_decode(output, skip_special_tokens=True)[0]
     return generated_text
 
@@ -104,37 +121,37 @@ def main():
     # Setup
     device = "cuda" if torch.cuda.is_available() else "cpu"
     set_seed(42)
-    
+
     print(f"Using device: {device}\n")
     print("Loading TinyStyler model...")
     tokenizer, model, get_style_embeddings = load_tinystyler_model(device)
     print("Model loaded successfully!\n")
-    
+
     # Define inputs
     source_text = "I want to see the football game"
-    
+
     # Examples of source style (formal):
     source_style_texts = [
         "I would like to attend the meeting.",
         "Please submit the report by Friday.",
         "We appreciate your cooperation."
     ]
-    
+
     # Examples of target style (informal):
     target_style_texts = [
         "idk.....but i have faith in you lol",
         "cant wait for a new album from him.",
         "i can't believe it!!1"
     ]
-    
+
     print(f"Source text: '{source_text}'")
     print(f"\nSource style examples (formal): {source_style_texts}")
     print(f"Target style examples (informal): {target_style_texts}")
     print("\n" + "="*80 + "\n")
-    
+
     # Generate outputs for interpolation factors from 0.0 to 1.0
     interpolation_values = [i / 10 for i in range(11)]  # [0.0, 0.1, 0.2, ..., 1.0]
-    
+
     for factor in interpolation_values:
         style_embeddings = calculate_interpolated_style_embeddings(
             source_style_texts,
@@ -143,7 +160,7 @@ def main():
             get_style_embeddings,
             device
         )
-        
+
         generated_text = generate_text_with_style(
             source_text,
             style_embeddings,
@@ -151,11 +168,11 @@ def main():
             model,
             device
         )
-        
+
         # Format the output nicely
         style_label = "SOURCE (formal)" if factor == 0.0 else "TARGET (informal)" if factor == 1.0 else "INTERPOLATED"
         print(f"[{factor:.1f}] {style_label:20s} → '{generated_text}'")
-    
+
     print("\n" + "="*80)
     print("\nNote: 0.0 = pure source style, 1.0 = pure target style")
 
