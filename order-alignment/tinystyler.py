@@ -128,16 +128,16 @@ def main():
     # ]
 
     # Examples of target style (informal):
-    target_style_texts = [
-        "idk.....but i have faith in you lol",
-        "cant wait for a new album from him.",
-        "i can't believe it!!1",
-        "But has a lil slang 2 his walk.",
-        "santa was to fat, and the woman was driving.",
-        "Well, they probably can't see anything at first.",
-        "LOOK AT UR FACE IN THE MIRROR ************LOL****",
-        "And it says: Right now, Hip Hop music is going DOWNHILL!!!!!!!!!!!"
-    ]
+    # target_style_texts = [
+    #     "idk.....but i have faith in you lol",
+    #     "cant wait for a new album from him.",
+    #     "i can't believe it!!1",
+    #     "But has a lil slang 2 his walk.",
+    #     "santa was to fat, and the woman was driving.",
+    #     "Well, they probably can't see anything at first.",
+    #     "LOOK AT UR FACE IN THE MIRROR ************LOL****",
+    #     "And it says: Right now, Hip Hop music is going DOWNHILL!!!!!!!!!!!"
+    # ]
 
     # source_style_texts = [
     #     "I was tired, so I went to bed early.",
@@ -147,13 +147,13 @@ def main():
     #     "He missed the bus and arrived late."
     # ]
 
-    # target_style_texts = [
-    #     "Due to a significant sense of physical and mental fatigue, I made the deliberate decision to retire for the evening at an earlier-than-usual hour.",
-    #     "The learner experienced difficulty comprehending the instructional material presented during the lesson.",
-    #     "Because persistent rainfall created unfavorable outdoor conditions, we chose to remain indoors for the duration of the period.",
-    #     "In my assessment, the film demonstrates a high level of quality and is deserving of positive evaluation.",
-    #     "After failing to catch the scheduled bus, he consequently arrived at his destination later than intended."
-    # ]
+    target_style_texts = [
+        "Due to a significant sense of physical and mental fatigue, I made the deliberate decision to retire for the evening at an earlier-than-usual hour.",
+        "The learner experienced difficulty comprehending the instructional material presented during the lesson.",
+        "Because persistent rainfall created unfavorable outdoor conditions, we chose to remain indoors for the duration of the period.",
+        "In my assessment, the film demonstrates a high level of quality and is deserving of positive evaluation.",
+        "After failing to catch the scheduled bus, he consequently arrived at his destination later than intended."
+    ]
 
     print(f"Source text: '{source_text}'")
     print(f"\nSource style examples (formal): {source_style_texts}")
