@@ -3,6 +3,10 @@ import importlib
 from huggingface_hub import hf_hub_download
 from transformers import set_seed
 
+import pydevd_pycharm
+pydevd_pycharm.settrace('hpcs05', port=5678, stdout_to_server=True, stderr_to_server=True)
+
+
 # Import TinyStyler
 tinystyler_module = importlib.util.module_from_spec(
     importlib.util.spec_from_file_location(
