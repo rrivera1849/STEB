@@ -9,6 +9,7 @@ rm -rf CharCnn_Keras
 rm -rf enron_authorship_corpus
 rm -rf 'Enron (80 authors)'
 rm -rf STEL
+rm -rf OneStopEnglishCorpus
 rm -f blogs.zip
 rm -f n77w7mygwg-1.zip
 rm -f Enron-Authorship-Verification-Corpus.zip
@@ -58,6 +59,10 @@ cd STEL
 git sparse-checkout set Data/STEL
 rm -rf .git
 cd ..
+
+# OneStopEnglishCorpus (Texts-SeparatedByReadingLevel)
+git clone --depth 1 https://github.com/nishkalavallabhi/OneStopEnglishCorpus.git OneStopEnglishCorpus
+rm -rf OneStopEnglishCorpus/.git
 
 # PAN AV-15
 wget https://zenodo.org/records/3737563/files/pan15-authorship-verification-test-and-training.zip
