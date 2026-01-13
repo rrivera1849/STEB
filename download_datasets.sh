@@ -87,3 +87,10 @@ wget https://zenodo.org/records/3715999/files/pan13-authorship-verification-test
 unzip pan13-authorship-verification-test-and-training.zip
 unzip pan13-authorship-verification-test-corpus2-2013-05-29.zip
 rm *.zip
+
+# GEDE Essay Detection
+mkdir -p gede_essay_detection
+gdown https://drive.google.com/file/d/1c3x_CR44ZCUqHf1dHVPm7K04ZIbTSYoD/view?usp=drive_link --fuzzy
+tar -zxvf gede_essay_detection.tar.gz
+rm gede_essay_detection.tar.gz
+cd ..
