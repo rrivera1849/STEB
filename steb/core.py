@@ -118,8 +118,6 @@ def evaluate(
 
             seq_len = len(text_list[0])
 
-            seq_len = len(text_list[0])
-
             if episode_size == -1:
                 # Group all sequences into a single episode
                 episodes_by_label[label] = [
