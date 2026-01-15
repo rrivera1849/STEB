@@ -1,9 +1,9 @@
 """
 Prompt open Hugging Face instruct models to progressively formalize utterances.
 
-For each input sentence, we run a 5-turn conversation:
+For each input sentence, we run a 4-turn conversation:
 1) User: "Directly return the answer. Make the following utterance a bit more formal: <SENTENCE>"
-2-5) User: "A bit more formal" (repeated 4 times)
+2-4) User: "A bit more formal" (repeated 3 times)
 
 We save one JSON file per model with all generations.
 Models are prompted sequentially (one model loaded on GPU at a time).
@@ -144,7 +144,7 @@ def progressive_formalization_hf(
     top_p: float,
 ) -> List[str]:
     """
-    Returns 6 strings: [original, level1, level2, level3, level4, level5]
+    Returns 5 strings: [original, level1, level2, level3, level4]
     """
     results: List[str] = [text]
 
@@ -170,8 +170,8 @@ def progressive_formalization_hf(
     results.append(assistant)
     messages.append({"role": "assistant", "content": assistant})
 
-    # Four additional iterations
-    for _ in range(4):
+    # Three additional iterations
+    for _ in range(3):
         messages.append({"role": "user", "content": "A bit more formal"})
         assistant = _generate_assistant_reply(
             model=model,
@@ -260,7 +260,6 @@ def main() -> None:
                             "level2": outputs[2],
                             "level3": outputs[3],
                             "level4": outputs[4],
-                            "level5": outputs[5],
                         },
                         "all_levels": outputs,
                     }
@@ -281,7 +280,7 @@ def main() -> None:
                         "SENTENCE"
                     ),
                     "follow_up": "A bit more formal",
-                    "n_follow_ups": 4,
+                    "n_follow_ups": 3,
                 },
                 "sentences": per_sentence,
             }
