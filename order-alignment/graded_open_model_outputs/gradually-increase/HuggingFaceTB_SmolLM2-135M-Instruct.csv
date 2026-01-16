@@ -1,0 +1,82 @@
+model,source,input,level1,level2,level3,level4
+HuggingFaceTB/SmolLM2-135M-Instruct,test,Oh k...i'm watching here:),Oh k k k.,"Or more formally, more formally. You will also notice that not all other forms are required; we can achieve this with these adjustments to the formality gradually:
+
+You are watching here:)","Or more formally, more formally.","Or more formally, more formally. I will also need to adjust the formality with these adjustments and not just the verb tense and the structure with such a slight change."
+HuggingFaceTB/SmolLM2-135M-Instruct,test,K..k:)where are you?how did you performed?,She [K.]k: [I.k.k.] how did you perform?,They [the people] had been watching him with delight for some time and were happy to see him perform the action.,"He [she, him, She] k, how [he, She, She, How].","I [they, he, She, her] k you."
+HuggingFaceTB/SmolLM2-135M-Instruct,test,Going for dinner.msg you after.,"Going for dinner.
+
+Adjusting this to the previous sentence: Go for dinner.
+
+Adjusting this to the next sentence: I'll go for dinner.","More formal.
+
+Adjusting this to the previous sentence: I'll go for dinner.
+
+Adjusting this to the next sentence: I'll return for dinner.","More formal.
+
+Adjusting this to the previous sentence: I'll return for dinner.
+
+Adjusting this to the next sentence: I'll return for dinner.
+
+Adjusting this to the previous sentence: I'll return for dinner.","More formal.
+
+Adjusting this to the previous sentence: I'll return for dinner.
+
+Adjusting this to the next sentence: I'll return for dinner.
+
+Adjusting this to the previous sentence: I won't return for dinner."
+HuggingFaceTB/SmolLM2-135M-Instruct,test,i see. When we finish we have loads of loans to pay,"i see. When we finish we have loads of loans to pay, we complete them.",more formal.,more formal.,more formal.
+HuggingFaceTB/SmolLM2-135M-Instruct,test,@user GOD DAMN IT... YOU ARE SO RIGHT. THERE'S NO GOING WRONG WITH THIS STUFF.,"@user_God_Damn You're right, its good to use the word, not the formality.","@user_God_Damn You're correct, its good to use the word also.","@user_God_Damn You're right, its good to use the word, not the formality.","@user_God_Damn You're right, its good to use the word also."
+HuggingFaceTB/SmolLM2-135M-Instruct,test,@user @user I didn't know Oprah Winfrey knew how to play tennis. .. 😱,"Gradually increase the formality of the following utterance: Whenever I ask for a more formal version of my sentence, I adjust the formality by adding ""I"" instead of ""I.""
+
+Here is the updated version:
+
+I learned Oprah Winfrey doesn't know how to play tennis, though I was hoping that when I ask for a more formal version, you might use more formal language here.",More formal version of sentence:,More formal version of sentence: Oops you didn't know how to do it I thought you said... and don't.,"More formal version of sentence: Oops you didn't know how to do it you thought you said it's... and don't, so I said isn't... as a result I thought you... and don't, you said you did."
+HuggingFaceTB/SmolLM2-135M-Instruct,test,@user She is so cute ♡,"She's so cute. Here's a lower formality variation on this:
+
+""It's fascinating to observe.""
+
+Then for a slightly lower level of formality:
+
+""It's rather fascinating to see.""
+
+And for a slight higher level of formality:
+
+""It's rather fascinating to see.""
+
+Similarly, you wouldn't use 'It is'. Please make sure to adjust the formality to your liking:
+
+She is quite cute. Here's a lower formality variation on this:
+
+""It's quite cute."" (or you can modify this slightly)
+
+And for a slightly lower level of formality:
+
+""It's quite cute that someone has looked at her pretty closely.""
+
+And for a higher level of formality:
+
+""It's quite charming about her.""
+
+And for a slightly higher level of formality:
+
+""It’s simply so. It’s quite charming about her.""
+
+Just adjust each point slightly, until your formality will suit your style.","She is quite cute.
+
+Here's an example, lower formality variation of this sentence:
+
+""It's fascinating to observe.""
+
+It can be a lower formality variation of this sentence, too:
+
+""It's rather fascinating to see.""","She is quite cute.
+
+Here's an example, lower formality variation of this sentence:
+
+""It's rather fascinating to see.""
+
+Alternatively, you could change the formality to something slightly more subtle like this:
+
+""It's quite charming about . . . her."" or simply ""It's charming about her.""","She is quite cute.
+
+I changed the sentence slightly while still maintaining the subject-verb-object (SVO) format, which is the preferred way to write sentence in English."
