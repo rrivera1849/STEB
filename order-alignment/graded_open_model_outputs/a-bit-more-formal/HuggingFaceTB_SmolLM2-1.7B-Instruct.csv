@@ -1,0 +1,20 @@
+model,source,input,level1,level2,level3,level4
+HuggingFaceTB/SmolLM2-1.7B-Instruct,test,Oh k...i'm watching here:),Ok...I'm watching here:),"Yes, I am currently watching.","Indeed, I am presently engaged in the act of watching.","Yes, I am currently engaged in the activity of watching."
+HuggingFaceTB/SmolLM2-1.7B-Instruct,test,K..k:)where are you?how did you performed?,"Response:
+K.K.:)Where are you? How did you perform?","Response:
+Dear.K.K.,Where are you? How did you perform?","Response:
+Y-o-u,K.K.,Where are you? How did you perform?","Response:
+Dear.K.K.,Where are you? Did you perform well?"
+HuggingFaceTB/SmolLM2-1.7B-Instruct,test,Going for dinner.msg you after.,"Formally saying: Please make the following utterance more formal by replacing the phrase ""Going for dinner"" with the phrase ""Reservations can be made for dinner following this message.""",Formally stated: A reservation may be made for dinner as stipulated by the following message.,Formally revised: Please allow for a dinner reservation to be established following the information provided in the subsequent message.,Formally rephrased: Subsequent information would likely bring about the requirement for a dinner reservation to be arranged at the given time.
+HuggingFaceTB/SmolLM2-1.7B-Instruct,test,i see. When we finish we have loads of loans to pay,"Indeed, I understand. Once we have completed our tasks, we will be left with numerous outstanding loans to account for.","It appears that the appropriate term for the sentiment expressed is acknowledgement. Indeed, having concluded our tasks, we should consider the multitude of loans we have still to settle.","Indeed, the proper term for this sentiment is acknowledgment. Once our tasks have been concluded, there will still be a considerable number of outstanding loans that remain to be paid.","Absolutely, I have understood the context. As a result of our tasks being completed, an extensive list of debts will remain to be settled. I'm sure this serves as an appropriate acknowledgement of the debt we owe."
+HuggingFaceTB/SmolLM2-1.7B-Instruct,test,@user GOD DAMN IT... YOU ARE SO RIGHT. THERE'S NO GOING WRONG WITH THIS STUFF.,"Dear @user, Your observation is well-founded. It is indeed a great honor to acknowledge that there is no ""going wrong"" with this stuff.","Indeed, @user, it is acknowledged that there is no circumstance in which this topic is considered to be in error. Your observations are fully justified.",It is my observation that @user's comments regarding the topic at hand are firmly grounded in reality and would certainly carry substantial merit.,"Per your astute observation, @user, it is certainly fair to say that the subject matter is not subject to any error or misalignment. Your insight is most welcome and welcome it will certainly be received."
+HuggingFaceTB/SmolLM2-1.7B-Instruct,test,@user @user I didn't know Oprah Winfrey knew how to play tennis. .. 😱,"@user @user I was under the impression that Ms. Oprah Winfrey possessed an unexpected tennis playing prowess. 
+
+(Note: This response is a bit more formal and uses a period at the end, as requested.)","@user @user The perception of Ms. Oprah Winfrey possibly possessing an unexpected tennis playing adeptness has been an unforeseen revelation.
+
+(This is another highly formal version of the initial text.)","@user @user The notion that Ms. Oprah Winfrey harbors an unusual proficiency in tennis has been a somewhat unexpected surprise.
+
+(Here's another highly formal version for your consideration.)","@user @user The supposition that Ms. Oprah Winfrey exhibits an unlikely adeptness in the domain of tennis has been deemed a somewhat bewildering revelation.
+
+(This is yet another formal version for your reference.)"
+HuggingFaceTB/SmolLM2-1.7B-Instruct,test,@user She is so cute ♡,@user She is so cute ♡,@user She is so adorable ♡,@user She is so exquisite ♡,@user She is so endearing ♡

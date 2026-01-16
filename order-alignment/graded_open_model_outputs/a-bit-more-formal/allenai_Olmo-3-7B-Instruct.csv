@@ -1,0 +1,22 @@
+model,source,input,level1,level2,level3,level4
+allenai/Olmo-3-7B-Instruct,test,Oh k...i'm watching here:),"Certainly, I understand you are observing at the moment.","Certainly, I can make it more formal. Here is a more formal version of your utterance:
+
+""Oh, I see—I am currently monitoring this situation.""","Understood. Here is an even more formal phrasing:
+
+""I acknowledge that I am currently observing the current circumstances.""","I appreciate your request for greater formality. Here is a highly formal alternative:
+
+""It appears that I am in the process of observing the present situation."""
+allenai/Olmo-3-7B-Instruct,test,K..k:)where are you?how did you performed?,Where are you? How did you perform?,I hope this message finds you well. Could you please let me know where you are and how your performance went?,I would appreciate it if you could inform me of your current location and provide feedback regarding your performance. Thank you.,I would be grateful if you could kindly update me on your whereabouts and share a detailed assessment of your performance. Thank you for your cooperation.
+allenai/Olmo-3-7B-Instruct,test,Going for dinner.msg you after.,I will message you after dinner.,I will reach out to you via message after dinner.,I intend to send you a message following dinner.,I plan to contact you by message after I have finished dinner.
+allenai/Olmo-3-7B-Instruct,test,i see. When we finish we have loads of loans to pay,"Certainly. A more formal version of your utterance could be:
+
+""I see. Once we have completed our tasks, we will have a substantial number of loans to settle.""","Certainly. A more formal version would be:
+
+""I acknowledge that. After completing our work, we will be responsible for managing a significant volume of loan payments.""","Understood. Here is an even more formal phrasing:
+
+""I appreciate your acknowledgement. Upon completion of our current tasks, we will be obligated to settle a considerable number of loan obligations.""","Certainly. Here is an even more formal rendition:
+
+""I have noted your response. Following the completion of our present tasks, we will need to fulfill a substantial portfolio of loan repayments."""
+allenai/Olmo-3-7B-Instruct,test,@user GOD DAMN IT... YOU ARE SO RIGHT. THERE'S NO GOING WRONG WITH THIS STUFF.,"Indeed, I agree entirely. There is no justification for making errors when it comes to this matter.",You are absolutely correct. I concur that there is no excuse for any mistakes in this context.,I completely agree with your assessment. It is unequivocally inappropriate to make errors in this matter.,I respectfully and wholeheartedly concur. There can be no excuse for any inaccuracies or shortcomings in this context.
+allenai/Olmo-3-7B-Instruct,test,@user @user I didn't know Oprah Winfrey knew how to play tennis. .. 😱,I was not previously aware that Oprah Winfrey is proficient in tennis. That is quite surprising.,"I was previously unaware of Oprah Winfrey’s proficiency in tennis, and this information comes as quite a surprise to me.","I had not been aware of Oprah Winfrey’s skills in tennis, and the news is quite unexpected.","Until now, I was unfamiliar with Ms. Winfrey’s abilities in tennis, and this revelation is quite astonishing."
+allenai/Olmo-3-7B-Instruct,test,@user She is so cute ♡,She is indeed quite endearing.,She is truly captivating and charming.,She exhibits a delightful charm and allure.,She possesses a highly attractive and endearing demeanor.
