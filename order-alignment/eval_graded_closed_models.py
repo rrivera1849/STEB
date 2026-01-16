@@ -50,7 +50,7 @@ def formalize_progressively(client, model: str, text: str, max_new_tokens: int, 
             model=model,
             messages=messages,
             temperature=temperature,
-            max_completion_tokens=max_new_tokens,
+            # max_completion_tokens=max_new_tokens,
             seed=42,
         )
         assistant_msg = response.choices[0].message.content.strip()
