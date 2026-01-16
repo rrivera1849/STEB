@@ -79,7 +79,7 @@ def formalize_progressively(model, tokenizer, text: str) -> list[str]:
 
     for i in range(N_LEVELS):
         if i > 0:
-            messages.append({"role": "user", "content": "A bit more formal"})
+            messages.append({"role": "user", "content": "More formal"})
 
         reply = generate_reply(model, tokenizer, messages)
         results.append(reply)
