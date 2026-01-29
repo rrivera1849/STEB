@@ -12,10 +12,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, set_seed
 from informal_human_data import get_informal_tweet_eval_tweets, get_informal_sms_messages
 
 
-# PROMPT = ("Gradually increase the formality of the following utterance in a small increment. "
-#           "Whenever I ask for a more formal version, adjust the formality upward only slightly—just one level at a time. "
-#           "Respond only with the revised sentence and nothing else.")
-PROMPT = "Directly return the answer. Make the following utterance a bit more formal"
+PROMPT = ("Gradually increase the formality of the following utterance in a small increment. "
+          "Whenever I ask for a more formal version, adjust the formality upward only slightly—just one level at a time. "
+          "Respond only with the revised sentence and nothing else.")
+# PROMPT = "Directly return the answer. Make the following utterance a bit more formal"
 FOLLOW_UP = "More formal"
 
 TEST_SENTENCES = [
@@ -31,16 +31,17 @@ TEST_SENTENCES = [
 MODELS = [
     # "Qwen/Qwen2.5-7B-Instruct",
     # "Qwen/Qwen3-VL-8B-Instruct",
-    "google/gemma-3-12b-it",
+    # "google/gemma-3-12b-it",
     # "mistralai/Mistral-7B-Instruct-v0.3",
     # "mistralai/Ministral-3-14B-Instruct-2512",
-    # "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+    "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
     # "HuggingFaceTB/SmolLM2-135M-Instruct",
     # "HuggingFaceTB/SmolLM2-1.7B-Instruct",
     # "microsoft/phi-4",
     # "meta-llama/Llama-3.1-8B-Instruct",
     # "allenai/OLMo-2-1124-7B-Instruct",
-     #"allenai/Olmo-3-7B-Instruct",
+    #"allenai/Olmo-3-7B-Instruct",
+    # "allenai/Olmo-3.1-32B-Instruct"
 ]
 
 N_LEVELS = 4
@@ -97,7 +98,7 @@ def formalize_progressively(model, tokenizer, text: str, max_new_tokens: int, te
     """Returns [original, level1, level2, level3, level4]"""
     results = [text]
     messages = [
-        {"role": "user", "content": f"{PROMPT}: {text}"}
+        {"role": "user", "content": f"{PROMPT}\n\n{text}"}
     ]
 
     for i in range(N_LEVELS):

@@ -18,6 +18,7 @@ cd "${SLURM_SUBMIT_DIR:-$PWD}"
 # ---- Python venv (.venv is one folder above repo root) ----
 # If you submit from the repo root, this activates ../.venv
 . "venv/bin/activate"
+export OPENAI_API_KEY="REDACTED-SECRET"
 
 # Output directory (one CSV per model will be written here)
 OUT_DIR="order-alignment/graded_closed_model_outputs/${SLURM_JOB_ID:-manual}"
@@ -28,4 +29,4 @@ python order-alignment/eval_graded_closed_models.py \
   --temperature 1.0 \
   --seed 42 \
   --full-run \
-  --model "gpt-5.1-chat-latest"
+  --model "gpt-5-mini-2025-08-07"
