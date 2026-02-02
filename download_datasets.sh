@@ -92,3 +92,13 @@ wget https://zenodo.org/records/3715999/files/pan13-authorship-verification-test
 unzip pan13-authorship-verification-test-and-training.zip
 unzip pan13-authorship-verification-test-corpus2-2013-05-29.zip
 rm *.zip
+
+cd ..
+
+# Graded Formality GPT-5-mini
+mkdir -p graded_formality_gpt5mini
+cd graded_formality_gpt5mini
+gdown https://drive.google.com/file/d/1TKtgg-6j2Yd-GTfiq0nnHRPcZC-VpGnu/view?usp=drive_link --fuzzy
+unzip graded_formality_generated_gpt-5-mini.zip
+rm graded_formality_generated_gpt-5-mini.zip
+cd ..
