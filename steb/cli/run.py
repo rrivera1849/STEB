@@ -1,7 +1,7 @@
-
 import argparse
 import sys
 from steb import get_model, get_all_datasets, get_supported_datasets, evaluate
+from steb.utils import RESULTS_DIR
 
 def main():
     """
@@ -17,7 +17,7 @@ def main():
     base_parser.add_argument("-e", "--episode-sizes", type=int, nargs="+", help="Number of atomic units to form writing sample.")
     base_parser.add_argument("--n-episodes-per-class", type=int, default=50, help="Number of examples per class.")
     base_parser.add_argument("--batch-size", type=int, default=32, help="Batch size for embedding.")
-    base_parser.add_argument("--output-folder", default="outputs", help="Folder to save the results to.")
+    base_parser.add_argument("--output-folder", default=RESULTS_DIR, help="Folder to save the results to.")
     base_parser.add_argument("--force-reload", default=False, action="store_true", help="Whether to force reload the datasets.")
     base_parser.add_argument("--progress-bar", default=False, action="store_true", help="Show a progress bar.")
     base_parser.add_argument("--seed", type=int, default=42, help="The random seed to use.")

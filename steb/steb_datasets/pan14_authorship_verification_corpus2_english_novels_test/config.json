@@ -2,7 +2,7 @@
     "type": "custom",
     "loader_module": "steb.loaders.pan",
     "loader_function": "load_pan15_dataset",
-    "data_dir": "./raw_datasets/pan14-authorship-verification-test-2014-04-22/pan14-author-verification-test-corpus2-english-novels-2014-04-22",
+    "data_dir": "pan14-authorship-verification-test-2014-04-22/pan14-author-verification-test-corpus2-english-novels-2014-04-22",
     "record_handler": {
         "text_getter": "text",
         "label_getter": "label"

@@ -1,18 +1,18 @@
 {
-  "dataset_name": "hate_speech",
-  "type": "custom",
-  "data_dir": "./raw_datasets/hate-speech-dataset",
-  "record_handler": {
-    "text_getter": "text",
-    "label_getter": "label"
-  },
-  "loader_function": "load_hate_speech_dataset",
-  "tasks": {
-    "all_to_all_pair_classification": {
-      "processor": "all_to_all_pair_classification"
+    "dataset_name": "hate_speech",
+    "type": "custom",
+    "data_dir": "hate-speech-dataset",
+    "record_handler": {
+        "text_getter": "text",
+        "label_getter": "label"
     },
-    "clustering": {
-      "processor": "clustering"
+    "loader_function": "load_hate_speech_dataset",
+    "tasks": {
+        "all_to_all_pair_classification": {
+            "processor": "all_to_all_pair_classification"
+        },
+        "clustering": {
+            "processor": "clustering"
+        }
     }
-  }
 }
