@@ -12,6 +12,8 @@ rm -rf STEL
 rm -f blogs.zip
 rm -f n77w7mygwg-1.zip
 rm -f Enron-Authorship-Verification-Corpus.zip
+rm -rf gede_essay_detection
+rm -rf radiotalk
 
 git clone --depth 1 https://github.com/Vicomtech/hate-speech-dataset.git
 rm -rf hate-speech-dataset/.git
@@ -93,4 +95,12 @@ mkdir -p gede_essay_detection
 gdown https://drive.google.com/file/d/1c3x_CR44ZCUqHf1dHVPm7K04ZIbTSYoD/view?usp=drive_link --fuzzy
 tar -zxvf gede_essay_detection.tar.gz
 rm gede_essay_detection.tar.gz
+cd ..
+
+# RadioTalk
+mkdir -p radiotalk
+cd radiotalk
+gdown https://drive.google.com/file/d/17rApvQHGbtF72eq3s21IJBtiBA38DVBf/view?usp=sharing --fuzzy
+tar -zxvf radiotalk.tar.gz 
+rm radiotalk.tar.gz
 cd ..
