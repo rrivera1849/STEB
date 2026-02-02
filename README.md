@@ -27,6 +27,31 @@ Some of the datasets used in this benchmark need to be downloaded manually. The 
 
 **Note:** The `jigsaw_toxicity_pred` dataset is downloaded via `gdown`, which may require you to have `gdown` installed and authenticated with your Google account.
 
+## Configuration & Running from Any Directory
+
+By default, STEB expects to be run from the root of the repository, looking for raw datasets in `./raw_datasets`.
+
+If you wish to run STEB from any other directory, or if you have moved the datasets, you **must** set the `STEB_RAW_DATASETS_DIR` environment variable to the absolute path of your datasets directory.
+
+```bash
+export STEB_RAW_DATASETS_DIR="/path/to/your/raw_datasets"
+```
+
+You can also configure other paths via environment variables or a `config.ini` file:
+- `STEB_RESULTS_DIR`: Where to save results (defaults to `./results`)
+- `STEB_CACHE_DIR`: Directory for caching (defaults to `~/.cache/steb`)
+- `STEB_PROCESSED_DATA_DIR`: Directory for processed datasets (defaults to `~/.local/share/steb/processed_datasets`)
+
+Example `config.ini` (place in your current directory or `~/.steb/config.ini`):
+
+```ini
+[Application_Paths]
+cache_dir = /path/to/your/cache
+processed_dataset_dir = /path/to/your/processed_datasets
+results_dir = /path/to/your/results
+raw_datasets_dir = /path/to/your/raw_datasets
+```
+
 ## Programmatic Usage
 
 You can use STEB programmatically to evaluate your models. Here's an example:
