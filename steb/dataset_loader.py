@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional
 from datasets import load_dataset
 from termcolor import colored
 
-from .utils import CACHE_DIR, PROCESSED_DATA_DIR
+from .utils import CACHE_DIR, PROCESSED_DATA_DIR, RAW_DATASETS_DIR
 
 def record_handler(
     example: Dict[str, Any],
@@ -124,7 +124,7 @@ class DatasetLoader(object):
             
             loader_module = importlib.import_module(loader_module_name)
             loader_fn = getattr(loader_module, self.config["loader_function"])
-            dataset_iter = loader_fn(self.config["data_dir"])
+            dataset_iter = loader_fn(os.path.join(RAW_DATASETS_DIR, self.config["data_dir"]))
         else:
             raise ValueError(f"Unknown dataset type: {self.config['type']}")
 
