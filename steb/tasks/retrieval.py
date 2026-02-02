@@ -1,14 +1,7 @@
-from collections import defaultdict
 from typing import Dict, Any, List
 import numpy as np
-from sklearn.metrics.pairwise import pairwise_distances
 from .base import Task
-
-def l2_normalize(embeddings: np.ndarray) -> np.ndarray:
-    """L2-normalize the last dimension of embeddings, safely."""
-    norms = np.linalg.norm(embeddings, axis=-1, keepdims=True)
-    norms = np.where(norms == 0, 1.0, norms)
-    return embeddings / norms
+from ..metrics import l2_normalize, calculate_retrieval_metrics
 
 class RetrievalTask(Task):
     """
@@ -65,38 +58,9 @@ class RetrievalTask(Task):
         embeddings_target = embeddings_target[valid_target_indices]
         target_labels = target_labels[valid_target_indices]
 
-        dist_matrix = pairwise_distances(embeddings_query, embeddings_target, metric="cosine", n_jobs=-1)
-        
-        mrr_sum = 0.0
-        rank_sum = 0.0
-        recall_at_K = defaultdict(float)
-        Ks = [1, 8, 16, 32, 64, 128] # RRS - Perhaps we should make this customizable?
-        n_queries = query_labels.shape[0]
-        
-        for i in range(n_queries):
-            query_label = query_labels[i]
-            scores = dist_matrix[i]
-            sorted_indices = np.argsort(scores)
-            ranks = np.where(query_label == target_labels[sorted_indices])[0]
-            ranks += 1
-            
-            if ranks.size == 0:
-                raise ValueError("No true matches found for query {}".format(i))
-            
-            mrr_sum += np.mean(1.0 / ranks)
-            rank_sum += np.mean(ranks)
-            for K in Ks:
-                valid = np.where(ranks <= K)[0]
-                if valid.size == 0:
-                    recall_at_K[K] = 0.
-                else:
-                    recall_at_K[K] += valid.size / ranks.size
-
-        metrics = {
-            "mrr": mrr_sum / n_queries,
-            "mean_rank": rank_sum / n_queries,
-        }
-        for K in Ks:
-            metrics[f"recall@{K}"] = recall_at_K[K] / n_queries
-        
-        return metrics
+        return calculate_retrieval_metrics(
+            embeddings_query=embeddings_query,
+            embeddings_target=embeddings_target,
+            query_labels=query_labels,
+            target_labels=target_labels
+        )
