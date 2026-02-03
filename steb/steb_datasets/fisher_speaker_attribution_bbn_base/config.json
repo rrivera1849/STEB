@@ -1,8 +1,8 @@
 {
     "type": "custom",
-    "loader_module": "steb.loaders.pan",
-    "loader_function": "load_pan15_dataset",
-    "data_dir": "pan14-authorship-verification-test-2014-04-22/pan14-author-verification-test-corpus1-dutch-essays-2014-04-22",
+    "loader_module": "steb.loaders.fisher",
+    "loader_function": "load_fisher",
+    "data_dir": "fisher_speaker_attribution/bbn_test_base_trials.npy",
     "record_handler": {
         "text_getter": "text",
         "label_getter": "label"

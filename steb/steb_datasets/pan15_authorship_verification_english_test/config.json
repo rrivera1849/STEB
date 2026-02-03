@@ -2,7 +2,7 @@
     "type": "custom",
     "loader_module": "steb.loaders.pan",
     "loader_function": "load_pan15_dataset",
-    "data_dir": "./raw_datasets/pan15-authorship-verification-test-dataset2-2015-04-19/pan15-authorship-verification-test-dataset2-english-2015-04-19",
+    "data_dir": "pan15-authorship-verification-test-dataset2-2015-04-19/pan15-authorship-verification-test-dataset2-english-2015-04-19",
     "record_handler": {
         "text_getter": "text",
         "label_getter": "label"

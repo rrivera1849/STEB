@@ -1,8 +1,7 @@
-
+gi
 import json
 import os
 import importlib
-import warnings
 from collections import defaultdict
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional
@@ -10,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 from datasets import load_dataset
 from termcolor import colored
 
-from .utils import CACHE_DIR, PROCESSED_DATA_DIR
+from .utils import CACHE_DIR, PROCESSED_DATA_DIR, RAW_DATASETS_DIR
 
 def record_handler(
     example: Dict[str, Any],
@@ -124,7 +123,7 @@ class DatasetLoader(object):
             
             loader_module = importlib.import_module(loader_module_name)
             loader_fn = getattr(loader_module, self.config["loader_function"])
-            dataset_iter = loader_fn(self.config["data_dir"])
+            dataset_iter = loader_fn(os.path.join(RAW_DATASETS_DIR, self.config["data_dir"]))
         else:
             raise ValueError(f"Unknown dataset type: {self.config['type']}")
 
@@ -212,7 +211,7 @@ class DatasetLoader(object):
         valid_labels = list(label_to_count.keys())
 
         if not valid_labels:
-            raise warnings.warn(f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
+            raise ValueError(f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
                           f"This might be expected for dummy datasets.")
 
         return valid_labels

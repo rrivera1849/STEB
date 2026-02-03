@@ -1,18 +1,15 @@
-from typing import Dict, Any, List, Hashable
+
 import itertools
+from typing import Dict, Any, List, Hashable
+
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+
 from .base import Task
+from ..metrics import l2_normalize
 
 
 # ---------- Helpers ----------
-
-def l2_normalize(embeddings: np.ndarray) -> np.ndarray:
-    """L2-normalize the last dimension of embeddings, safely."""
-    norms = np.linalg.norm(embeddings, axis=-1, keepdims=True)
-    norms = np.where(norms == 0, 1.0, norms)
-    return embeddings / norms
-
 
 def group_indices_by_label(labels: List[Hashable]) -> Dict[Hashable, List[int]]:
     """Return a mapping from label -> list of indices with that label."""
