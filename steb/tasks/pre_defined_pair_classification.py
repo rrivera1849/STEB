@@ -37,13 +37,12 @@ class PreDefinedPairClassificationTask(Task):
             sim = cosine_similarity(e1, e2)[0][0]
             scores.append(sim)
             
-            # Support both _true/_false and _1/_0 label formats
-            if label.endswith("_true") or label.endswith("_1"):
+            if label.endswith("_true"):
                 l = 1
-            elif label.endswith("_false") or label.endswith("_0"):
+            elif label.endswith("_false"):
                 l = 0
             else:
-                assert False, f"Invalid label: {label}. Expected format: trial_N_true/false or trial_N_1/0"
+                assert False, f"Invalid label: {label}"
                 
             clean_labels.append(l)
 

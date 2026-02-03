@@ -100,8 +100,6 @@ def evaluate(
         progress_bar: Whether to show a progress bar.
         output_folder: The folder to save the results to.
         seed: The random seed to use.
-        loader_kwargs_override: Optional dict to override loader_kwargs from config.
-                              Useful for testing with smaller samples (e.g., {"max_samples": 1000}).
     """
     set_seed(seed)
     memory = Memory(CACHE_DIR, verbose=1)
@@ -120,19 +118,15 @@ def evaluate(
 
         This function is cached to avoid re-extracting features on subsequent runs.
         """
-        # Use global min seq_len so all episodes have same number of positions (required for downstream reshape)
-        global_seq_len = min(
-            min(len(seq) for seq in text_list)
-            for text_list in dataset.values()
-        )
-
         episodes_by_label = {}
         for label, text_list in dataset.items():
             # Validate nested list format
             assert text_list and isinstance(text_list[0], list), \
                 f"Dataset for label '{label}' must be a list of lists (ordered sequences)"
 
-            seq_len = global_seq_len
+            seq_len = len(text_list[0])
+
+            seq_len = len(text_list[0])
 
             if episode_size == -1:
                 # Group all sequences into a single episode
@@ -185,7 +179,6 @@ def evaluate(
                 episode_size=episode_size,
                 n_episodes_per_class=n_episodes_per_class,
                 force_reload=force_reload,
-                loader_kwargs_override=loader_kwargs_override,
             )
             dataset = dset_loader.load()
 

@@ -71,7 +71,6 @@ class DatasetLoader(object):
         episode_size: int = 5,
         n_episodes_per_class: int = 50,
         force_reload: bool = False,
-        loader_kwargs_override: Optional[Dict] = None,
     ):
         """
         Initializes the DatasetLoader.
@@ -81,14 +80,11 @@ class DatasetLoader(object):
             episode_size: The number of text samples per episode.
             n_episodes_per_class: The number of episodes to generate for each class.
             force_reload: If True, forces reprocessing of the dataset.
-            loader_kwargs_override: Optional dict to override loader_kwargs from config.
-                                   Useful for testing with smaller samples.
         """
         self.dataset_name = dataset_name
         self.episode_size = episode_size
         self.n_episodes_per_class = n_episodes_per_class
         self.force_reload = force_reload
-        self.loader_kwargs_override = loader_kwargs_override or {}
         self.config_path, self.config = self._load_config()
 
     def _load_config(self):
