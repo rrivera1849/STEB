@@ -26,7 +26,7 @@ def load_fisher(data_dir: str) -> List[Dict[str, Any]]:
         
     Returns:
         List of records with 'text' (list of utterances, preserved as separate strings) 
-        and 'label' (trial_N_1 or trial_N_0 format to preserve trial identity)
+        and 'label' (trial_N_true or trial_N_false format to preserve trial identity)
         Each trial produces two records: one for call 1, one for call 2, both with same label
     """
 
@@ -81,15 +81,14 @@ def load_fisher(data_dir: str) -> List[Dict[str, Any]]:
         if not call1_text or not call2_text:
             continue
         
-        # Create label string: trial_N_1 or trial_N_0 to preserve trial identity
-        # This allows the task to group pairs correctly while using 1/0 for the actual label value
-        # label 1 = same speaker (positive), label 0 = different speaker (negative)
+        # Create label string: trial_N_true or trial_N_false to preserve trial identity
+        # true = same speaker (positive), false = different speaker (negative)
         if label == 1:
-            label_str = f"trial_{trial_idx}_1"
+            label_str = f"trial_{trial_idx}_true"
         elif label == 0:
-            label_str = f"trial_{trial_idx}_0"
+            label_str = f"trial_{trial_idx}_false"
         else:
-            # Skip if label is not 0 or 1
+            # Skip if label is not true or false
             continue
         
         # Create two records: one for call 1, one for call 2, both with same label
