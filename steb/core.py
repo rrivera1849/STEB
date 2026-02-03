@@ -12,8 +12,16 @@ from transformers import set_seed
 from .dataset_loader import DatasetLoader
 from .models import MODEL_REGISTRY
 from .steb_datasets import DATASET_REGISTRY
-from .utils import CACHE_DIR
+from .utils import CACHE_DIR, RESULTS_DIR
 
+def get_supported_tasks() -> list[str]:
+    return [
+        "all_to_all_pair_classification",
+        "clustering",
+        "order_alignment",
+        "pre_defined_pair_classification",
+        "retrieval"
+    ]
 
 def get_model(model_name_or_path: str):
     """
@@ -75,7 +83,7 @@ def evaluate(
     batch_size: int = 32,
     force_reload: bool = False,
     progress_bar: bool = False,
-    output_folder: str = "results",
+    output_folder: str = RESULTS_DIR,
     seed: int = 42,
 ):
     """
