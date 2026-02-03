@@ -1,0 +1,16 @@
+{
+  "dataset_name": "radiotalk",
+  "type": "custom",
+  "data_dir": "radiotalk",
+  "loader_function": "load_radiotalk_pairs",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "pre_defined_pair_classification": {
+      "processor": "pre_defined_pair_classification"
+    }
+  }
+}
+
