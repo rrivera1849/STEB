@@ -129,7 +129,8 @@ def save_results(output_path: str, rows: list[dict]):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", type=str, default=os.path.join("order-alignment", "graded_open_model_outputs"))
+    parser.add_argument("--output-dir", type=str, default=os.path.join("order-alignment",
+                                                                       "model-comparison/graded_open_model_outputs"))
     parser.add_argument("--max-new-tokens", type=int, default=512)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=42)
