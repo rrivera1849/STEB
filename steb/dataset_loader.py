@@ -1,8 +1,7 @@
-
+gi
 import json
 import os
 import importlib
-import warnings
 from collections import defaultdict
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional
@@ -10,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 from datasets import load_dataset
 from termcolor import colored
 
-from .utils import CACHE_DIR, PROCESSED_DATA_DIR
+from .utils import CACHE_DIR, PROCESSED_DATA_DIR, RAW_DATASETS_DIR
 
 def record_handler(
     example: Dict[str, Any],
@@ -128,20 +127,7 @@ class DatasetLoader(object):
             
             loader_module = importlib.import_module(loader_module_name)
             loader_fn = getattr(loader_module, self.config["loader_function"])
-            
-            # Resolve data_dir relative to STEB root directory, not current working directory
-            package_dir = os.path.dirname(os.path.abspath(__file__))
-            steb_root = os.path.dirname(package_dir)
-            data_dir = self.config["data_dir"]
-            # If data_dir is relative, resolve it relative to STEB root
-            if not os.path.isabs(data_dir):
-                data_dir = os.path.join(steb_root, data_dir)
-            
-            # Pass loader_kwargs if they exist in the config, with overrides applied
-            loader_kwargs = self.config.get("loader_kwargs", {}).copy()
-            loader_kwargs.update(self.loader_kwargs_override)
-            loader_kwargs["data_dir"] = data_dir
-            dataset_iter = loader_fn(**loader_kwargs)
+            dataset_iter = loader_fn(os.path.join(RAW_DATASETS_DIR, self.config["data_dir"]))
         else:
             raise ValueError(f"Unknown dataset type: {self.config['type']}")
 
@@ -229,7 +215,7 @@ class DatasetLoader(object):
         valid_labels = list(label_to_count.keys())
 
         if not valid_labels:
-            raise warnings.warn(f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
+            raise ValueError(f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
                           f"This might be expected for dummy datasets.")
 
         return valid_labels

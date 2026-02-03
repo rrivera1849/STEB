@@ -1,26 +1,78 @@
-
 import argparse
 import sys
 from steb import get_model, get_all_datasets, get_supported_datasets, evaluate
+from steb.utils import RESULTS_DIR
+
+from steb.presets import resolve_preset, PRESETS
+
+def add_common_arguments(parser):
+    """Adds common arguments to the parser."""
+    parser.add_argument("model_name_or_path", nargs="?", help="Model name (HF ID), or local path to the model.")
+    parser.add_argument("--batch-size", type=int, default=32, help="Batch size for embedding.")
+    parser.add_argument("--output-folder", default=RESULTS_DIR, help="Folder to save the results to.")
+    parser.add_argument("--force-reload", default=False, action="store_true", help="Whether to force reload the datasets.")
+    parser.add_argument("--progress-bar", default=False, action="store_true", help="Show a progress bar.")
+    parser.add_argument("--seed", type=int, default=42, help="The random seed to use.")
+
+def add_iteration_arguments(parser):
+    """Adds iteration arguments (episode sizes, n per class) to the parser."""
+    parser.add_argument("-e", "--episode-sizes", type=int, nargs="+", help="Number of atomic units to form writing sample.")
+    parser.add_argument("--n-episodes-per-class", type=int, default=50, help="Number of examples per class.")
+
 
 def main():
     """
     The main function for the STEB CLI.
     Parses command-line arguments and runs the evaluation.
     """
+    if "--preset" in sys.argv:
+        # Preset mode parser
+        parser = argparse.ArgumentParser(description="Run STEB with a preset configuration.")
+        parser.add_argument("--preset", type=str, required=True, help=f"Preset name. Available: {list(PRESETS.keys())}")
+        add_common_arguments(parser)
+        args = parser.parse_args()
+        
+        if not args.model_name_or_path:
+            parser.error("the following arguments are required: model_name_or_path")
+
+        model = get_model(args.model_name_or_path)
+        
+        try:
+            preset_config = resolve_preset(args.preset)
+        except ValueError as e:
+            parser.error(str(e))
+            
+        task_configs = preset_config["config"]["tasks"]
+        print(f"Running preset: {args.preset}")
+        print("Found #{:02d} evaluations in preset".format(len(task_configs)))
+        for item in task_configs:
+            task_name = item["task"]
+            datasets = item["datasets"]
+            current_episode_sizes = item["episode_sizes"]
+            current_n_episodes = item["n_episodes_per_class"]
+            
+            evaluate(
+                model,
+                datasets,
+                episode_sizes=current_episode_sizes,
+                task_name=task_name,
+                n_episodes_per_class=current_n_episodes,
+                batch_size=args.batch_size,
+                output_folder=args.output_folder,
+                force_reload=args.force_reload,
+                progress_bar=args.progress_bar,
+                seed=args.seed,
+            )
+        return
+
+    # Standard mode parser
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="task", required=True)
 
     # Base parser for common arguments
     base_parser = argparse.ArgumentParser(add_help=False)
-    base_parser.add_argument("model_name_or_path", nargs="?", help="Model name (HF ID), or local path to the model.")
-    base_parser.add_argument("-e", "--episode-sizes", type=int, nargs="+", help="Number of atomic units to form writing sample.")
-    base_parser.add_argument("--n-episodes-per-class", type=int, default=50, help="Number of examples per class.")
-    base_parser.add_argument("--batch-size", type=int, default=32, help="Batch size for embedding.")
-    base_parser.add_argument("--output-folder", default="outputs", help="Folder to save the results to.")
-    base_parser.add_argument("--force-reload", default=False, action="store_true", help="Whether to force reload the datasets.")
-    base_parser.add_argument("--progress-bar", default=False, action="store_true", help="Show a progress bar.")
-    base_parser.add_argument("--seed", type=int, default=42, help="The random seed to use.")
+    add_common_arguments(base_parser)
+    add_iteration_arguments(base_parser)
 
     # 'all' task parser
     all_parser = subparsers.add_parser("all", help="Run all tasks.", parents=[base_parser])
