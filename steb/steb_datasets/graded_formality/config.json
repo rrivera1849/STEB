@@ -1,8 +1,8 @@
 {
-  "dataset_name": "graded_formality_gpt5mini",
+  "dataset_name": "graded_formality",
   "type": "custom",
-  "data_dir": "./raw_datasets/graded_formality_gpt5mini",
-  "loader_function": "load_graded_formality_gpt5mini",
+  "data_dir": "./raw_datasets/graded_formality/graded_formality_generated_gpt-5-mini",
+  "loader_function": "load_graded_formality",
   "record_handler": {
     "text_getter": "text",
     "label_getter": "label"
