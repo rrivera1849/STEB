@@ -78,19 +78,3 @@ def load_onestop_english_corpus(data_dir: str) -> List[Dict[str, Any]]:
 
     return records
 
-
-def onestop_english_corpus_record_handler(record: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Custom record handler for the OneStopEnglishCorpus dataset.
-    Extracts 'text' and 'label' from each record.
-    
-    Args:
-        record: Record dictionary with 'text' and 'label' fields
-        
-    Returns:
-        Dictionary with 'text' and 'label' fields.
-    """
-    return {
-        'text': record.get('text'),
-        'label': record.get('label')
-    }
