@@ -14,6 +14,11 @@ def load_graded_formality(data_dir: str) -> List[Dict[str, Any]]:
     - input: original (informal) text
     - level1-level4: progressively more formal versions
 
+    NOTE: usually the OrderAlignment task expects the key to be the name of the style
+        and the first item to be the most intense version of that style (i.e., most -> least)
+        BUT: I decided to have the name not be the style but the dataset source, going from least to most formal or
+            most to least sms/tweet if you will
+
     Args:
         data_dir: Path to the dataset directory containing CSV files
 
