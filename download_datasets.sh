@@ -40,7 +40,7 @@ fi
 
 if [ ! -d "enron_authorship_corpus" ]; then
     echo "Downloading enron_authorship_corpus..."
-    curl -k -O https://prod-dcd-datasets-cache-zipfiles.s3.eu-west-1.amazonaws.com/n77w7mygwg-1.zip
+    curl -O https://prod-dcd-datasets-cache-zipfiles.s3.eu-west-1.amazonaws.com/n77w7mygwg-1.zip
     unzip n77w7mygwg-1.zip
     unzip Enron-Authorship-Verification-Corpus.zip
     rm n77w7mygwg-1.zip
