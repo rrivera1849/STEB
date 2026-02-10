@@ -1,7 +1,7 @@
 {
   "dataset_name": "OneStopEnglishCorpus",
   "type": "custom",
-  "data_dir": "./raw_datasets/OneStopEnglishCorpus",
+  "data_dir": "OneStopEnglishCorpus",
   "loader_function": "load_onestop_english_corpus",
   "record_handler": {
     "text_getter": "text",
