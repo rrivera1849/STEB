@@ -53,7 +53,7 @@ def load_graded_formality(data_dir: str) -> List[Dict[str, Any]]:
 
                 texts = [input_text, level1, level2, level3, level4]
 
-                # Use source as label (e.g., "tweet", "sms"), this could also by formality generally?
+                # Use source as label (e.g., "tweet", "sms"), not "formality" as key
                 label = row.get("source", "formality").strip()
 
                 records.append({"text": texts, "label": label})
