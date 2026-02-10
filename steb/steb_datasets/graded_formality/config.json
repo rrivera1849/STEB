@@ -1,0 +1,15 @@
+{
+  "dataset_name": "graded_formality",
+  "type": "custom",
+  "data_dir": "graded_formality/graded_formality_generated_gpt-5-mini",
+  "loader_function": "load_graded_formality",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "order_alignment": {
+      "processor": "order_alignment"
+    }
+  }
+}

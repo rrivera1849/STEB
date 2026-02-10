@@ -25,6 +25,12 @@ Some of the datasets used in this benchmark need to be downloaded manually. The 
 ./download_datasets.sh
 ```
 
+The script skips any dataset that has already been downloaded. To force a clean re-download of everything, use the `--purge` flag:
+
+```bash
+./download_datasets.sh --purge
+```
+
 **Note:** The `jigsaw_toxicity_pred` dataset is downloaded via `gdown`, which may require you to have `gdown` installed and authenticated with your Google account.
 
 ## Configuration & Running from Any Directory
