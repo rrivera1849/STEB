@@ -1,26 +1,15 @@
 #!/bin/sh
+
+# Usage: ./download_datasets.sh [--purge]
+#   --purge    Remove all existing datasets before downloading
+
+if [ "$1" = "--purge" ]; then
+    echo "Purging all datasets in ./raw_datasets..."
+    rm -rf ./raw_datasets
+fi
+
 mkdir -p ./raw_datasets
 cd ./raw_datasets
-
-# Clean up directories from previous runs to ensure idempotency
-rm -rf hate-speech-dataset
-rm -rf hate-speech-and-offensive-language
-rm -rf CharCnn_Keras
-rm -rf enron_authorship_corpus
-rm -rf 'Enron (80 authors)'
-rm -rf STEL
-rm -f blogs.zip
-rm -f n77w7mygwg-1.zip
-rm -f Enron-Authorship-Verification-Corpus.zip
-rm -rf gede_essay_detection
-rm -rf radiotalk
-
-git clone --depth 1 https://github.com/Vicomtech/hate-speech-dataset.git
-rm -rf hate-speech-dataset/.git
-git clone --depth 1 https://github.com/t-davidson/hate-speech-and-offensive-language.git
-rm -rf hate-speech-and-offensive-language/.git
-git clone --depth 1 https://github.com/mhjabreel/CharCnn_Keras.git
-rm -rf CharCnn_Keras/.git
 
 # Note: The blog_authorship_corpus download is currently disabled due to an unreliable server.
 # curl -k -O http://www.cs.biu.ac.il/~koppel/blogs/blogs.zip
@@ -173,22 +162,38 @@ else
 fi
 
 # PAN AV-13
-wget https://zenodo.org/records/3715999/files/pan13-authorship-verification-test-and-training.zip
-unzip pan13-authorship-verification-test-and-training.zip
-unzip pan13-authorship-verification-test-corpus2-2013-05-29.zip
-rm *.zip
+if [ ! -d "pan13-authorship-verification-test-corpus2-2013-05-29" ]; then
+    echo "Downloading PAN AV-13..."
+    wget https://zenodo.org/records/3715999/files/pan13-authorship-verification-test-and-training.zip
+    unzip pan13-authorship-verification-test-and-training.zip
+    unzip pan13-authorship-verification-test-corpus2-2013-05-29.zip
+    rm *.zip
+else
+    echo "Skipping PAN AV-13 (already exists)"
+fi
 
 # GEDE Essay Detection
-mkdir -p gede_essay_detection
-gdown https://drive.google.com/file/d/1c3x_CR44ZCUqHf1dHVPm7K04ZIbTSYoD/view?usp=drive_link --fuzzy
-tar -zxvf gede_essay_detection.tar.gz
-rm gede_essay_detection.tar.gz
-cd ..
+if [ ! -d "gede_essay_detection" ]; then
+    echo "Downloading gede_essay_detection..."
+    mkdir -p gede_essay_detection
+    gdown https://drive.google.com/file/d/1c3x_CR44ZCUqHf1dHVPm7K04ZIbTSYoD/view?usp=drive_link --fuzzy
+    tar -zxvf gede_essay_detection.tar.gz
+    rm gede_essay_detection.tar.gz
+else
+    echo "Skipping gede_essay_detection (already exists)"
+fi
 
 # RadioTalk
-mkdir -p radiotalk
-cd radiotalk
-gdown https://drive.google.com/file/d/17rApvQHGbtF72eq3s21IJBtiBA38DVBf/view?usp=sharing --fuzzy
-tar -zxvf radiotalk.tar.gz 
-rm radiotalk.tar.gz
-cd ..
+if [ ! -d "radiotalk" ]; then
+    echo "Downloading radiotalk..."
+    mkdir -p radiotalk
+    cd radiotalk
+    gdown https://drive.google.com/file/d/17rApvQHGbtF72eq3s21IJBtiBA38DVBf/view?usp=sharing --fuzzy
+    tar -zxvf radiotalk.tar.gz
+    rm radiotalk.tar.gz
+    cd ..
+else
+    echo "Skipping radiotalk (already exists)"
+fi
+
+echo "Done downloading datasets."
