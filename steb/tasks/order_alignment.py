@@ -142,7 +142,5 @@ class OrderAlignmentTask(Task):
 
         return {
             "acc_mean": float(np.mean(alignment_accuracies)) if alignment_accuracies else 0.0,
-            # "distractor_last_acc_mean": float(np.mean(distractor_last_accuracies)) if distractor_last_accuracies else 0.0,
-            # "distractor_first_acc_mean": float(np.mean(distractor_first_accuracies)) if distractor_first_accuracies else 0.0,
             "distractor_acc_mean": float(np.mean(all_distractor_accs)) if all_distractor_accs else 0.0,
         }
