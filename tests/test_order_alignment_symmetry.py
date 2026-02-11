@@ -1,4 +1,4 @@
-"""Tests for order alignment symmetry, distractor stability, and determinism."""
+"""Tests for order alignment symmetry and concrete distractor-variant behavior."""
 import itertools
 
 import numpy as np
