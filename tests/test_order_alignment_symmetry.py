@@ -1,10 +1,9 @@
 """Tests for order alignment symmetry and concrete distractor-variant behavior."""
-import itertools
 
 import numpy as np
 import pytest
 
-from steb.tasks.order_alignment import OrderAlignmentTask, align_and_score
+from steb.tasks.order_alignment import align_and_score
 from steb.metrics import l2_normalize
 
 
