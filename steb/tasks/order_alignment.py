@@ -60,9 +60,8 @@ def align_and_score(emb_src: np.ndarray, emb_tgt: np.ndarray, offset: int = 0) -
 class OrderAlignmentTask(Task):
     """
     A task for evaluating order alignment performance.
-    Measures how well embeddings preserve the ordering of style intensity levels.
-    Includes a distractor variant where the least-intense item from i is moved
-    into j and removed from i.
+    Measures how well embeddings preserve the ordering of style intensity levels when using the Hungarian algorithm for alignment.
+    Includes distractor variants where either the least- or most-intense item from the first list is moved into the second list and removed from the first list.
     """
     def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
         """
@@ -75,10 +74,8 @@ class OrderAlignmentTask(Task):
 
         Returns:
             A dictionary containing:
-                - alignment_accuracy_mean
-                - spearman_mean
-                - distractor_accuracy_mean
-                - distractor_spearman_mean
+                - acc_mean: Mean alignment accuracy across all pairs of text lists with the same label.
+                - distractor_acc_mean: Mean alignment accuracy under the distractor setting (combining the distractor variants).
         """
         # Ensure ndarray
         if not isinstance(embeddings, np.ndarray):
@@ -100,7 +97,7 @@ class OrderAlignmentTask(Task):
                 continue
 
             # All unordered pairs within label group
-            for i, j in itertools.combinations(idxs, 2):
+            for i, j in itertools.combinations(idxs, 2):  # note: itertools.combinations is deterministic
                 emb_i = embeddings_norm[i]
                 emb_j = embeddings_norm[j]
 
@@ -109,13 +106,17 @@ class OrderAlignmentTask(Task):
                 alignment_accuracies.append(base_scores["accuracy"])
 
                 # --- Distractor variants ---
+                # NOTE: distractor calculations are not symmetric
+                #   This is the case because the distractor manipulations are not symmetric,
+                #       and we are not exhaustive in pair selection (itertools.combinations).
+                #       This is done to reduce and avoid exponential compute.
+                #       However, we expect the averaged scores not to change dramatically.
+                #   The results remain comparable for the same settings as itertools.combinations is deterministic.
+                #   BUT if one would go and change the ordering of elements in the datasets,
+                #       this would potentially make results not comparable.
                 if emb_i.shape[0] < 2:
                     continue
 
-                # TODO: this is not symmetric (itertools.combinations only selects 2 unique elements)
-                #  to reduce and avoid exponential compute
-                #       I expect the averaged scores not to change much,
-                #       but ordering of elements in datasets might affect result scores like this
                 # Distractor variant 1: Replace last (least-intense) position
                 emb_i_ref_last = emb_i[:-1]             # i without its last (least-intense) item
                 emb_j_distr_last = emb_j.copy()
@@ -137,7 +138,5 @@ class OrderAlignmentTask(Task):
 
         return {
             "acc_mean": float(np.mean(alignment_accuracies)) if alignment_accuracies else 0.0,
-            "distractor_last_acc_mean": float(np.mean(distractor_last_accuracies)) if distractor_last_accuracies else 0.0,
-            "distractor_first_acc_mean": float(np.mean(distractor_first_accuracies)) if distractor_first_accuracies else 0.0,
             "distractor_acc_mean": float(np.mean(all_distractor_accs)) if all_distractor_accs else 0.0,
         }
