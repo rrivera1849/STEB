@@ -101,7 +101,7 @@ class OrderAlignmentTask(Task):
                 continue
 
             # All unordered pairs within label group
-            for i, j in itertools.combinations(idxs, 2):
+            for i, j in itertools.combinations(idxs, 2):  # note: itertools.combinations is deterministic
                 emb_i = embeddings_norm[i]
                 emb_j = embeddings_norm[j]
 
@@ -110,13 +110,17 @@ class OrderAlignmentTask(Task):
                 alignment_accuracies.append(base_scores["accuracy"])
 
                 # --- Distractor variants ---
+                # NOTE: distractor calculations are not symmetric
+                #   This is the case because the distractor manipulations are not symmetric,
+                #       and we are not exhaustive in pair selection (itertools.combinations).
+                #       This is done to reduce and avoid exponential compute.
+                #       However, we expect the averaged scores not to change much.
+                #   The results remain comparable for the same settings.
+                #   BUT if one would go and change the ordering of elements in the datasets,
+                #       this would potentially make results not comparable.
                 if emb_i.shape[0] < 2:
                     continue
 
-                # TODO: this is not symmetric (itertools.combinations only selects 2 unique elements)
-                #  to reduce and avoid exponential compute
-                #       I expect the averaged scores not to change much,
-                #       but ordering of elements in datasets might affect result scores like this
                 # Distractor variant 1: Replace last (least-intense) position
                 emb_i_ref_last = emb_i[:-1]             # i without its last (least-intense) item
                 emb_j_distr_last = emb_j.copy()
