@@ -25,21 +25,21 @@ Set I        Set II
 
 ## Cost Matrix
 
-To apply the Hungarian algorithm, we construct a **cost matrix** where each entry `d(Ti, Sj)` represents the distance (or dissimilarity) between sentence T*i* and sentence S*j*:
+To apply the Hungarian algorithm, we construct a **cost matrix** where each entry `d(Si, Tj)` represents the distance (or dissimilarity) between sentence S*i* and sentence T*j*:
 
-|            | S1         | S2         | S3         |
+|            | T1         | T2         | T3         |
 |:----------:|:----------:|:----------:|:----------:|
-| **T1**     | d(T1, S1)  | d(T1, S2)  | d(T1, S3)  |
-| **T2**     | d(T2, S1)  | d(T2, S2)  | d(T2, S3)  |
-| **T3**     | d(T3, S1)  | d(T3, S2)  | d(T3, S3)  |
+| **S1**     | d(S1, T1)  | d(S1, T2)  | d(S1, T3)  |
+| **S2**     | d(S2, T1)  | d(S2, T2)  | d(S2, T3)  |
+| **S3**     | d(S3, T1)  | d(S3, T2)  | d(S3, T3)  |
 
-Here, the rows correspond to **"workers"** (T1–T3) and the columns correspond to **"tasks"** (S1–S3) in the classic Hungarian algorithm terminology.
+Here, the rows correspond to **"workers"** (S1–S3) and the columns correspond to **"tasks"** (T1–T3) in the classic Hungarian algorithm terminology.
 
 ## Objective
 
 The Hungarian algorithm finds the assignment that **minimizes** the total distance:
 
-$$\min \sum_{i} d(X_i, S_i)$$
+$$\min \sum_{i} d(S_i, X_i)$$
 
 where $X_i$ is the sentence from Set II assigned to $S_i$.
 
