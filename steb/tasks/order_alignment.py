@@ -75,11 +75,7 @@ class OrderAlignmentTask(Task):
         Returns:
             A dictionary containing:
                 - acc_meam : Mean alignment accuracy across all pairs of text lists with the same label.
-                - distractor_last_acc_mean : Mean alignment accuracy for the variant where the least-intense
-                    position from the first list is moved into the second list and removed from the first.
-                - distractor_first_acc_mean : Mean alignment accuracy for the variant where the most-intense
-                    position from the first list is moved into the second list and removed from the first.
-                - distractor_acc_mean : Mean of both distractor variants.
+                - distractor_acc_mean : Mean of both distractor variants (least-intense and most-intense).
         """
         # Ensure ndarray
         if not isinstance(embeddings, np.ndarray):
@@ -142,7 +138,5 @@ class OrderAlignmentTask(Task):
 
         return {
             "acc_mean": float(np.mean(alignment_accuracies)) if alignment_accuracies else 0.0,
-            # "distractor_last_acc_mean": float(np.mean(distractor_last_accuracies)) if distractor_last_accuracies else 0.0,
-            # "distractor_first_acc_mean": float(np.mean(distractor_first_accuracies)) if distractor_first_accuracies else 0.0,
             "distractor_acc_mean": float(np.mean(all_distractor_accs)) if all_distractor_accs else 0.0,
         }
