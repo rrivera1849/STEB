@@ -74,7 +74,7 @@ class OrderAlignmentTask(Task):
 
         Returns:
             A dictionary containing:
-                - acc_meam : Mean alignment accuracy across all pairs of text lists with the same label.
+                - acc_mean : Mean alignment accuracy across all pairs of text lists with the same label.
                 - distractor_acc_mean : Mean of both distractor variants (least-intense and most-intense).
         """
         # Ensure ndarray
