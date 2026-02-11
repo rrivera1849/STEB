@@ -74,12 +74,8 @@ class OrderAlignmentTask(Task):
 
         Returns:
             A dictionary containing:
-                - acc_meam : Mean alignment accuracy across all pairs of text lists with the same label.
-                - distractor_last_acc_mean : Mean alignment accuracy for the variant where the least-intense
-                    position from the first list is moved into the second list and removed from the first.
-                - distractor_first_acc_mean : Mean alignment accuracy for the variant where the most-intense
-                    position from the first list is moved into the second list and removed from the first.
-                - distractor_acc_mean : Mean of both distractor variants.
+                - acc_mean: Mean alignment accuracy across all pairs of text lists with the same label.
+                - distractor_acc_mean: Mean alignment accuracy under the distractor setting (combining the distractor variants).
         """
         # Ensure ndarray
         if not isinstance(embeddings, np.ndarray):
