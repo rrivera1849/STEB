@@ -114,8 +114,8 @@ class OrderAlignmentTask(Task):
                 #   This is the case because the distractor manipulations are not symmetric,
                 #       and we are not exhaustive in pair selection (itertools.combinations).
                 #       This is done to reduce and avoid exponential compute.
-                #       However, we expect the averaged scores not to change much.
-                #   The results remain comparable for the same settings.
+                #       However, we expect the averaged scores not to change dramatically.
+                #   The results remain comparable for the same settings as itertools.combinations is deterministic.
                 #   BUT if one would go and change the ordering of elements in the datasets,
                 #       this would potentially make results not comparable.
                 if emb_i.shape[0] < 2:
