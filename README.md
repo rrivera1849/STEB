@@ -149,7 +149,7 @@ The order alignment task evaluates how well embeddings can be used to align the 
 
 **Method**:
 - For each pair of text sets with matching labels, embeddings are computed for all positions (most style → least style)
-- The Hungarian algorithm (`scipy.optimize.linear_sum_assignment`) finds the optimal one-to-one matching between positions that maximizes total cosine similarity
+- The Hungarian algorithm (`scipy.optimize.linear_sum_assignment`) finds the optimal one-to-one matching between positions that maximizes total cosine similarity. See an explanation for sets of three also in the [Hungarian algorithm documentation](documentation/hungarian-algorithm.md).
 - Negative similarities are clamped to 0, and the cost matrix uses distance (1 - similarity)
 
 **Evaluation**: The task includes two variants:
