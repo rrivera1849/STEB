@@ -61,7 +61,7 @@ class OrderAlignmentTask(Task):
     """
     A task for evaluating order alignment performance.
     Measures how well embeddings preserve the ordering of style intensity levels when using the Hungarian algorithm for alignment.
-    Includes a distractor variant where the least-intense item from the first set is moved into the second and removed from i.
+    Includes distractor variants where either the least- or most-intense item from the first list is moved into the second list and removed from the first list.
     """
     def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
         """
