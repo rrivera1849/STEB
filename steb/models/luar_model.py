@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 class LUARModel(STEBModel):
     """
-    A class for LUAR (Learning Universal Authorship Representations) models.
+    LUAR (Learning Universal Authorship Representations) models.
     """
     supported_models = ["rrivera1849/LUAR-CRUD", "rrivera1849/LUAR-MUD"]
 
@@ -25,22 +25,7 @@ class LUARModel(STEBModel):
         self.model.to(self.device)
         self.model.eval()
 
-    def embed_single(self, texts: List[str], batch_size: int, show_progress: bool = False) -> np.ndarray:
-        """
-        Embeds a list of single texts by treating them as episodes of size 1.
-
-        Args:
-            texts: A list of strings to embed.
-            batch_size: The batch size to use for embedding.
-            show_progress: Whether to show a progress bar.
-
-        Returns:
-            A numpy array of embeddings.
-        """
-        # Treat single texts as episodes of size 1
-        episodes = [[text] for text in texts]
-        return self.embed_multiple(episodes, batch_size, show_progress=show_progress)
-
+    @torch.inference_mode()
     def embed_multiple(self, episodes: List[List[str]], batch_size: int, show_progress: bool = False) -> np.ndarray:
         """
         Embeds a list of episodes, where each episode is a list of texts.
@@ -53,40 +38,45 @@ class LUARModel(STEBModel):
         Returns:
             A numpy array of embeddings.
         """
-        all_embeddings = []
-        iterator = range(0, len(episodes), batch_size)
+        all_embeddings = [None] * len(episodes)
+        lengths = [len(x) for x in episodes]
+        unique_lengths = np.unique(lengths)
+
         if show_progress:
-            iterator = tqdm(iterator, desc="Embedding", total=len(iterator))
+            pbar = tqdm(total=len(episodes), desc="Embedding")
 
-        for i in iterator:
-            batch = episodes[i:i+batch_size]
+        for length in unique_lengths:
+            indices_to_embed = [i for i, l in enumerate(lengths) if l == length]
 
-            # Flatten the batch of episodes into a single list of texts
-            texts = [text for episode in batch for text in episode]
+            for batch_start in range(0, len(indices_to_embed), batch_size):
+                batch_indices = indices_to_embed[batch_start:batch_start+batch_size]
+                batch = [episodes[i] for i in batch_indices]
+                texts = [text for episode in batch for text in episode]
 
-            max_length = 512
-            episode_size = len(batch[0])
-            tokenized_batch = self.tokenizer(
-                texts,
-                max_length=max_length,
-                truncation=True,
-                padding="max_length",
-                return_tensors="pt",
-            )
-            tokenized_batch = {
-                k: v.to(self.device)
-                for k, v in tokenized_batch.items()
-            }
+                tokenized_batch = self.tokenizer(
+                    texts,
+                    max_length=self.tokenizer.model_max_length,
+                    truncation=True,
+                    padding="longest",
+                    return_tensors="pt",
+                ).to(self.device)
+                longest_length = tokenized_batch["input_ids"].size(1)
 
-            tokenized_batch["input_ids"] = \
-                tokenized_batch["input_ids"].reshape(len(batch), episode_size, max_length)
-            tokenized_batch["attention_mask"] = \
-                tokenized_batch["attention_mask"].reshape(len(batch), episode_size, max_length)
+                tokenized_batch["input_ids"] = \
+                    tokenized_batch["input_ids"].reshape(len(batch), length, longest_length)
+                tokenized_batch["attention_mask"] = \
+                    tokenized_batch["attention_mask"].reshape(len(batch), length, longest_length)
 
-            with torch.no_grad():
                 features = self.model(
                     input_ids=tokenized_batch["input_ids"],
                     attention_mask=tokenized_batch["attention_mask"]
                 ).detach().cpu().numpy()
-            all_embeddings.append(features)
-        return np.concatenate(all_embeddings)
+                
+                for i, idx in enumerate(batch_indices):
+                    all_embeddings[idx] = features[i:i+1]
+
+                if show_progress:
+                    pbar.update(len(batch_indices))
+        
+        all_embeddings = np.concatenate(all_embeddings, axis=0)
+        return all_embeddings

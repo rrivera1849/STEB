@@ -60,7 +60,7 @@ def get_moderate_config(): # RRS - Consider renaming to "leaderboard"
     args_dict = {
         "order_alignment": {
             "episode_sizes": [1],
-            "n_episodes_per_class": 2
+            "n_episodes_per_class": 100,
         },
         # "retrieval": {
         #     "episode_sizes": [50],
