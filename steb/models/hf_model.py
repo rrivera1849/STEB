@@ -2,10 +2,30 @@ import torch
 import numpy as np
 from transformers import AutoModel, AutoTokenizer
 from .base import STEBModel
+from termcolor import colored
 from typing import List
 from tqdm import tqdm
 
-def mean_pooling(model_output, attention_mask):
+def get_model_max_length(
+    model: AutoModel,
+    tokenizer: AutoTokenizer,
+) -> int:
+    max_len = tokenizer.model_max_length
+    if max_len > 100_000:
+        max_len = None
+    if max_len is None:
+        max_len = getattr(model.config, "max_position_embeddings", None)
+    if max_len is None:
+        max_len = getattr(model.config, "n_positions", None)
+    if max_len is None:
+        max_len = 512
+        print(colored("Could not determine the maximum length of the model. Defaulting to 512.", "red"))
+    return max_len
+
+def mean_pooling(
+    model_output,
+    attention_mask
+):
     """
     Performs mean pooling on the model output.
 
@@ -42,44 +62,7 @@ class HFModel(STEBModel):
         self.model.to(self.device)
         self.model.eval()
 
-    def embed_single(self, texts: List[str], batch_size: int, show_progress: bool = False) -> np.ndarray:
-        """
-        Embeds a list of single texts.
-
-        Args:
-            texts: A list of strings to embed.
-            batch_size: The batch size to use for embedding.
-            show_progress: Whether to show a progress bar.
-
-        Returns:
-            A numpy array of embeddings.
-        """
-        all_embeddings = []
-        iterator = range(0, len(texts), batch_size)
-        if show_progress:
-            iterator = tqdm(iterator, desc="Embedding", total=len(iterator))
-            
-        for i in iterator:
-            batch = texts[i:i+batch_size]
-            max_length = 512
-            tokenized_batch = self.tokenizer(
-                batch,
-                max_length=max_length,
-                truncation=True,
-                padding="max_length",
-                return_tensors="pt",
-            )
-            tokenized_batch = {
-                k: v.to(self.device)
-                for k, v in tokenized_batch.items()
-            }
-            with torch.no_grad():
-                features = self.model(**tokenized_batch)
-                features = mean_pooling(features, tokenized_batch["attention_mask"])
-                features = features.detach().cpu().numpy()
-            all_embeddings.append(features)
-        return np.concatenate(all_embeddings)
-
+    @torch.inference_mode()
     def embed_multiple(self, episodes: List[List[str]], batch_size: int, show_progress: bool = False) -> np.ndarray:
         """
         Embeds a list of episodes, where each episode is a list of texts.
@@ -93,37 +76,35 @@ class HFModel(STEBModel):
             A numpy array of embeddings.
         """
         all_embeddings = []
-        iterator = range(0, len(episodes), batch_size)
+        lengths = [len(x) for x in episodes]
+        texts = [text for episode in episodes for text in episode]
+
+        iterator = range(0, len(texts), batch_size)
         if show_progress:
             iterator = tqdm(iterator, desc="Embedding", total=len(iterator))
 
+        max_length = get_model_max_length(self.model, self.tokenizer)
         for i in iterator:
-            batch = episodes[i:i+batch_size]
-
-            # Flatten the batch of episodes into a single list of texts
-            texts = [text for episode in batch for text in episode]
-
-            max_length = 512
+            batch = texts[i:i+batch_size]
             tokenized_batch = self.tokenizer(
-                texts,
+                batch,
                 max_length=max_length,
                 truncation=True,
-                padding="max_length",
+                padding="longest",
                 return_tensors="pt",
-            )
-            tokenized_batch = {
-                k: v.to(self.device)
-                for k, v in tokenized_batch.items()
-            }
-            with torch.no_grad():
-                features = self.model(**tokenized_batch)
-                features = mean_pooling(features, tokenized_batch["attention_mask"])
-
-                # Reshape the features back to the episode structure and average
-                episode_size = len(batch[0])
-                features = features.reshape(len(batch), episode_size, -1)
-                features = features.mean(dim=1)
-
-                features = features.detach().cpu().numpy()
+            ).to(self.device)
+            features = self.model(**tokenized_batch)
+            features = mean_pooling(features, tokenized_batch["attention_mask"])
+            features = features.detach().cpu().numpy()
             all_embeddings.append(features)
-        return np.concatenate(all_embeddings)
+
+        all_embeddings = np.concatenate(all_embeddings, axis=0)
+        pooled_embeddings = []
+        start = 0
+        for length in lengths:
+            pooled_embeddings.append(all_embeddings[start:start+length].mean(axis=0, keepdims=True))
+            start += length
+        pooled_embeddings = np.concatenate(pooled_embeddings, axis=0)
+        assert pooled_embeddings.shape[0] == len(episodes)
+
+        return pooled_embeddings

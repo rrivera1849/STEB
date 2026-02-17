@@ -4,24 +4,8 @@ import numpy as np
 
 class STEBModel(ABC):
     """
-    An abstract base class for style text embedding models.
+    Abstract base class for style text embedding models.
     """
-
-    @abstractmethod
-    def embed_single(self, texts: List[str], batch_size: int, show_progress: bool = False) -> np.ndarray:
-        """
-        Embeds a list of single texts.
-
-        Args:
-            texts: A list of strings to embed.
-            batch_size: The batch size to use for embedding.
-            show_progress: Whether to show a progress bar.
-
-        Returns:
-            A numpy array of embeddings.
-        """
-        pass
-
     @abstractmethod
     def embed_multiple(self, episodes: List[List[str]], batch_size: int, show_progress: bool = False) -> np.ndarray:
         """
