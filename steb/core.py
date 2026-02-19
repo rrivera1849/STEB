@@ -128,7 +128,7 @@ def evaluate(
             seq_len = len(text_list[0])
             if episode_size == -1:
                 # Group all sequences into a single large episode
-                episodes_by_label[label] = [[sublist for lst in text_list for sublist in lst]]
+                episodes_by_label[label] = [[[sublist for lst in text_list for sublist in lst]]]
             else:
                 # Group sequences into episodes, organize by position
                 episodes_by_label[label] = [
@@ -137,17 +137,15 @@ def evaluate(
                 ]
                 assert len(episodes_by_label[label]) == n_episodes_per_class
                 assert all([len(episode[0]) == episode_size for episode in episodes_by_label[label]])
-
+            
+        
         all_episodes = [episode for label, episodes in episodes_by_label.items() for episode in episodes]
         y = [label for label, episodes in episodes_by_label.items() for _ in episodes]
-
+        num_positions = len(all_episodes[0])
         if task_name == "order_alignment":
-            num_positions = len(all_episodes[0])
             assert all([len(episode) == num_positions for episode in all_episodes]), \
                 ("All entries must have the same number of positions, "
                 "functionality for variable-length text sets not implemented.")
-        else:
-            num_positions = 1
 
         # Flatten episodes for embedding: [[[pos0s], [pos1s], ...], ...] -> [[pos0s], [pos1s], [pos0s], [pos1s], ...]
         flat_episodes = [position for episode in all_episodes for position in episode]
@@ -158,9 +156,6 @@ def evaluate(
     dataset_iterator = tqdm(datasets, desc="Evaluating Datasets", disable=not progress_bar)
     for dataset_name in dataset_iterator:
         for episode_size in episode_sizes:
-            if episode_size == -1 and task_name != "retrieval":
-                raise ValueError("Episode size -1 is only supported for the retrieval task.")
-
             print(colored(f"--- Evaluating {dataset_name} (episode size: {episode_size}) ---", "cyan"))
             dset_loader = DatasetLoader(
                 dataset_name=dataset_name,
