@@ -188,7 +188,7 @@ if [ ! -d "radiotalk" ]; then
     echo "Downloading radiotalk..."
     mkdir -p radiotalk
     cd radiotalk
-    gdown https://drive.google.com/file/d/17rApvQHGbtF72eq3s21IJBtiBA38DVBf/view?usp=sharing --fuzzy
+    gdown https://drive.google.com/file/d/1NHgHZDlMB9Yh9SGQdSTjz_CNLZZqGCuW/view?usp=drive_link --fuzzy
     tar -zxvf radiotalk.tar.gz
     rm radiotalk.tar.gz
     cd ..
