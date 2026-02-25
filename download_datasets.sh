@@ -183,6 +183,20 @@ else
     echo "Skipping gede_essay_detection (already exists)"
 fi
 
+# CORE Register Corpus
+if [ ! -d "CORE-corpus" ]; then
+    echo "Downloading CORE-corpus..."
+    mkdir -p CORE-corpus
+    cd CORE-corpus
+    wget https://github.com/TurkuNLP/CORE-corpus/raw/master/train.tsv.gz
+    wget https://github.com/TurkuNLP/CORE-corpus/raw/master/dev.tsv.gz
+    wget https://github.com/TurkuNLP/CORE-corpus/raw/master/test.tsv.gz
+    gunzip train.tsv.gz dev.tsv.gz test.tsv.gz
+    cd ..
+else
+    echo "Skipping CORE-corpus (already exists)"
+fi
+
 # RadioTalk
 if [ ! -d "radiotalk" ]; then
     echo "Downloading radiotalk..."
