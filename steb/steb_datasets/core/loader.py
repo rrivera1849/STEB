@@ -85,12 +85,17 @@ def load_core_dataset(data_dir: str) -> List[Dict[str, Any]]:
 
     Dataset: https://github.com/TurkuNLP/CORE-corpus
     """
+    if not os.path.isdir(data_dir):
+        raise FileNotFoundError(f"CORE-corpus directory not found: {data_dir}")
+
     records: List[Dict[str, Any]] = []
+    found_any = False
 
     for filename in ["train.tsv", "dev.tsv", "test.tsv"]:
         filepath = os.path.join(data_dir, filename)
         if not os.path.exists(filepath):
             continue
+        found_any = True
 
         with open(filepath, "r", encoding="utf-8") as f:
             for line in f:
@@ -109,5 +114,8 @@ def load_core_dataset(data_dir: str) -> List[Dict[str, Any]]:
                     readable = _LABEL_MAP.get(token.upper())
                     if readable is not None:
                         records.append({"text": text, "label": readable})
+
+    if not found_any:
+        raise FileNotFoundError(f"No TSV files (train.tsv, dev.tsv, test.tsv) found in: {data_dir}")
 
     return records

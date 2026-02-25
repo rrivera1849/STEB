@@ -11,7 +11,8 @@ from termcolor import cprint
 DEFAULT_CACHE_DIR = os.path.join(Path.home(), ".cache", "steb")
 DEFAULT_PROCESSED_DATA_DIR = os.path.join(Path.home(), ".local", "share", "steb", "processed_datasets")
 DEFAULT_RESULTS_DIR = "results" # Relative to CWD
-DEFAULT_RAW_DATASETS_DIR = "raw_datasets" # Relative to CWD, though usually users should set this if not in repo root
+# DEFAULT_RAW_DATASETS_DIR should be relative to project root not CWD
+DEFAULT_RAW_DATASETS_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "raw_datasets"))
 
 def get_config_value(env_var: str, config_section: str, config_key: str, default: str) -> str:
     """
