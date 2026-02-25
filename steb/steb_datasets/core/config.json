@@ -1,0 +1,15 @@
+{
+    "dataset_name": "core",
+    "type": "custom",
+    "data_dir": "CORE-corpus",
+    "loader_function": "load_core_dataset",
+    "record_handler": {
+        "text_getter": "text",
+        "label_getter": "label"
+    },
+    "tasks": {
+        "all_to_all_pair_classification": {
+            "processor": "all_to_all_pair_classification"
+        }
+    }
+}
