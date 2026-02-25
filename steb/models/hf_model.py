@@ -20,6 +20,20 @@ def get_model_max_length(
     if max_len is None:
         max_len = 512
         print(colored("Could not determine the maximum length of the model. Defaulting to 512.", "red"))
+
+    # RoBERTa-style models assign position IDs starting at padding_idx+1 rather than 0,
+    # so a sequence of length L produces max position ID L+padding_idx. This means the
+    # safe max sequence length is max_position_embeddings - padding_idx - 1 (e.g. 512 for
+    # RoBERTa where max_position_embeddings=514 and padding_idx=1).
+    max_position_embeddings = getattr(model.config, "max_position_embeddings", None)
+    if max_position_embeddings is not None:
+        try:
+            position_padding_idx = model.embeddings.position_embeddings.padding_idx or 0
+        except AttributeError:
+            position_padding_idx = 0
+        if position_padding_idx > 0:
+            max_len = min(max_len, max_position_embeddings - position_padding_idx - 1)
+
     return max_len
 
 def mean_pooling(
