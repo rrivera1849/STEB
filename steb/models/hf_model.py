@@ -28,7 +28,8 @@ def get_model_max_length(
     max_position_embeddings = getattr(model.config, "max_position_embeddings", None)
     if max_position_embeddings is not None:
         try:
-            position_padding_idx = model.embeddings.position_embeddings.padding_idx or 0
+            padding_idx = model.embeddings.position_embeddings.padding_idx
+            position_padding_idx = padding_idx if padding_idx is not None else 0
         except AttributeError:
             position_padding_idx = 0
         if position_padding_idx > 0:
