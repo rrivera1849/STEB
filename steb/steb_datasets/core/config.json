@@ -10,6 +10,9 @@
     "tasks": {
         "all_to_all_pair_classification": {
             "processor": "all_to_all_pair_classification"
+        },
+        "clustering": {
+          "processor": "clustering"
         }
     }
 }
