@@ -210,4 +210,24 @@ else
     echo "Skipping radiotalk (already exists)"
 fi
 
+#### Probing
+
+mkdir ./probing
+
+if [ ! -f ./probing/blog_small.jsonl ]; then
+    echo "Downloading blog_small.jsonl..."
+    gdown https://drive.google.com/file/d/1V9GODxHA8L4f9DXzKC2f34doa4LfqqAH/view?usp=drive_link --fuzzy
+    mv blog_small.jsonl ./probing/
+else
+    echo "Skipping blog_small.jsonl (already exists)"
+fi
+
+if [ ! -f ./probing/blog.jsonl ]; then
+    echo "Downloading blog.jsonl..."
+    gdown https://drive.google.com/file/d/1hrG48JsBx0NUVJ3m9mj37Mct83CfWeLt/view?usp=drive_link --fuzzy
+    mv blog.jsonl ./probing/
+else
+    echo "Skipping blog.jsonl (already exists)"
+fi
+
 echo "Done downloading datasets."
