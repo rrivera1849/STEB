@@ -20,7 +20,8 @@ def get_supported_tasks() -> list[str]:
         "clustering",
         "order_alignment",
         "pre_defined_pair_classification",
-        "retrieval"
+        "retrieval",
+        "probing"
     ]
 
 def get_model(model_name_or_path: str):
