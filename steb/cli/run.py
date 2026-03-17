@@ -102,6 +102,11 @@ def main():
     retrieval_parser.add_argument("--dataset", choices=get_supported_datasets("retrieval"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     retrieval_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
+    # 'probing' task parser
+    probing_parser = subparsers.add_parser("probing", help="Run probing task.", parents=[base_parser])
+    probing_parser.add_argument("--dataset", choices=get_supported_datasets("probing"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
+    probing_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
+
     # Handle --list-datasets before full parsing to avoid required arg errors
     if "--list-datasets" in sys.argv:
         task = sys.argv[1]
@@ -119,6 +124,9 @@ def main():
     if args.task == "pre_defined_pair_classification":
         args.episode_sizes = [1]
         args.n_episodes_per_class = 2
+    elif args.task == "probing":
+        args.episode_sizes = [1]
+        args.n_episodes_per_class = 1
 
     if not args.episode_sizes:
         parser.error("the following arguments are required: -e/--episode-sizes")
