@@ -28,9 +28,70 @@ def get_supported_tasks() -> list[str]:
     return SUPPORTED_TASKS
 
 
+def _get_causal_only_model_types() -> set:
+    """
+    Returns the set of model types that are exclusively causal LMs.
+
+    Computes the difference between HuggingFace's causal LM mapping and
+    masked LM mapping. Models that appear in both (e.g. BERT, RoBERTa) are
+    primarily encoders that happen to have a causal variant, so they are
+    excluded.
+
+    Returns:
+        A frozenset of model_type strings for causal-only architectures.
+    """
+    from transformers.models.auto.modeling_auto import (
+        MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
+        MODEL_FOR_MASKED_LM_MAPPING_NAMES,
+    )
+
+    causal_types = set(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.keys())
+    masked_types = set(MODEL_FOR_MASKED_LM_MAPPING_NAMES.keys())
+    return causal_types - masked_types
+
+
+def _is_causal_model(model_name_or_path: str) -> bool:
+    """
+    Checks whether a model is a causal (auto-regressive) language model.
+
+    Detection strategy (in order):
+    1. If the config's architectures list contains a class name with
+       "ForCausalLM" or "LMHeadModel", and the model_type is NOT a
+       primarily-encoder type (e.g. BERT, RoBERTa), return True.
+    2. If the model_type is in the causal-only set (derived from HuggingFace's
+       MODEL_FOR_CAUSAL_LM_MAPPING minus MODEL_FOR_MASKED_LM_MAPPING), return True.
+
+    Args:
+        model_name_or_path: The name or path of the model.
+
+    Returns:
+        True if the model is a causal LM, False otherwise.
+    """
+    from transformers import AutoConfig
+
+    config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+    causal_only_types = _get_causal_only_model_types()
+
+    model_type = getattr(config, "model_type", "")
+    if model_type in causal_only_types:
+        return True
+
+    # Check architecture class names for models not in the standard mappings
+    architectures = getattr(config, "architectures", []) or []
+    causal_arch_patterns = ("ForCausalLM", "LMHeadModel")
+    for arch in architectures:
+        if any(pattern in arch for pattern in causal_arch_patterns):
+            return True
+
+    return False
+
+
 def get_model(model_name_or_path: str):
     """
     Loads a STEB model.
+
+    Checks the supported_models lists first, then auto-detects whether the
+    model is a causal LM or an encoder model, and loads accordingly.
 
     Args:
         model_name_or_path: The name or path of the model to load.
@@ -38,14 +99,14 @@ def get_model(model_name_or_path: str):
     Returns:
         An instance of a STEBModel.
     """
-    model_class = None
     for model_cls in MODEL_REGISTRY.values():
         if model_name_or_path in model_cls.supported_models:
-            model_class = model_cls
-            break
-    if model_class is None:
-        model_class = MODEL_REGISTRY["hf"]
-    return model_class(model_name_or_path)
+            return model_cls(model_name_or_path)
+
+    if _is_causal_model(model_name_or_path):
+        return MODEL_REGISTRY["causal"](model_name_or_path)
+
+    return MODEL_REGISTRY["hf"](model_name_or_path)
 
 
 def get_all_datasets() -> List[str]:
