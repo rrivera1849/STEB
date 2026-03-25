@@ -1,6 +1,6 @@
+import importlib
 import json
 import os
-import importlib
 from collections import defaultdict
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional
@@ -9,6 +9,7 @@ from datasets import load_dataset
 from termcolor import colored
 
 from .utils import CACHE_DIR, PROCESSED_DATA_DIR, RAW_DATASETS_DIR
+
 
 def record_handler(
     example: Dict[str, Any],
@@ -40,7 +41,7 @@ def record_handler(
     label = example[label_getter]
     if isinstance(label, list):
         label = label[0] if label else None
-    
+
     if text is None or label is None:
         return None
 
@@ -56,10 +57,11 @@ def record_handler(
 
     if len(text) == 0:
         return None
-    
+
     return {"text": text, "label": label}
 
-class DatasetLoader(object):
+
+class DatasetLoader:
     """
     This class is responsible for loading datasets, processing them into episodes, and caching the results.
     It can handle both Hugging Face datasets and custom local datasets.
@@ -104,22 +106,19 @@ class DatasetLoader(object):
         processing records, and saving the processed data to cache.
         """
         dataset_path = self._get_dataset_path()
-        
+
         if os.path.exists(dataset_path) and not self.force_reload:
-            # Re-load from cache if it exists and we're not forcing a reload
             print(colored(f"Loading dataset from {dataset_path}", "green"))
-            return json.loads(open(dataset_path, "r").read())
+            with open(dataset_path, "r") as f:
+                return json.loads(f.read())
+
+        loader_module_name = self.config.get("loader_module", f"steb.steb_datasets.{self.dataset_name}.loader")
 
         if self.config["type"] == "huggingface":
             loader_kwargs = self.config["loader_kwargs"]
             loader_kwargs["cache_dir"] = CACHE_DIR
             dataset_iter = load_dataset(**loader_kwargs)
         elif self.config["type"] == "custom":
-            if "loader_module" in self.config:
-                loader_module_name = self.config["loader_module"]
-            else:
-                loader_module_name = f"steb.steb_datasets.{self.dataset_name}.loader"
-            
             loader_module = importlib.import_module(loader_module_name)
             loader_fn = getattr(loader_module, self.config["loader_function"])
             dataset_iter = loader_fn(os.path.join(RAW_DATASETS_DIR, self.config["data_dir"]))
@@ -128,22 +127,14 @@ class DatasetLoader(object):
 
         text_getter = self.config["record_handler"].get("text_getter")
         label_getter = self.config["record_handler"].get("label_getter")
-        
+
         label_transform = None
         if "label_getter_function" in self.config["record_handler"]:
-            if "loader_module" in self.config:
-                loader_module_name = self.config["loader_module"]
-            else:
-                loader_module_name = f"steb.steb_datasets.{self.dataset_name}.loader"
             loader_module = importlib.import_module(loader_module_name)
             label_transform = getattr(loader_module, self.config["record_handler"]["label_getter_function"])
-            
+
         custom_record_handler = None
         if "custom_record_handler_function" in self.config["record_handler"]:
-            if "loader_module" in self.config:
-                loader_module_name = self.config["loader_module"]
-            else:
-                loader_module_name = f"steb.steb_datasets.{self.dataset_name}.loader"
             loader_module = importlib.import_module(loader_module_name)
             custom_record_handler = getattr(loader_module, self.config["record_handler"]["custom_record_handler_function"])
 
@@ -154,12 +145,12 @@ class DatasetLoader(object):
             label_transform=label_transform,
             custom_record_handler=custom_record_handler,
         )
-        
+
         if self.episode_size == -1:
             N = 1
         else:
             N = self.episode_size * self.n_episodes_per_class
-            
+
         dataset: Dict[str, List[List[str]]] = defaultdict(list)
 
         valid_labels = self.get_valid_labels(dataset_iter, handler)
@@ -174,21 +165,21 @@ class DatasetLoader(object):
 
         if self.episode_size != -1:
             dataset = {k: v for k, v in dataset.items() if len(v) == N}
-        
+
         os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
         with open(dataset_path, "w") as f:
             print(f"Saving dataset to {dataset_path}")
             f.write(json.dumps(dataset))
 
         return dataset
-    
+
     def _get_dataset_path(self):
         """
         Generates the file path for the cached, processed dataset.
         """
         base_str = f"{os.path.basename(self.dataset_name)}_{self.n_episodes_per_class}_{self.episode_size}"
         return os.path.join(PROCESSED_DATA_DIR, base_str + ".json")
-    
+
     def get_valid_labels(self, dataset_iter, handler):
         """
         Gets all the labels for classes that have enough samples.

@@ -1,9 +1,10 @@
 import argparse
 import sys
-from steb import get_model, get_all_datasets, get_supported_datasets, evaluate
+
+from steb import evaluate, get_all_datasets, get_model, get_supported_datasets
+from steb.presets import PRESETS, resolve_preset
 from steb.utils import RESULTS_DIR
 
-from steb.presets import resolve_preset, PRESETS
 
 def add_common_arguments(parser):
     """Adds common arguments to the parser."""
@@ -31,17 +32,17 @@ def main():
         parser.add_argument("--preset", type=str, required=True, help=f"Preset name. Available: {list(PRESETS.keys())}")
         add_common_arguments(parser)
         args = parser.parse_args()
-        
+
         if not args.model_name_or_path:
             parser.error("the following arguments are required: model_name_or_path")
 
         model = get_model(args.model_name_or_path)
-        
+
         try:
             preset_config = resolve_preset(args.preset)
         except ValueError as e:
             parser.error(str(e))
-            
+
         task_configs = preset_config["config"]["tasks"]
         print(f"Running preset: {args.preset}")
         print("Found #{:02d} evaluations in preset".format(len(task_configs)))
@@ -120,7 +121,7 @@ def main():
 
     if not args.model_name_or_path:
         parser.error("the following arguments are required: model_name_or_path")
-    
+
     if args.task == "pre_defined_pair_classification":
         args.episode_sizes = [1]
         args.n_episodes_per_class = 2

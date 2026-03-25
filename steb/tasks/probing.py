@@ -1,6 +1,5 @@
-
 from copy import deepcopy
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 import numpy as np
 import torch
@@ -9,6 +8,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
 from .base import Task
+
 
 class LogisticRegression(nn.Module):
     """Simple Linear -> Sigmoid classifier.
@@ -19,9 +19,9 @@ class LogisticRegression(nn.Module):
         self.linear = nn.Linear(input_dim, output_dim)
 
     def forward(self, x):
-        y_pred = torch.sigmoid(self.linear(x))
-        return y_pred
-        
+        return torch.sigmoid(self.linear(x))
+
+
 def run_logistic_regression(
     input_dim,
     num_classes,
@@ -36,9 +36,9 @@ def run_logistic_regression(
     https://github.com/facebookresearch/SentEval/blob/main/senteval/tools/validation.py#L202
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
-        
-    best_models = [None for _ in range(len(L2reg))]
-    best_scores = [float("-inf") for _ in range(len(L2reg))]
+
+    best_models = [None] * len(L2reg)
+    best_scores = [float("-inf")] * len(L2reg)
     for i, reg in enumerate(L2reg):
         model = LogisticRegression(input_dim, num_classes)
         model.to(device)
@@ -58,7 +58,7 @@ def run_logistic_regression(
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-            
+
             # Validation loop:
             model.eval()
             with torch.no_grad():
@@ -74,12 +74,12 @@ def run_logistic_regression(
 
                 if val_acc > best_scores[i]:
                     best_scores[i] = val_acc.item()
-                    best_models[i] = {k:v.to("cpu") for k, v in deepcopy(model.state_dict()).items()}
+                    best_models[i] = {k: v.to("cpu") for k, v in deepcopy(model.state_dict()).items()}
                 else:
                     early_stop_count += 1
                     if early_stop_count > tenacity:
                         break
-            
+
     # Use best model to evaluate on test set:
     best_idx = np.argmax(best_scores)
     model.load_state_dict(best_models[best_idx], strict=True)
@@ -112,34 +112,32 @@ class ProbingTask(Task):
         # "label" is a list of integers, one for each task
         # "split" is a list of strings, one for each task
 
-        BATCH_SIZE = 512
+        batch_size = 512
         num_tasks = len(labels[0]["label"])
         results = {}
-        
-        for task_idx in range(num_tasks):
 
-            # 1. Collect training, validation, and test embeddings and labels
+        for task_idx in range(num_tasks):
             train_X, train_y = [], []
             val_X, val_y = [], []
             test_X, test_y = [], []
-            
+
             for emb, meta in zip(embeddings, labels):
-                l = meta["label"][task_idx]
-                s = meta["split"][task_idx]
-                
-                if l is None or s is None:
+                label = meta["label"][task_idx]
+                split = meta["split"][task_idx]
+
+                if label is None or split is None:
                     continue
-                
-                if s == "train":
+
+                if split == "train":
                     train_X.append(emb)
-                    train_y.append(l)
-                elif s == "val":
+                    train_y.append(label)
+                elif split == "val":
                     val_X.append(emb)
-                    val_y.append(l)
-                elif s == "test":
+                    val_y.append(label)
+                elif split == "test":
                     test_X.append(emb)
-                    test_y.append(l)
-            
+                    test_y.append(label)
+
             train_X = torch.FloatTensor(np.array(train_X))
             train_y = torch.LongTensor(np.array(train_y))
             val_X = torch.FloatTensor(np.array(val_X))
@@ -148,23 +146,23 @@ class ProbingTask(Task):
             test_y = torch.LongTensor(np.array(test_y))
 
             train_dataloader = DataLoader(
-                TensorDataset(train_X, train_y), 
-                batch_size=BATCH_SIZE, 
-                num_workers=0
+                TensorDataset(train_X, train_y),
+                batch_size=batch_size,
+                num_workers=0,
             )
             val_dataloader = DataLoader(
-                TensorDataset(val_X, val_y), 
-                batch_size=BATCH_SIZE, 
-                num_workers=0
+                TensorDataset(val_X, val_y),
+                batch_size=batch_size,
+                num_workers=0,
             )
             test_dataloader = DataLoader(
-                TensorDataset(test_X, test_y), 
-                batch_size=BATCH_SIZE, 
-                num_workers=0
+                TensorDataset(test_X, test_y),
+                batch_size=batch_size,
+                num_workers=0,
             )
-            
+
             num_classes = len(np.unique(train_y))
-                
+
             acc = run_logistic_regression(
                 input_dim=train_X.shape[1],
                 num_classes=num_classes,
@@ -176,7 +174,7 @@ class ProbingTask(Task):
                 L2reg=[10**t for t in range(-5, -1)],
             )
             results[f"task_{task_idx}"] = acc
-            
+
         if results:
             results["average"] = np.mean(list(results.values()))
             

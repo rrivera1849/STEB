@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 
 def load_radiotalk_pairs(data_dir: str) -> List[Dict[str, Any]]:
@@ -26,13 +26,13 @@ def load_radiotalk_pairs(data_dir: str) -> List[Dict[str, Any]]:
     
     if not os.path.exists(json_path):
         raise FileNotFoundError(f"RadioTalk pairs file not found at {json_path}")
-    
+
     with open(json_path, 'r', encoding='utf-8') as f:
         pairs = json.load(f)
-    
+
     if not isinstance(pairs, list):
         raise ValueError(f"Expected JSON array, got {type(pairs)}")
-    
+
     records = []
     for trial_idx, pair in enumerate(pairs):
         label = pair.get('label')
@@ -47,15 +47,15 @@ def load_radiotalk_pairs(data_dir: str) -> List[Dict[str, Any]]:
         
         if not speaker1_text or not speaker2_text:
             continue
-        
+
         if label == 1:
-            label_str = f"trial_{trial_idx}_true" #1
+            label_str = f"trial_{trial_idx}_true"
         elif label == 0:
-            label_str = f"trial_{trial_idx}_false" #0
+            label_str = f"trial_{trial_idx}_false"
         else:
             continue
         
         records.append({"text": speaker1_text, "label": label_str})
         records.append({"text": speaker2_text, "label": label_str})
-    
+
     return records

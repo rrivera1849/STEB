@@ -1,12 +1,11 @@
-
 import itertools
-from typing import Dict, Any, List, Hashable
+from typing import Any, Dict, Hashable, List
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-from .base import Task
 from ..metrics import l2_normalize
+from .base import Task
 
 
 # ---------- Helpers ----------

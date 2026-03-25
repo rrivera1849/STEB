@@ -48,7 +48,7 @@ def load_graded_formality(data_dir: str) -> List[Dict[str, Any]]:
                 level4 = row.get("level4", "").strip()
 
                 # All levels must be present and non-empty
-                if not all([input_text, level1, level2, level3, level4]):
+                if not all((input_text, level1, level2, level3, level4)):
                     continue
 
                 texts = [input_text, level1, level2, level3, level4]

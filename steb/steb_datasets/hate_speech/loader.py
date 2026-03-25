@@ -1,6 +1,7 @@
-
 import os
+
 import pandas as pd
+
 
 def load_hate_speech_dataset(path: str):
     """
@@ -12,7 +13,8 @@ def load_hate_speech_dataset(path: str):
     annotations = pd.read_csv(os.path.join(path, "annotations_metadata.csv"))
     test_dir = os.path.join(path, "sampled_test")
     for fname in os.listdir(test_dir):
-        text = open(os.path.join(test_dir, fname), "r").read()
+        with open(os.path.join(test_dir, fname), "r") as f:
+            text = f.read()
         file_id = os.path.splitext(fname)[0]
         label = annotations[annotations["file_id"] == file_id]["label"].iloc[0]
 

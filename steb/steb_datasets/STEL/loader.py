@@ -1,8 +1,8 @@
-import os
 import csv
+import os
 import re
-from typing import Dict, List, Tuple, Optional
 from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
 
 
 def parse_id_component(component: str, style_type: str) -> Optional[Tuple[str, int]]:
@@ -223,7 +223,7 @@ def extract_pairs_from_row(row: Dict[str, str], style_type: str) -> List[Tuple[s
     return pairs
 
 
-def load_stel(data_dir: str) -> List[Dict[str, any]]:
+def load_stel(data_dir: str) -> List[Dict[str, Any]]:
     """
     Load STEL dataset from TSV files in characteristics and dimensions directories.
 
