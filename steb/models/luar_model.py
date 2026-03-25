@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from transformers import AutoModel, AutoTokenizer
 from .base import STEBModel
+from .chunking import chunk_text
 from typing import List
 from tqdm import tqdm
 
@@ -38,6 +39,16 @@ class LUARModel(STEBModel):
         Returns:
             A numpy array of embeddings.
         """
+        # Expand episodes by chunking texts that exceed context length
+        max_length = self.tokenizer.model_max_length
+        expanded_episodes = []
+        for episode in episodes:
+            expanded = []
+            for text in episode:
+                expanded.extend(chunk_text(text, self.tokenizer, max_length))
+            expanded_episodes.append(expanded)
+        episodes = expanded_episodes
+
         all_embeddings = [None] * len(episodes)
         lengths = [len(x) for x in episodes]
         unique_lengths = np.unique(lengths)

@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from transformers import AutoModel, AutoTokenizer
 from .base import STEBModel
+from .chunking import chunk_text
 from termcolor import colored
 from typing import List
 from tqdm import tqdm
@@ -94,13 +95,22 @@ class HFModel(STEBModel):
         lengths = [len(x) for x in episodes]
         texts = [text for episode in episodes for text in episode]
 
-        iterator = range(0, len(texts), batch_size)
+        max_length = get_model_max_length(self.model, self.tokenizer)
+
+        # Chunk texts that exceed the model's context length
+        all_chunks = []
+        chunks_per_text = []
+        for text in texts:
+            chunks = chunk_text(text, self.tokenizer, max_length)
+            all_chunks.extend(chunks)
+            chunks_per_text.append(len(chunks))
+
+        iterator = range(0, len(all_chunks), batch_size)
         if show_progress:
             iterator = tqdm(iterator, desc="Embedding", total=len(iterator))
 
-        max_length = get_model_max_length(self.model, self.tokenizer)
         for i in iterator:
-            batch = texts[i:i+batch_size]
+            batch = all_chunks[i:i+batch_size]
             tokenized_batch = self.tokenizer(
                 batch,
                 max_length=max_length,
@@ -114,6 +124,16 @@ class HFModel(STEBModel):
             all_embeddings.append(features)
 
         all_embeddings = np.concatenate(all_embeddings, axis=0)
+
+        # Aggregate chunk embeddings back to per-text embeddings
+        text_embeddings = []
+        start = 0
+        for n_chunks in chunks_per_text:
+            text_embeddings.append(all_embeddings[start:start+n_chunks].mean(axis=0, keepdims=True))
+            start += n_chunks
+        all_embeddings = np.concatenate(text_embeddings, axis=0)
+
+        # Pool per-text embeddings within each episode
         pooled_embeddings = []
         start = 0
         for length in lengths:
