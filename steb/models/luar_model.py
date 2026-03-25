@@ -1,10 +1,13 @@
-import torch
+from typing import List
+
 import numpy as np
+import torch
+from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
+
 from .base import STEBModel
 from .chunking import chunk_text
-from typing import List
-from tqdm import tqdm
+
 
 class LUARModel(STEBModel):
     """
@@ -41,13 +44,10 @@ class LUARModel(STEBModel):
         """
         # Expand episodes by chunking texts that exceed context length
         max_length = self.tokenizer.model_max_length
-        expanded_episodes = []
-        for episode in episodes:
-            expanded = []
-            for text in episode:
-                expanded.extend(chunk_text(text, self.tokenizer, max_length))
-            expanded_episodes.append(expanded)
-        episodes = expanded_episodes
+        episodes = [
+            [chunk for text in episode for chunk in chunk_text(text, self.tokenizer, max_length)]
+            for episode in episodes
+        ]
 
         all_embeddings = [None] * len(episodes)
         lengths = [len(x) for x in episodes]
@@ -66,7 +66,7 @@ class LUARModel(STEBModel):
 
                 tokenized_batch = self.tokenizer(
                     texts,
-                    max_length=self.tokenizer.model_max_length,
+                    max_length=max_length,
                     truncation=True,
                     padding="longest",
                     return_tensors="pt",
@@ -82,12 +82,12 @@ class LUARModel(STEBModel):
                     input_ids=tokenized_batch["input_ids"],
                     attention_mask=tokenized_batch["attention_mask"]
                 ).detach().cpu().numpy()
-                
+
                 for i, idx in enumerate(batch_indices):
                     all_embeddings[idx] = features[i:i+1]
 
                 if show_progress:
                     pbar.update(len(batch_indices))
-        
+
         all_embeddings = np.concatenate(all_embeddings, axis=0)
         return all_embeddings

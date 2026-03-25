@@ -1,7 +1,10 @@
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 import numpy as np
-from .base import Task
+
 from ..metrics import calculate_clustering_metrics
+from .base import Task
+
 
 class ClusteringTask(Task):
     """

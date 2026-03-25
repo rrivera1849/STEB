@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 import numpy as np
+
 
 class Task(ABC):
     """

@@ -1,6 +1,7 @@
 import os
+from typing import Any, Dict, List
+
 import numpy as np
-from typing import Dict, List, Any
 
 
 def load_fisher(data_dir: str) -> List[Dict[str, Any]]:
@@ -46,54 +47,41 @@ def load_fisher(data_dir: str) -> List[Dict[str, Any]]:
     
     if not os.path.exists(npy_path):
         raise FileNotFoundError(f"Fisher trial file not found at {npy_path}")
-    
-    # Load the numpy array
+
     with open(npy_path, 'rb') as f:
         trials = np.load(f, allow_pickle=True)
-    
-    # Convert numpy array to list if needed
+
     if isinstance(trials, np.ndarray):
         trials = trials.tolist()
-    
+
     records = []
     for trial_idx, trial in enumerate(trials):
-        # Extract trial data
         label = trial.get('label')
         call1_utts = trial.get('call 1', [])
         call2_utts = trial.get('call 2', [])
-        
-        # Skip if missing required fields
+
         if label is None or not call1_utts or not call2_utts:
             continue
-        
-        # Convert utterances to strings if they're not already
-        # Handle both list of strings and numpy arrays
+
         if isinstance(call1_utts, np.ndarray):
             call1_utts = call1_utts.tolist()
         if isinstance(call2_utts, np.ndarray):
             call2_utts = call2_utts.tolist()
-        
-        # Filter out non-string items, keeping utterances as separate strings in a list
+
         call1_text = [str(utt) for utt in call1_utts if isinstance(utt, (str, int, float)) and str(utt).strip()]
         call2_text = [str(utt) for utt in call2_utts if isinstance(utt, (str, int, float)) and str(utt).strip()]
-        
-        # Skip if either call has no valid text
+
         if not call1_text or not call2_text:
             continue
-        
-        # Create label string: trial_N_true or trial_N_false to preserve trial identity
-        # true = same speaker (positive), false = different speaker (negative)
+
         if label == 1:
             label_str = f"trial_{trial_idx}_true"
         elif label == 0:
             label_str = f"trial_{trial_idx}_false"
         else:
-            # Skip if label is not true or false
             continue
-        
-        # Create two records: one for call 1, one for call 2, both with same label
-        # This matches the pattern used in pan15_dataset loader
+
         records.append({"text": call1_text, "label": label_str})
         records.append({"text": call2_text, "label": label_str})
-    
+
     return records
