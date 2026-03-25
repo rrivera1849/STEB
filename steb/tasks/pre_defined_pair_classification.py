@@ -1,8 +1,11 @@
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from .base import Task
+
 from ..metrics import calculate_pair_classification_metrics
+from .base import Task
+
 
 class PreDefinedPairClassificationTask(Task):
     """
@@ -29,22 +32,22 @@ class PreDefinedPairClassificationTask(Task):
 
         for label, embs in grouped.items():
             if len(embs) != 2:
-                assert False, f"Expected 2 embeddings for label {label}, got {len(embs)}"
+                raise ValueError(f"Expected 2 embeddings for label {label}, got {len(embs)}")
 
             e1 = embs[0].reshape(1, -1)
             e2 = embs[1].reshape(1, -1)
-            
+
             sim = cosine_similarity(e1, e2)[0][0]
             scores.append(sim)
-            
+
             if label.endswith("_true"):
-                l = 1
+                binary_label = 1
             elif label.endswith("_false"):
-                l = 0
+                binary_label = 0
             else:
-                assert False, f"Invalid label: {label}"
-                
-            clean_labels.append(l)
+                raise ValueError(f"Invalid label: {label}")
+
+            clean_labels.append(binary_label)
 
         scores = np.array(scores)
         y = np.array(clean_labels)

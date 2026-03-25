@@ -2,8 +2,7 @@ from typing import Any, Dict, Optional, List
 
 
 def synthstel_record_handler(example: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """generated with cursor gpt-5.2 High
-
+    """
     Custom record handler for SynthSTEL.
     Converts Hugging Face fields into STEB's expected format:
       - text: [most_style, least_style]

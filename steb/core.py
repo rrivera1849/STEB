@@ -1,8 +1,7 @@
-
+import importlib
 import json
 import os
-import importlib
-from typing import List, Dict, Optional
+from typing import List, Optional
 
 from joblib import Memory
 from termcolor import colored
@@ -14,15 +13,20 @@ from .models import MODEL_REGISTRY
 from .steb_datasets import DATASET_REGISTRY
 from .utils import CACHE_DIR, RESULTS_DIR
 
+SUPPORTED_TASKS = [
+    "all_to_all_pair_classification",
+    "clustering",
+    "order_alignment",
+    "pre_defined_pair_classification",
+    "retrieval",
+    "probing",
+]
+
+
 def get_supported_tasks() -> list[str]:
-    return [
-        "all_to_all_pair_classification",
-        "clustering",
-        "order_alignment",
-        "pre_defined_pair_classification",
-        "retrieval",
-        "probing"
-    ]
+    """Returns the list of all supported task names."""
+    return SUPPORTED_TASKS
+
 
 def get_model(model_name_or_path: str):
     """
@@ -137,14 +141,13 @@ def evaluate(
                     for i in range(0, len(text_list), episode_size)
                 ]
                 assert len(episodes_by_label[label]) == n_episodes_per_class
-                assert all([len(episode[0]) == episode_size for episode in episodes_by_label[label]])
-            
-        
+                assert all(len(episode[0]) == episode_size for episode in episodes_by_label[label])
+
         all_episodes = [episode for label, episodes in episodes_by_label.items() for episode in episodes]
         y = [label for label, episodes in episodes_by_label.items() for _ in episodes]
         num_positions = len(all_episodes[0])
         if task_name == "order_alignment":
-            assert all([len(episode) == num_positions for episode in all_episodes]), \
+            assert all(len(episode) == num_positions for episode in all_episodes), \
                 ("All entries must have the same number of positions, "
                 "functionality for variable-length text sets not implemented.")
 
@@ -166,7 +169,7 @@ def evaluate(
             )
             dataset = dset_loader.load()
 
-            if len(dataset) <= 0:
+            if not dataset:
                 continue
 
             X, y = extract_features(dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar)
