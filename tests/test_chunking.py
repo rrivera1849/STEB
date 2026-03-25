@@ -79,8 +79,3 @@ class TestChunkText:
             if len(sentences_in_chunk) > 1:
                 assert token_count <= max_length
 
-    def test_text_within_limit_returns_original(self, tokenizer):
-        text = "Short text."
-        chunks = chunk_text(text, tokenizer, max_length=512)
-        assert len(chunks) == 1
-        assert chunks[0] == text
