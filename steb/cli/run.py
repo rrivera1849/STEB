@@ -1,4 +1,6 @@
 import argparse
+import json
+import os
 import sys
 
 from steb import evaluate, get_all_datasets, get_model, get_supported_datasets
@@ -15,10 +17,101 @@ def add_common_arguments(parser):
     parser.add_argument("--progress-bar", default=False, action="store_true", help="Show a progress bar.")
     parser.add_argument("--seed", type=int, default=42, help="The random seed to use.")
 
+
 def add_iteration_arguments(parser):
     """Adds iteration arguments (episode sizes, n per class) to the parser."""
     parser.add_argument("-e", "--episode-sizes", type=int, nargs="+", help="Number of atomic units to form writing sample.")
     parser.add_argument("--n-episodes-per-class", type=int, default=50, help="Number of examples per class.")
+
+
+def run_validate():
+    """Validates all dataset config.json files."""
+    from termcolor import colored
+    from steb.validation import validate_all_configs
+
+    print(colored("Validating all dataset configs...", "cyan"))
+    num_valid, num_invalid = validate_all_configs()
+    print()
+    print(f"Results: {num_valid} valid, {num_invalid} invalid")
+    if num_invalid > 0:
+        sys.exit(1)
+
+
+def run_new_dataset(args):
+    """Scaffolds a new dataset directory with a template config.json."""
+    from termcolor import colored
+
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+    steb_dir = os.path.dirname(package_dir)
+    datasets_dir = os.path.join(steb_dir, "steb_datasets")
+    dataset_dir = os.path.join(datasets_dir, args.name)
+
+    if os.path.exists(dataset_dir):
+        print(colored(f"Dataset directory already exists: {dataset_dir}", "red"))
+        sys.exit(1)
+
+    os.makedirs(dataset_dir)
+
+    if args.type == "huggingface":
+        config = {
+            "dataset_name": args.name,
+            "type": "huggingface",
+            "record_handler": {
+                "text_getter": "text",
+                "label_getter": "label",
+            },
+            "loader_kwargs": {
+                "path": args.name,
+                "split": "train",
+            },
+            "tasks": {},
+        }
+    else:
+        config = {
+            "dataset_name": args.name,
+            "type": "custom",
+            "data_dir": args.name,
+            "loader_function": f"load_{args.name.replace('-', '_')}_dataset",
+            "record_handler": {
+                "text_getter": "text",
+                "label_getter": "label",
+            },
+            "tasks": {},
+        }
+        # Write a stub loader.py
+        loader_path = os.path.join(dataset_dir, "loader.py")
+        func_name = f"load_{args.name.replace('-', '_')}_dataset"
+        with open(loader_path, "w") as f:
+            f.write(f'from typing import Any, Dict, List\n\n\n')
+            f.write(f'def {func_name}(data_dir: str) -> List[Dict[str, Any]]:\n')
+            f.write(f'    """\n')
+            f.write(f'    Loads the {args.name} dataset.\n\n')
+            f.write(f'    Args:\n')
+            f.write(f'        data_dir: Path to the raw data directory.\n\n')
+            f.write(f'    Returns:\n')
+            f.write(f'        A list of records with \'text\' and \'label\' fields.\n')
+            f.write(f'    """\n')
+            f.write(f'    raise NotImplementedError("TODO: implement loader")\n')
+
+    config_path = os.path.join(dataset_dir, "config.json")
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=2)
+        f.write("\n")
+
+    print(colored(f"Created dataset scaffold at: {dataset_dir}", "green"))
+    print(f"  - config.json")
+    if args.type == "custom":
+        print(f"  - loader.py (stub)")
+    print()
+    print("Next steps:")
+    print("  1. Fill in the 'tasks' field in config.json")
+    if args.type == "huggingface":
+        print("  2. Update 'path' and 'split' in loader_kwargs")
+        print("  3. Update 'text_getter' and 'label_getter' in record_handler")
+    else:
+        print("  2. Implement the loader function in loader.py")
+        print("  3. Add the raw data to raw_datasets/" + args.name)
+    print("  4. Run 'steb validate' to check your config")
 
 
 def main():
@@ -26,6 +119,20 @@ def main():
     The main function for the STEB CLI.
     Parses command-line arguments and runs the evaluation.
     """
+    # Handle utility commands before evaluation parsing
+    if len(sys.argv) >= 2 and sys.argv[1] == "validate":
+        run_validate()
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "new-dataset":
+        parser = argparse.ArgumentParser(description="Scaffold a new STEB dataset.")
+        parser.add_argument("cmd", help=argparse.SUPPRESS)
+        parser.add_argument("name", help="Name for the new dataset.")
+        parser.add_argument("--type", choices=["huggingface", "custom"], default="huggingface", help="Dataset type.")
+        args = parser.parse_args()
+        run_new_dataset(args)
+        return
+
     if "--preset" in sys.argv:
         # Preset mode parser
         parser = argparse.ArgumentParser(description="Run STEB with a preset configuration.")
