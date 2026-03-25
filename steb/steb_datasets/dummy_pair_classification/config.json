@@ -1,0 +1,15 @@
+{
+  "dataset_name": "dummy_pair_classification",
+  "type": "custom",
+  "data_dir": "dummy_data",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "loader_function": "load_dummy_pair_classification_dataset",
+  "tasks": {
+    "pre_defined_pair_classification": {
+      "processor": "pre_defined_pair_classification"
+    }
+  }
+}
