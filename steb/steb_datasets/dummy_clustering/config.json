@@ -1,0 +1,18 @@
+{
+  "dataset_name": "dummy_clustering",
+  "type": "custom",
+  "data_dir": "dummy_data",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "loader_function": "load_dummy_clustering_dataset",
+  "tasks": {
+    "clustering": {
+      "processor": "clustering"
+    },
+    "all_to_all_pair_classification": {
+      "processor": "all_to_all_pair_classification"
+    }
+  }
+}

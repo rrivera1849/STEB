@@ -227,6 +227,7 @@ def evaluate(
                 episode_size=episode_size,
                 n_episodes_per_class=n_episodes_per_class,
                 force_reload=force_reload,
+                seed=seed,
             )
             dataset = dset_loader.load()
 
