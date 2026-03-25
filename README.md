@@ -1,54 +1,45 @@
 # STEB: Style Text Embedding Benchmark
 
-STEB (Style Text Embedding Benchmark) is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is designed to be modular and extensible, allowing researchers and developers to easily add new models, datasets, and evaluation tasks.
+STEB is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is modular and extensible, making it straightforward to add new models, datasets, and evaluation tasks.
 
 ## Installation
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/rrivera1849/STEB.git
-    cd STEB
-    ```
-
-2.  **Create a virtual environment and install dependencies:**
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -e .
-    ```
+```bash
+git clone https://github.com/rrivera1849/STEB.git
+cd STEB
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .
+```
 
 ## Downloading Datasets
 
-Some of the datasets used in this benchmark need to be downloaded manually. The `download_datasets.sh` script will download and set up these datasets for you.
+Some datasets need to be downloaded before use. The `download_datasets.sh` script handles this:
 
 ```bash
 ./download_datasets.sh
 ```
 
-The script skips any dataset that has already been downloaded. To force a clean re-download of everything, use the `--purge` flag:
+The script skips datasets that have already been downloaded. Use `--purge` to force a clean re-download.
 
-```bash
-./download_datasets.sh --purge
-```
+## Configuration
 
-**Note:** The `jigsaw_toxicity_pred` dataset is downloaded via `gdown`, which may require you to have `gdown` installed and authenticated with your Google account.
-
-## Configuration & Running from Any Directory
-
-By default, STEB expects to be run from the root of the repository, looking for raw datasets in `./raw_datasets`.
-
-If you wish to run STEB from any other directory, or if you have moved the datasets, you **must** set the `STEB_RAW_DATASETS_DIR` environment variable to the absolute path of your datasets directory.
+By default, STEB looks for raw datasets in `./raw_datasets` relative to the working directory. To run from another directory, set the `STEB_RAW_DATASETS_DIR` environment variable:
 
 ```bash
 export STEB_RAW_DATASETS_DIR="/path/to/your/raw_datasets"
 ```
 
-You can also configure other paths via environment variables or a `config.ini` file:
-- `STEB_RESULTS_DIR`: Where to save results (defaults to `./results`)
-- `STEB_CACHE_DIR`: Directory for caching (defaults to `~/.cache/steb`)
-- `STEB_PROCESSED_DATA_DIR`: Directory for processed datasets (defaults to `~/.local/share/steb/processed_datasets`)
+Other configurable paths (via environment variables or `config.ini`):
 
-Example `config.ini` (place in your current directory or `~/.steb/config.ini`):
+| Variable | Default | Description |
+|---|---|---|
+| `STEB_RESULTS_DIR` | `./results` | Where evaluation results are saved |
+| `STEB_CACHE_DIR` | `~/.cache/steb` | Embedding cache directory |
+| `STEB_PROCESSED_DATA_DIR` | `~/.local/share/steb/processed_datasets` | Processed dataset cache |
+| `STEB_RAW_DATASETS_DIR` | `./raw_datasets` | Raw downloaded datasets |
+
+These can also be set in a `config.ini` file (in the current directory or `~/.steb/config.ini`):
 
 ```ini
 [Application_Paths]
@@ -58,55 +49,50 @@ results_dir = /path/to/your/results
 raw_datasets_dir = /path/to/your/raw_datasets
 ```
 
-## Programmatic Usage
+## Usage
 
-You can use STEB programmatically to evaluate your models. Here's an example:
+### Programmatic
 
 ```python
 import steb
 
-# Select model
-model_name = "rrivera1849/LUAR-MUD"
-model = steb.get_model(model_name)
-
-# Select datasets for a specific task
+model = steb.get_model("rrivera1849/LUAR-MUD")
 datasets = steb.get_supported_datasets(task_name="clustering")
-
-# Evaluate
-results = steb.evaluate(model, datasets=datasets, task_name="clustering", episode_sizes=[1])
+steb.evaluate(model, datasets=datasets, task_name="clustering", episode_sizes=[1])
 ```
 
-## Running Evaluations from the CLI
-
-You can also run evaluations from the command line using the `steb` tool. The outputs will be stored under a new `./outputs` directory by default, but can be modified with the `--output-folder` flag.
-
-CLI Examples:
+### CLI
 
 ```bash
-# List available datasets that support the "clustering" task:
+# List datasets for a task
 steb clustering --list-datasets
 
-# Run all tasks on all supported datasets for a given model:
+# Run all tasks on all datasets
 steb all "rrivera1849/LUAR-MUD" -e 1
 
-# Run the clustering task on all supported datasets:
-steb clustering rrivera1849/LUAR-MUD -e 1
-
-# Run the clustering task on a specific dataset:
+# Run a specific task on a specific dataset
 steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam" -e 1
+
+# Run with a preset configuration
+steb --preset fast "rrivera1849/LUAR-MUD"
 ```
 
-## Task Descriptions
+### Utility Commands
 
-In what follows, we detail the various tasks and the metrics they calculate.
+```bash
+# Validate all dataset config.json files
+steb validate
+
+# Scaffold a new dataset
+steb new-dataset my_dataset --type huggingface
+steb new-dataset my_dataset --type custom
+```
+
+## Tasks
 
 ### Clustering
 
-The clustering task evaluates how well embeddings form clusters that align with style-based class labels (e.g., authorship). 
-Each class is represented by multiple "episodes" (groups of texts from the same style-based class). These episodes are embedded (e.g., by averaging embeddings for each text in the group), and K-Means clustering is applied to the embeddings. 
-The quality of the clustering is measured using [V-measure score](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.v_measure_score.html), which is the harmonic mean of homogeneity (all cluster members belong to the same class) and completeness (all members of a class are in the same cluster). 
-
-Here's an example of how to run a clustering evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
+Evaluates how well embeddings form clusters that align with style-based class labels. Episodes are embedded and K-Means clustering is applied. Quality is measured using [V-measure](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.v_measure_score.html).
 
 ```bash
 steb clustering rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
@@ -114,14 +100,9 @@ steb clustering rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
 
 ### All-to-All Pair Classification
 
-The all-to-all pair classification task evaluates how well embeddings can distinguish whether two text groups (again controlled via episode parameter) come from the same style-based class (e.g., same author) or different classes. This is calculated using cosine similarity between the embeddings of the two text groups. 
+Evaluates whether embeddings can distinguish same-class vs. different-class text groups using cosine similarity across all pairs.
 
-**Metrics:**
-- **EER (Equal Error Rate)**: The error rate at the threshold where false positive rate equals false negative rate. Lower is better.
-- **AUC (Area Under ROC Curve)**: Measures overall discriminative ability. Higher is better (range 0-1).
-- **AUC@FPR**: AUC calculated at specific false positive rate thresholds (0.01, 0.05, 0.10, 0.20, 0.30, 0.50), useful for understanding performance at different operating points.
-
-Here's an example of how to run an all-to-all pair classification evaluation on the `corpus-of-diverse-styles` dataset with the `LUAR-MUD` model using episodes of size 5:
+**Metrics:** EER (lower is better), AUC (higher is better), AUC@FPR at thresholds 0.01, 0.05, 0.10, 0.20, 0.30, 0.50.
 
 ```bash
 steb all_to_all_pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
@@ -129,15 +110,7 @@ steb all_to_all_pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-div
 
 ### Pre-defined Pair Classification
 
-The pre-defined pair classification task evaluates how well embeddings can distinguish whether two pre-defined text groups come from the same style-based class or different classes. This is similar to the standard pair classification task, but operates on datasets that provide explicit pairs of texts (e.g., verification problems) rather than generating pairs from all available data.
-
-**Metrics:**
-- Same as [All-to-All Pair Classification](#all-to-all-pair-classification), including EER and AUC.
-
-**Note:**
-- You do not need to specify `-e` (episode size) or `--n-episodes-per-class` as these defaults are handled automatically for this task.
-
-Here is an example of how to run a pre-defined pair classification evaluation on the `pan15_authorship_verification_test` dataset with the `LUAR-MUD` model:
+Same as all-to-all, but operates on datasets with pre-defined pairs (e.g., authorship verification). Episode size and episodes-per-class are set automatically.
 
 ```bash
 steb pre_defined_pair_classification rrivera1849/LUAR-MUD --dataset pan15_authorship_verification_english_test
@@ -145,120 +118,96 @@ steb pre_defined_pair_classification rrivera1849/LUAR-MUD --dataset pan15_author
 
 ### Order Alignment
 
-The order alignment task evaluates how well embeddings can be used to align the stylistic order of one unordered set of text groups to that of another, ordered set of text groups. Each text group is an episode (controlled via the episode parameter, similar to clustering and pair classification tasks). The ordered set of text groups has to be meaningfully ordered in a style-based graded dimension (e.g., the first text group is the least formal, the second text group is more formal, and so on). The other set of text groups has to vary along the same graded dimension, but is unordered. There is no training involved in this task, it evaluates the intrinsic sensitivity of the embeddings to the investigated graded stylistic dimension. This is a generalization of the STEL task. Every order alignment task also performs a "distractor" version of the same task, where the unordered set includes "distractor" text groups that are too dissimilar in style to be aligned to any text group in the ordered set, for example, they have a completely different style, but might be interesting to test because they are about the same topic. In a setup with a one element ordered set, and with a two element unordered set including one distractor, this is equivalent to the STEL-or-Content task.
+Evaluates how well embeddings preserve the ordering of graded stylistic dimensions (e.g., formality levels). Given two text sets ordered by style intensity, the [Hungarian algorithm](https://en.wikipedia.org/wiki/Hungarian_algorithm) finds the optimal alignment between positions. This generalizes the STEL task.
 
-**Method**:
-- For each pair of text sets with matching labels, embeddings are computed for all positions (most style → least style)
-- The Hungarian algorithm (`scipy.optimize.linear_sum_assignment`) finds the optimal one-to-one matching between positions that maximizes total cosine similarity. See an explanation for sets of three also in the [Hungarian algorithm documentation](documentation/hungarian-algorithm.md).
-- Negative similarities are clamped to 0, and the cost matrix uses distance (1 - similarity)
+The task includes a **distractor variant** where items from one set are injected into another, testing robustness to style distractors. See the [Hungarian algorithm documentation](documentation/hungarian-algorithm.md) for details.
 
-**Evaluation**: The task includes two variants:
-1. **Baseline**: Compares full position sequences and measures alignment accuracy (proportion of positions correctly matched)
-2. **Distractor variant**: Moves the least-intense position and the most-intense position from one sample into another, testing robustness to style distractors
-
-**Metrics:**
-- **acc_mean**: Average alignment accuracy across all pairs (baseline variant)
-- **distractor_acc_mean**: Average alignment accuracy with style distractors present
+**Metrics:** `acc_mean` (baseline alignment accuracy), `distractor_acc_mean` (accuracy with distractors).
 
 ### Retrieval
 
-The retrieval task evaluates how well embeddings can retrieve relevant texts based on style similarity. Given a set of query texts and a set of target texts, the goal is to retrieve the correct target text for each query text. The query and target texts are paired based on their labels (e.g., same author, same style).
+Evaluates how well embeddings retrieve style-matched texts. Given query and target sets, measures how well the correct target is ranked.
 
-**Metrics:**
-- **MRR (Mean Reciprocal Rank)**: The average of the reciprocal ranks of the correct target texts. Higher is better (range 0-1).
-- **Mean Rank**: The average rank of the correct target texts. Lower is better.
-- **Recall@K**: The proportion of queries for which the correct target text is retrieved within the top K results. Higher is better (range 0-1).
-
-Here's an example of how to run a retrieval evaluation on a dataset with the `LUAR-MUD` model:
+**Metrics:** MRR, Mean Rank, Recall@K (K = 1, 8, 16, 32, 64, 128).
 
 ```bash
-# --n-episodes-per-class set to 1 signifies that we'll only have one query 
-# and one target per label
-# It's not necessary to set it to one, but many authorship attribution datasets make this assumption:
 steb retrieval rrivera1849/LUAR-MUD --dataset <dataset_name> -e 50 --n-episodes-per-class 1
 ```
 
-**Default Loader:**
-For datasets that follow a standard format (JSONL files with `text`, `label`, `is_query` fields), you can use the default retrieval loader provided in `steb/loaders/retrieval.py`. This loader automatically handles the separation of query and target texts based on the `is_query` field. Please look at the `config.json` file under `steb/steb_datasets/dummy_retrieval/` for an example of how to set up a dataset for retrieval.
+For datasets with the standard JSONL format (`text`, `label`, `is_query` fields), use the default retrieval loader in `steb/loaders/retrieval.py`. See `steb/steb_datasets/dummy_retrieval/config.json` for an example.
+
+### Probing
+
+Trains a logistic regression probe on frozen embeddings to evaluate what linguistic properties are encoded. Uses train/val/test splits defined per-sample in the dataset.
+
+**Metrics:** Per-task accuracy and average accuracy across all probing tasks.
 
 ## Developer Guide
 
-This guide is for developers who want to extend the STEB framework by adding new models, datasets, or tasks.
+### Supported Models
 
-### Core Abstractions
+STEB supports three model types:
 
-The STEB framework is built around three core abstractions:
+- **Encoder models** (`HFModel`): Bidirectional transformers (BERT, RoBERTa, etc.) using mean pooling.
+- **Causal models** (`CausalModel`): Auto-regressive LMs (GPT-2, Llama, Mistral, etc.) using last-token pooling.
+- **LUAR models** (`LUARModel`): Dedicated support for LUAR-CRUD and LUAR-MUD.
 
-*   **`STEBModel`**: An abstract base class for style text embedding models. It defines the interface for embedding single texts and episodes (lists of texts).
-*   **`Processor`**: An abstract base class for data processors. It defines the interface for processing embeddings and labels before they are passed to a task for evaluation.
-*   **`Task`**: An abstract base class for evaluation tasks. It defines the interface for evaluating embeddings and labels and returning a dictionary of metrics.
+Model type is auto-detected from the HuggingFace config. Encoder vs. causal routing happens automatically in `get_model()`.
 
 ### Adding a New Model
 
-To add a new model, you need to:
-
-1.  Create a new Python file in the `steb/models` directory (e.g., `steb/models/my_model.py`).
-2.  In this file, create a class that inherits from `STEBModel` (from `steb.models.base`) and implements the `embed_single` and `embed_multiple` methods.
-3.  Register your new model in `steb/models/__init__.py` by adding it to the `MODEL_REGISTRY` dictionary.
+1. Create a new file in `steb/models/` (e.g., `steb/models/my_model.py`).
+2. Inherit from `STEBModel` and implement `embed_multiple`.
+3. Register in `steb/models/__init__.py` by adding to `MODEL_REGISTRY`.
 
 ### Adding a New Dataset
 
-To add a new dataset, you need to:
+The fastest way to add a dataset:
 
-1.  Create a new subdirectory in the `steb/steb_datasets` directory with the name of your dataset (e.g., `steb/steb_datasets/my_dataset`).
-2.  Inside this new subdirectory, create a `config.json` file.
-3.  This `config.json` file should contain the following keys:
-    *   `dataset_name`: The name of the dataset.
-    *   `type`: The type of the dataset, either `"huggingface"` or `"custom"`.
-    *   `tasks`: A dictionary that maps task names to their configurations.
-    *   `record_handler`: Specifies how to extract the text and label from a dataset record. It should have `text_getter` and `label_getter` keys.
-        *   For simple cases, `text_getter` and `label_getter` are field names to extract from each record.
-        *   For complex processing, you can specify `custom_record_handler_function` in the `record_handler` to point to a custom function in `loader.py` that processes each record and returns the desired format.
-    *   If the `type` is `"huggingface"`, you must include `loader_kwargs`: A dictionary of arguments that will be passed to the `load_dataset` function from the Hugging Face `datasets` library.
-    *   If the `type` is `"custom"`, you must include `data_dir`: The path to the dataset's data directory. You will also need to create a `loader.py` file in the same directory and specify the loader function in the `config.json` with the `loader_function` key.
-    *   If your dataset requires a custom label transformation, you can add the function to the `loader.py` file and specify it in the `config.json` with the `label_getter_function` key.
+```bash
+# Scaffold the directory and config
+steb new-dataset my_dataset --type huggingface
 
-Your new dataset will be automatically discovered and made available as a choice for the `--dataset` argument.
+# Edit the generated config.json (set path, split, tasks, etc.)
 
-### Running Tests
-
-To run the test suite locally:
-
-1. Follow the installation steps above (**`pip install -e .`** inside your virtualenv).
-
-2. Install test-only dependencies:
-
-   ```bash
-   pip install -r requirements-dev.txt
-   ```
-
-3. Run the tests from the project root:
-
-   ```bash
-   pytest
-   ```
-
-Here's an example of such a configuration for a dataset available in HuggingFace:
-
+# Validate your config
+steb validate
 ```
+
+This creates `steb/steb_datasets/my_dataset/config.json` (and a stub `loader.py` for custom datasets). The dataset is automatically discovered once the config exists.
+
+#### Config Schema
+
+```json
 {
-  "dataset_name": "billray110/corpus-of-diverse-styles",
+  "dataset_name": "my_dataset",
   "type": "huggingface",
   "record_handler": {
     "text_getter": "text",
     "label_getter": "label"
   },
   "loader_kwargs": {
-    "path": "billray110/corpus-of-diverse-styles",
+    "path": "huggingface/dataset-id",
     "split": "train"
   },
   "tasks": {
-    "pair_classification": {
-      "processor": "pair_classification"
-    },
-    "clustering": {
-      "processor": "clustering"
-    }
+    "clustering": { "processor": "clustering" },
+    "all_to_all_pair_classification": { "processor": "all_to_all_pair_classification" }
   }
 }
 ```
+
+For custom datasets, replace `loader_kwargs` with `data_dir` and `loader_function`. See existing configs in `steb/steb_datasets/` for examples.
+
+**Loader location convention:**
+- Shared loaders (used by multiple datasets): `steb/loaders/`
+- Dataset-specific loaders: `steb/steb_datasets/<name>/loader.py`
+
+### Running Tests
+
+```bash
+pip install pytest
+python -m pytest tests/ -v
+```
+
+The test suite includes unit tests and integration tests that run every task type end-to-end on dummy datasets.

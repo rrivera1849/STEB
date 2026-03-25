@@ -1,0 +1,17 @@
+{
+  "dataset_name": "dummy_probing",
+  "type": "custom",
+  "data_dir": "dummy_data",
+  "loader_module": "steb.steb_datasets.dummy_probing.loader",
+  "loader_function": "load_dummy_probing_dataset",
+  "tasks": {
+    "probing": {
+      "processor": "probing"
+    }
+  },
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "steb_unique_label",
+    "custom_record_handler_function": "dummy_probing_record_handler"
+  }
+}

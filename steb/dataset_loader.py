@@ -72,6 +72,7 @@ class DatasetLoader:
         episode_size: int = 5,
         n_episodes_per_class: int = 50,
         force_reload: bool = False,
+        seed: int = 42,
     ):
         """
         Initializes the DatasetLoader.
@@ -81,11 +82,13 @@ class DatasetLoader:
             episode_size: The number of text samples per episode.
             n_episodes_per_class: The number of episodes to generate for each class.
             force_reload: If True, forces reprocessing of the dataset.
+            seed: The random seed used for sampling (included in cache key).
         """
         self.dataset_name = dataset_name
         self.episode_size = episode_size
         self.n_episodes_per_class = n_episodes_per_class
         self.force_reload = force_reload
+        self.seed = seed
         self.config_path, self.config = self._load_config()
 
     def _load_config(self):
@@ -176,14 +179,20 @@ class DatasetLoader:
     def _get_dataset_path(self):
         """
         Generates the file path for the cached, processed dataset.
+
+        The cache key includes the seed to avoid using stale data when the
+        seed changes.
         """
-        base_str = f"{os.path.basename(self.dataset_name)}_{self.n_episodes_per_class}_{self.episode_size}"
+        base_str = f"{os.path.basename(self.dataset_name)}_{self.n_episodes_per_class}_{self.episode_size}_seed{self.seed}"
         return os.path.join(PROCESSED_DATA_DIR, base_str + ".json")
 
     def get_valid_labels(self, dataset_iter, handler):
         """
         Gets all the labels for classes that have enough samples.
-        A class is considered valid if it has at least `self.episode_size * self.n_episodes_per_class` samples.
+
+        A class is considered valid if it has at least
+        ``self.episode_size * self.n_episodes_per_class`` samples.
+        Logs a summary of class counts and any dropped classes.
         """
         if self.episode_size == -1:
             N = 1
@@ -197,11 +206,21 @@ class DatasetLoader:
                 continue
             label_to_count[record["label"]] += 1
 
-        label_to_count = {k: v for k, v in label_to_count.items() if v >= N}
-        valid_labels = list(label_to_count.keys())
+        total_classes = len(label_to_count)
+        print(colored(f"  Dataset '{self.dataset_name}': {total_classes} classes found, "
+                      f"need {N} samples per class", "blue"))
+
+        dropped = {k: v for k, v in label_to_count.items() if v < N}
+        if dropped:
+            print(colored(f"  Dropping {len(dropped)} class(es) with insufficient samples:", "yellow"))
+            for label, count in sorted(dropped.items(), key=lambda x: x[1]):
+                print(colored(f"    - '{label}': {count}/{N} samples", "yellow"))
+
+        valid_labels = [k for k, v in label_to_count.items() if v >= N]
 
         if not valid_labels:
             raise ValueError(f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
                           f"This might be expected for dummy datasets.")
 
+        print(colored(f"  Keeping {len(valid_labels)}/{total_classes} classes", "green"))
         return valid_labels
