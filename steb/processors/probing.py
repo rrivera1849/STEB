@@ -1,7 +1,10 @@
-from typing import Any, List, Tuple
-import numpy as np
 import json
+from typing import Any, List, Tuple
+
+import numpy as np
+
 from .base import Processor
+
 
 class ProbingProcessor(Processor):
     def process(self, embeddings: List[List[np.ndarray]], labels: List[Any]) -> Tuple[np.ndarray, List[Any]]:

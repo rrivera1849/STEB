@@ -1,6 +1,7 @@
 import os
 from typing import Any, Dict, List
 
+
 # Mapping from short code (uppercase) to human-readable snake_case label.
 # {"IN", "NA", "HI", "LY", "SP", "IP", "ID", "OP"} Top-level register categories — excluded from sub-label assignment
 # Full register taxonomy: https://link.springer.com/article/10.1007/s10579-022-09624-1/tables/1

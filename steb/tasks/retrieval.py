@@ -1,7 +1,10 @@
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 import numpy as np
+
+from ..metrics import calculate_retrieval_metrics, l2_normalize
 from .base import Task
-from ..metrics import l2_normalize, calculate_retrieval_metrics
+
 
 class RetrievalTask(Task):
     """
@@ -33,15 +36,13 @@ class RetrievalTask(Task):
         embeddings = l2_normalize(embeddings)
         embeddings_query, embeddings_target = [], []
         query_labels, target_labels = [], []
-        ii = 0
-        for label in labels:
+        for idx, label in enumerate(labels):
             if "_query" in label:
-                embeddings_query.append(embeddings[ii])
+                embeddings_query.append(embeddings[idx])
                 query_labels.append(int(label.split("_query")[0]))
             elif "_target" in label:
-                embeddings_target.append(embeddings[ii])
+                embeddings_target.append(embeddings[idx])
                 target_labels.append(int(label.split("_target")[0]))
-            ii += 1
         embeddings_query = np.concatenate(embeddings_query, axis=0)
         embeddings_target = np.concatenate(embeddings_target, axis=0)
         query_labels = np.array(query_labels)
@@ -49,7 +50,7 @@ class RetrievalTask(Task):
 
         # Filter to only include labels present in both sets
         common_labels = np.intersect1d(query_labels, target_labels)
-        
+
         valid_query_indices = np.isin(query_labels, common_labels)
         embeddings_query = embeddings_query[valid_query_indices]
         query_labels = query_labels[valid_query_indices]

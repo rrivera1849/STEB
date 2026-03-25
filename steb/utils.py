@@ -22,16 +22,11 @@ def get_config_value(env_var: str, config_section: str, config_key: str, default
     3. ~/.steb/config.ini
     4. Default value
     """
-    # 1. Environment Variable
     if os.environ.get(env_var):
         return os.environ[env_var]
-    
-    # Check config files
+
+    # CWD config overrides user home config (later reads take priority)
     config = configparser.ConfigParser()
-    # Read in reverse order of priority so later reads overwrite earlier ones?
-    # Actually configparser.read can take a list. 
-    # But we want CWD to override User Home.
-    # So we read User Home first, then CWD.
     config_files = [
         os.path.join(Path.home(), ".steb", "config.ini"),
         "config.ini"
@@ -40,7 +35,7 @@ def get_config_value(env_var: str, config_section: str, config_key: str, default
 
     if config.has_option(config_section, config_key):
         return config[config_section][config_key]
-    
+
     return default
 
 CACHE_DIR = get_config_value("STEB_CACHE_DIR", "Application_Paths", "cache_dir", DEFAULT_CACHE_DIR)
@@ -48,14 +43,14 @@ PROCESSED_DATA_DIR = get_config_value("STEB_PROCESSED_DATA_DIR", "Application_Pa
 RESULTS_DIR = get_config_value("STEB_RESULTS_DIR", "Application_Paths", "results_dir", DEFAULT_RESULTS_DIR)
 RAW_DATASETS_DIR = get_config_value("STEB_RAW_DATASETS_DIR", "Application_Paths", "raw_datasets_dir", DEFAULT_RAW_DATASETS_DIR)
 
-cprint(f"Cache directory: ", "blue", end="")
-cprint(f"{CACHE_DIR}", "white", "on_blue")
-cprint(f"Processed data directory: ", "blue", end="")
-cprint(f"{PROCESSED_DATA_DIR}", "white", "on_blue")
-cprint(f"Results directory: ", "blue", end="")
-cprint(f"{RESULTS_DIR}", "white", "on_blue")
-cprint(f"Raw datasets directory: ", "blue", end="")
-cprint(f"{RAW_DATASETS_DIR}", "white", "on_blue")
+cprint("Cache directory: ", "blue", end="")
+cprint(CACHE_DIR, "white", "on_blue")
+cprint("Processed data directory: ", "blue", end="")
+cprint(PROCESSED_DATA_DIR, "white", "on_blue")
+cprint("Results directory: ", "blue", end="")
+cprint(RESULTS_DIR, "white", "on_blue")
+cprint("Raw datasets directory: ", "blue", end="")
+cprint(RAW_DATASETS_DIR, "white", "on_blue")
 
 # Ensure directories exist (except valid raw_datasets which must be provided by user or exist)
 os.makedirs(CACHE_DIR, exist_ok=True)

@@ -1,8 +1,10 @@
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from .base import Task
+
 from ..metrics import calculate_pair_classification_metrics
+from .base import Task
 
 
 class AllToAllPairClassificationTask(Task):

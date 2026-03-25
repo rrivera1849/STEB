@@ -1,8 +1,7 @@
-"""RRS - Not including retrieval for now because it's far too slow.
-"""
-
 from typing import Any, Dict
-from .core import get_supported_tasks, get_supported_datasets
+
+from .core import get_supported_datasets, get_supported_tasks
+
 
 def get_exhaustive_config() -> Dict[str, Any]:
     """
@@ -37,11 +36,11 @@ def get_exhaustive_config() -> Dict[str, Any]:
     for task in tasks:
         if task == "retrieval":
             continue
-        
+
         supported_datasets = get_supported_datasets(task)
 
         for dataset in supported_datasets:
-            if "fisher" in dataset: # RRS - For now, skip fisher
+            if "fisher" in dataset:
                 continue
 
             to_return.append({
@@ -49,12 +48,11 @@ def get_exhaustive_config() -> Dict[str, Any]:
                 "datasets": [dataset],
                 **args_dict[task]
             })
-    to_return = {"config": {"tasks": to_return}}
-    return to_return
+    return {"config": {"tasks": to_return}}
 
-def get_moderate_config(): # RRS - Consider renaming to "leaderboard"
-    """Returns a configuration that runs each dataset once with a set of pre-defined arguments.
-    """
+
+def get_moderate_config() -> Dict[str, Any]:
+    """Returns a configuration that runs each dataset once with a set of pre-defined arguments."""
     tasks = get_supported_tasks()
 
     args_dict = {
@@ -84,22 +82,21 @@ def get_moderate_config(): # RRS - Consider renaming to "leaderboard"
     for task in tasks:
         if task == "retrieval":
             continue
-        
+
         supported_datasets = get_supported_datasets(task)
 
         for dataset in supported_datasets:
             if "dummy" in dataset:
                 continue
-            if "fisher" in dataset: # RRS - For now, skip fisher
+            if "fisher" in dataset:
                 continue
-            
+
             to_return.append({
                 "task": task,
                 "datasets": [dataset],
                 **args_dict[task]
             })
-    to_return = {"config": {"tasks": to_return}}
-    return to_return
+    return {"config": {"tasks": to_return}}
 
 PRESETS = {
     "sanity": {
@@ -168,22 +165,24 @@ PRESETS = {
     }
 }
 
+
+
 def resolve_preset(preset_name: str) -> Dict[str, Any]:
     """
     Resolves a preset name to a configuration dictionary.
-    
+
+    Args:
+        preset_name: The name of the preset to resolve.
+
     Returns:
-        A dict containing:
-            - episode_sizes: List[int]
-            - n_episodes_per_class: int
-            - tasks: List[Dict] (list of task/dataset mappings)
+        A dict containing a "config" key with "tasks" list.
     """
     if preset_name not in PRESETS:
         raise ValueError(f"Unknown preset: {preset_name}. Available presets: {list(PRESETS.keys())}")
-    
+
     preset = PRESETS[preset_name]
-    
+
     if "func" in preset:
         return preset["func"]()
-    
+
     return preset
