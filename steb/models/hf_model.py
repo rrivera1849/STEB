@@ -1,16 +1,34 @@
-import torch
+from typing import List
+
 import numpy as np
+import torch
+from termcolor import colored
+from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
+
 from .base import STEBModel
 from .chunking import chunk_text
-from termcolor import colored
-from typing import List
-from tqdm import tqdm
+
+DEFAULT_MAX_LENGTH = 512
+
 
 def get_model_max_length(
     model: AutoModel,
     tokenizer: AutoTokenizer,
 ) -> int:
+    """
+    Determines the maximum sequence length supported by the model.
+
+    Checks the tokenizer, then model config attributes, falling back to 512.
+    Adjusts for RoBERTa-style position embedding offsets.
+
+    Args:
+        model: A HuggingFace model.
+        tokenizer: The corresponding tokenizer.
+
+    Returns:
+        The maximum sequence length the model can handle.
+    """
     max_len = tokenizer.model_max_length
     if max_len > 100_000:
         max_len = None
@@ -19,7 +37,7 @@ def get_model_max_length(
     if max_len is None:
         max_len = getattr(model.config, "n_positions", None)
     if max_len is None:
-        max_len = 512
+        max_len = DEFAULT_MAX_LENGTH
         print(colored("Could not determine the maximum length of the model. Defaulting to 512.", "red"))
 
     # RoBERTa-style models assign position IDs starting at padding_idx+1 rather than 0,
@@ -38,23 +56,46 @@ def get_model_max_length(
 
     return max_len
 
+
 def mean_pooling(
     model_output,
-    attention_mask
-):
+    attention_mask: torch.Tensor,
+) -> torch.Tensor:
     """
-    Performs mean pooling on the model output.
+    Averages token embeddings weighted by the attention mask.
 
     Args:
-        model_output: The output of the model.
-        attention_mask: The attention mask.
+        model_output: The output of the model (first element is token embeddings).
+        attention_mask: The attention mask indicating real vs. padding tokens.
 
     Returns:
-        The pooled output.
+        A tensor of shape (batch_size, hidden_dim) with pooled embeddings.
     """
     token_embeddings = model_output[0]
     input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
     return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+
+
+def _aggregate_chunks(
+    embeddings: np.ndarray,
+    chunk_counts: List[int],
+) -> np.ndarray:
+    """
+    Mean-pools contiguous slices of embeddings according to chunk_counts.
+
+    Args:
+        embeddings: Array of shape (total_chunks, hidden_dim).
+        chunk_counts: Number of chunks per group. Must sum to embeddings.shape[0].
+
+    Returns:
+        Array of shape (len(chunk_counts), hidden_dim) with one embedding per group.
+    """
+    pooled = []
+    start = 0
+    for count in chunk_counts:
+        pooled.append(embeddings[start:start + count].mean(axis=0, keepdims=True))
+        start += count
+    return np.concatenate(pooled, axis=0)
 
 
 class HFModel(STEBModel):
@@ -125,21 +166,9 @@ class HFModel(STEBModel):
 
         all_embeddings = np.concatenate(all_embeddings, axis=0)
 
-        # Aggregate chunk embeddings back to per-text embeddings
-        text_embeddings = []
-        start = 0
-        for n_chunks in chunks_per_text:
-            text_embeddings.append(all_embeddings[start:start+n_chunks].mean(axis=0, keepdims=True))
-            start += n_chunks
-        all_embeddings = np.concatenate(text_embeddings, axis=0)
-
-        # Pool per-text embeddings within each episode
-        pooled_embeddings = []
-        start = 0
-        for length in lengths:
-            pooled_embeddings.append(all_embeddings[start:start+length].mean(axis=0, keepdims=True))
-            start += length
-        pooled_embeddings = np.concatenate(pooled_embeddings, axis=0)
+        # Aggregate chunk embeddings -> per-text, then per-text -> per-episode
+        all_embeddings = _aggregate_chunks(all_embeddings, chunks_per_text)
+        pooled_embeddings = _aggregate_chunks(all_embeddings, lengths)
         assert pooled_embeddings.shape[0] == len(episodes)
 
         return pooled_embeddings
