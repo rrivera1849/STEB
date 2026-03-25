@@ -28,12 +28,38 @@ def get_supported_tasks() -> list[str]:
     return SUPPORTED_TASKS
 
 
+def _get_causal_only_model_types() -> set:
+    """
+    Returns the set of model types that are exclusively causal LMs.
+
+    Computes the difference between HuggingFace's causal LM mapping and
+    masked LM mapping. Models that appear in both (e.g. BERT, RoBERTa) are
+    primarily encoders that happen to have a causal variant, so they are
+    excluded.
+
+    Returns:
+        A frozenset of model_type strings for causal-only architectures.
+    """
+    from transformers.models.auto.modeling_auto import (
+        MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
+        MODEL_FOR_MASKED_LM_MAPPING_NAMES,
+    )
+
+    causal_types = set(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.keys())
+    masked_types = set(MODEL_FOR_MASKED_LM_MAPPING_NAMES.keys())
+    return causal_types - masked_types
+
+
 def _is_causal_model(model_name_or_path: str) -> bool:
     """
     Checks whether a model is a causal (auto-regressive) language model.
 
-    Uses the model config's architectures list to detect causal LM classes
-    (e.g. GPT2Model, LlamaForCausalLM).
+    Detection strategy (in order):
+    1. If the config's architectures list contains a class name with
+       "ForCausalLM" or "LMHeadModel", and the model_type is NOT a
+       primarily-encoder type (e.g. BERT, RoBERTa), return True.
+    2. If the model_type is in the causal-only set (derived from HuggingFace's
+       MODEL_FOR_CAUSAL_LM_MAPPING minus MODEL_FOR_MASKED_LM_MAPPING), return True.
 
     Args:
         model_name_or_path: The name or path of the model.
@@ -44,17 +70,18 @@ def _is_causal_model(model_name_or_path: str) -> bool:
     from transformers import AutoConfig
 
     config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
-
-    architectures = getattr(config, "architectures", []) or []
-    causal_keywords = ("CausalLM", "GPT2", "GPTNeo", "GPTBigCode", "GPTJ", "GPTNeoX", "OPT", "Llama", "Mistral", "Phi", "Qwen2", "Gemma")
-    for arch in architectures:
-        if any(keyword in arch for keyword in causal_keywords):
-            return True
+    causal_only_types = _get_causal_only_model_types()
 
     model_type = getattr(config, "model_type", "")
-    causal_model_types = ("gpt2", "gpt_neo", "gpt_neox", "gptj", "gpt_bigcode", "opt", "llama", "mistral", "phi", "qwen2", "gemma")
-    if model_type in causal_model_types:
+    if model_type in causal_only_types:
         return True
+
+    # Check architecture class names for models not in the standard mappings
+    architectures = getattr(config, "architectures", []) or []
+    causal_arch_patterns = ("ForCausalLM", "LMHeadModel")
+    for arch in architectures:
+        if any(pattern in arch for pattern in causal_arch_patterns):
+            return True
 
     return False
 
