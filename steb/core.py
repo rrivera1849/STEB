@@ -28,9 +28,43 @@ def get_supported_tasks() -> list[str]:
     return SUPPORTED_TASKS
 
 
+def _is_causal_model(model_name_or_path: str) -> bool:
+    """
+    Checks whether a model is a causal (auto-regressive) language model.
+
+    Uses the model config's architectures list to detect causal LM classes
+    (e.g. GPT2Model, LlamaForCausalLM).
+
+    Args:
+        model_name_or_path: The name or path of the model.
+
+    Returns:
+        True if the model is a causal LM, False otherwise.
+    """
+    from transformers import AutoConfig
+
+    config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+
+    architectures = getattr(config, "architectures", []) or []
+    causal_keywords = ("CausalLM", "GPT2", "GPTNeo", "GPTBigCode", "GPTJ", "GPTNeoX", "OPT", "Llama", "Mistral", "Phi", "Qwen2", "Gemma")
+    for arch in architectures:
+        if any(keyword in arch for keyword in causal_keywords):
+            return True
+
+    model_type = getattr(config, "model_type", "")
+    causal_model_types = ("gpt2", "gpt_neo", "gpt_neox", "gptj", "gpt_bigcode", "opt", "llama", "mistral", "phi", "qwen2", "gemma")
+    if model_type in causal_model_types:
+        return True
+
+    return False
+
+
 def get_model(model_name_or_path: str):
     """
     Loads a STEB model.
+
+    Checks the supported_models lists first, then auto-detects whether the
+    model is a causal LM or an encoder model, and loads accordingly.
 
     Args:
         model_name_or_path: The name or path of the model to load.
@@ -38,14 +72,14 @@ def get_model(model_name_or_path: str):
     Returns:
         An instance of a STEBModel.
     """
-    model_class = None
     for model_cls in MODEL_REGISTRY.values():
         if model_name_or_path in model_cls.supported_models:
-            model_class = model_cls
-            break
-    if model_class is None:
-        model_class = MODEL_REGISTRY["hf"]
-    return model_class(model_name_or_path)
+            return model_cls(model_name_or_path)
+
+    if _is_causal_model(model_name_or_path):
+        return MODEL_REGISTRY["causal"](model_name_or_path)
+
+    return MODEL_REGISTRY["hf"](model_name_or_path)
 
 
 def get_all_datasets() -> List[str]:
