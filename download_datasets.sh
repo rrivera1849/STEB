@@ -172,6 +172,92 @@ else
     echo "Skipping PAN AV-13 (already exists)"
 fi
 
+# PAN AV-20
+if [ ! -d "pan20-authorship-verification-test" ]; then
+    echo "Downloading PAN AV-20..."
+    wget https://zenodo.org/records/5106099/files/pan20-authorship-verification-test.zip
+    unzip pan20-authorship-verification-test.zip
+    rm pan20-authorship-verification-test.zip
+    echo "Subsampling PAN AV-20 to 500 pairs..."
+    python3 -c "
+import json, random
+
+random.seed(42)
+data_dir = 'pan20-authorship-verification-test'
+
+with open(f'{data_dir}/pan20-authorship-verification-test.jsonl') as f:
+    data = [json.loads(line) for line in f]
+with open(f'{data_dir}/pan20-authorship-verification-test-truth.jsonl') as f:
+    truths = [json.loads(line) for line in f]
+
+truth_by_id = {t['id']: t for t in truths}
+
+same = [d for d in data if truth_by_id[d['id']]['same']]
+diff = [d for d in data if not truth_by_id[d['id']]['same']]
+
+random.shuffle(same)
+random.shuffle(diff)
+selected = same[:250] + diff[:250]
+
+selected_ids = {d['id'] for d in selected}
+
+with open(f'{data_dir}/pan20-authorship-verification-test.jsonl', 'w') as f:
+    for d in selected:
+        f.write(json.dumps(d) + '\n')
+with open(f'{data_dir}/pan20-authorship-verification-test-truth.jsonl', 'w') as f:
+    for t in truths:
+        if t['id'] in selected_ids:
+            f.write(json.dumps(t) + '\n')
+
+print(f'  Kept {len(selected)} pairs (250 same, 250 different)')
+"
+else
+    echo "Skipping PAN AV-20 (already exists)"
+fi
+
+# PAN AV-21
+if [ ! -d "pan21-authorship-verification-test" ]; then
+    echo "Downloading PAN AV-21..."
+    wget https://zenodo.org/records/5106099/files/pan21-authorship-verification-test.zip
+    unzip pan21-authorship-verification-test.zip
+    rm pan21-authorship-verification-test.zip
+    echo "Subsampling PAN AV-21 to 500 pairs..."
+    python3 -c "
+import json, random
+
+random.seed(42)
+data_dir = 'pan21-authorship-verification-test'
+
+with open(f'{data_dir}/pan21-authorship-verification-test.jsonl') as f:
+    data = [json.loads(line) for line in f]
+with open(f'{data_dir}/pan21-authorship-verification-test-truth.jsonl') as f:
+    truths = [json.loads(line) for line in f]
+
+truth_by_id = {t['id']: t for t in truths}
+
+same = [d for d in data if truth_by_id[d['id']]['same']]
+diff = [d for d in data if not truth_by_id[d['id']]['same']]
+
+random.shuffle(same)
+random.shuffle(diff)
+selected = same[:250] + diff[:250]
+
+selected_ids = {d['id'] for d in selected}
+
+with open(f'{data_dir}/pan21-authorship-verification-test.jsonl', 'w') as f:
+    for d in selected:
+        f.write(json.dumps(d) + '\n')
+with open(f'{data_dir}/pan21-authorship-verification-test-truth.jsonl', 'w') as f:
+    for t in truths:
+        if t['id'] in selected_ids:
+            f.write(json.dumps(t) + '\n')
+
+print(f'  Kept {len(selected)} pairs (250 same, 250 different)')
+"
+else
+    echo "Skipping PAN AV-21 (already exists)"
+fi
+
 # GEDE Essay Detection
 if [ ! -d "gede_essay_detection" ]; then
     echo "Downloading gede_essay_detection..."
