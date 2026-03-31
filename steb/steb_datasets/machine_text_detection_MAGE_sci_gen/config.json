@@ -1,0 +1,16 @@
+{
+  "dataset_name": "machine_text_detection_MAGE_sci_gen",
+  "type": "custom",
+  "data_dir": "MAGE/sci_gen",
+  "loader_module": "steb.loaders.mage",
+  "loader_function": "load_mage",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {
+      "processor": "clustering"
+    }
+  }
+}
