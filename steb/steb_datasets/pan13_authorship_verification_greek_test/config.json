@@ -1,0 +1,16 @@
+{
+  "dataset_name": "pan13_authorship_verification_greek_test",
+  "type": "custom",
+  "data_dir": "pan13-authorship-verification-test-corpus2-2013-05-29/GR",
+  "loader_module": "steb.loaders.pan",
+  "loader_function": "load_pan13_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "pre_defined_pair_classification": {
+      "processor": "pre_defined_pair_classification"
+    }
+  }
+}
