@@ -1,0 +1,16 @@
+{
+  "dataset_name": "machine_text_detection_DetectRL_perturbation_attacks",
+  "type": "custom",
+  "data_dir": "DetectRL/Benchmark/Benchmark_Data/Perturbation_Attacks/perturbation_attacks_llm_test.json",
+  "loader_module": "steb.loaders.detectrl",
+  "loader_function": "load_detectrl_binary",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {
+      "processor": "clustering"
+    }
+  }
+}

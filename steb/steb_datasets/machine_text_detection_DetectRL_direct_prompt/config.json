@@ -1,0 +1,16 @@
+{
+  "dataset_name": "machine_text_detection_DetectRL_direct_prompt",
+  "type": "custom",
+  "data_dir": "DetectRL/Benchmark/Benchmark_Data/Direct_Prompt/direct_prompt_test.json",
+  "loader_module": "steb.loaders.detectrl",
+  "loader_function": "load_detectrl_multiclass",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {
+      "processor": "clustering"
+    }
+  }
+}
