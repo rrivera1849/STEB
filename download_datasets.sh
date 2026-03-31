@@ -210,6 +210,24 @@ else
     echo "Skipping radiotalk (already exists)"
 fi
 
+# Machine Text Detection - M4
+
+if [ ! -d "M4" ]; then
+    echo "Downloading M4..."
+    git clone https://github.com/mbzuai-nlp/M4.git
+    rm -rf M4/.git
+else
+    echo "Skipping M4 (already exists)"
+fi
+
+if [ ! -d "DetectRL" ]; then
+    echo "Downloading DetectRL..."
+    git clone https://github.com/NLP2CT/DetectRL.git
+    rm -rf DetectRL/.git
+else
+    echo "Skipping DetectRL (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing

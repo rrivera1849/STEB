@@ -1,0 +1,16 @@
+{
+  "dataset_name": "machine_text_detection_M4_reddit",
+  "type": "custom",
+  "data_dir": "M4/reddit",
+  "loader_module": "steb.loaders.m4",
+  "loader_function": "load_m4",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {
+      "processor": "clustering"
+    }
+  }
+}
