@@ -6,10 +6,16 @@ _nlp = None
 
 
 def _get_nlp() -> spacy.language.Language:
-    """Lazily loads and caches the spaCy English model."""
+    """Lazily loads and caches a lightweight spaCy pipeline for sentence splitting.
+
+    Uses a blank English model with the rule-based sentencizer instead of the
+    full ``en_core_web_sm`` pipeline (tagger, parser, NER, etc.).  For chunking
+    purposes this is sufficient and dramatically faster on long texts.
+    """
     global _nlp
     if _nlp is None:
-        _nlp = spacy.load("en_core_web_sm")
+        _nlp = spacy.blank("en")
+        _nlp.add_pipe("sentencizer")
     return _nlp
 
 
