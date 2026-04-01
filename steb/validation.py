@@ -72,6 +72,11 @@ def validate_config(
                 errors.append(f"Task '{task_name}' missing 'processor' field")
             elif task_config["processor"] not in VALID_PROCESSORS:
                 errors.append(f"Unknown processor '{task_config['processor']}' in task '{task_name}'")
+            if "record_handler" in task_config:
+                task_rh = task_config["record_handler"]
+                for key in task_rh:
+                    if key not in ("text_getter", "label_getter", "label_getter_function", "custom_record_handler_function"):
+                        errors.append(f"Task '{task_name}' record_handler has unknown key: '{key}'")
 
     # Type-specific validation
     if config.get("type") == "huggingface":
