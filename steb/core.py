@@ -222,6 +222,7 @@ def evaluate(
     for dataset_name in dataset_iterator:
         for episode_size in episode_sizes:
             print(colored(f"--- Evaluating {dataset_name} (episode size: {episode_size}) ---", "cyan"))
+
             dset_loader = DatasetLoader(
                 dataset_name=dataset_name,
                 episode_size=episode_size,
@@ -229,17 +230,26 @@ def evaluate(
                 force_reload=force_reload,
                 seed=seed,
             )
-            dataset = dset_loader.load()
-
-            if not dataset:
-                continue
-
-            X, y = extract_features(dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar)
 
             with open(dset_loader.config_path) as f:
                 config = json.load(f)
 
-            tasks_to_run = [task_name] if task_name else config.get("tasks", {}).keys()
+            tasks_to_run = [task_name] if task_name else list(config.get("tasks", {}).keys())
+
+            # Only load the default (non-task-specific) dataset if at least
+            # one task uses the top-level record handler.
+            default_X, default_y = None, None
+            needs_default = any(
+                "record_handler" not in config.get("tasks", {}).get(t, {})
+                for t in tasks_to_run
+            )
+            if needs_default:
+                dataset = dset_loader.load()
+                if not dataset:
+                    continue
+                default_X, default_y = extract_features(
+                    dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar,
+                )
 
             for current_task_name in tasks_to_run:
                 print(colored(f"  - Running task: {current_task_name}", "blue"))
@@ -248,12 +258,30 @@ def evaluate(
                     print(colored(f"Task '{current_task_name}' not supported by dataset '{dataset_name}'. Skipping.", "yellow"))
                     continue
 
+                if "record_handler" in task_config:
+                    task_loader = DatasetLoader(
+                        dataset_name=dataset_name,
+                        episode_size=episode_size,
+                        n_episodes_per_class=n_episodes_per_class,
+                        force_reload=force_reload,
+                        seed=seed,
+                        task_name=current_task_name,
+                    )
+                    task_dataset = task_loader.load()
+                    if not task_dataset:
+                        continue
+                    current_X, current_y = extract_features(
+                        task_dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar,
+                    )
+                else:
+                    current_X, current_y = default_X, default_y
+
                 processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
                 processor_class_name = f"{task_config['processor'].replace('_', ' ').title().replace(' ', '')}Processor"
                 processor_class = getattr(processor_module, processor_class_name)
                 processor = processor_class()
 
-                processed_data = processor.process(X, y)
+                processed_data = processor.process(current_X, current_y)
 
                 task_module = importlib.import_module(f"steb.tasks.{current_task_name}")
                 task_class_name = f"{current_task_name.replace('_', ' ').title().replace(' ', '')}Task"
