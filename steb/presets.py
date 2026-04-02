@@ -3,84 +3,45 @@ from typing import Any, Dict
 from .core import get_supported_datasets, get_supported_tasks
 
 
-def get_exhaustive_config() -> Dict[str, Any]:
+def get_benchmark_config() -> Dict[str, Any]:
     """
-    Returns a configuration that runs all tasks on all datasets.
+    Returns the standard benchmark configuration.
+
+    Runs all tasks on all non-dummy datasets with a single episode size
+    per task (except clustering and pair classification which use [1, 2, 5]).
     """
     tasks = get_supported_tasks()
 
     args_dict = {
-        "order_alignment": {
-            "episode_sizes": [1],
-            "n_episodes_per_class": 2
-        },
-        # "retrieval": {
-        #     "episode_sizes": [1, 2, 5],
-        #     "n_episodes_per_class": 1
-        # },
         "clustering": {
             "episode_sizes": [1, 2, 5],
-            "n_episodes_per_class": 100
+            "n_episodes_per_class": 100,
         },
         "all_to_all_pair_classification": {
             "episode_sizes": [1, 2, 5],
-            "n_episodes_per_class": 100
+            "n_episodes_per_class": 100,
         },
-        "pre_defined_pair_classification": {
-            "episode_sizes": [1],
-            "n_episodes_per_class": 2
-        }
-    }
-
-    to_return = []
-    for task in tasks:
-        if task == "retrieval":
-            continue
-
-        supported_datasets = get_supported_datasets(task)
-
-        for dataset in supported_datasets:
-            if "fisher" in dataset:
-                continue
-
-            to_return.append({
-                "task": task,
-                "datasets": [dataset],
-                **args_dict[task]
-            })
-    return {"config": {"tasks": to_return}}
-
-
-def get_moderate_config() -> Dict[str, Any]:
-    """Returns a configuration that runs each dataset once with a set of pre-defined arguments."""
-    tasks = get_supported_tasks()
-
-    args_dict = {
         "order_alignment": {
             "episode_sizes": [1],
             "n_episodes_per_class": 100,
         },
-        # "retrieval": {
-        #     "episode_sizes": [50],
-        #     "n_episodes_per_class": 1
-        # },
-        "clustering": {
-            "episode_sizes": [1],
-            "n_episodes_per_class": 100
-        },
-        "all_to_all_pair_classification": {
-            "episode_sizes": [1],
-            "n_episodes_per_class": 100
-        },
         "pre_defined_pair_classification": {
             "episode_sizes": [1],
-            "n_episodes_per_class": 2
-        }
+            "n_episodes_per_class": 2,
+        },
+        "retrieval": {
+            "episode_sizes": [-1],
+            "n_episodes_per_class": 1,
+        },
+        "probing": {
+            "episode_sizes": [1],
+            "n_episodes_per_class": 1,
+        },
     }
 
     to_return = []
     for task in tasks:
-        if task == "retrieval":
+        if task not in args_dict:
             continue
 
         supported_datasets = get_supported_datasets(task)
@@ -94,11 +55,15 @@ def get_moderate_config() -> Dict[str, Any]:
             to_return.append({
                 "task": task,
                 "datasets": [dataset],
-                **args_dict[task]
+                **args_dict[task],
             })
     return {"config": {"tasks": to_return}}
 
 PRESETS = {
+    "benchmark": {
+        "description": "Standard STEB benchmark: all tasks, all datasets, canonical episode sizes.",
+        "func": get_benchmark_config,
+    },
     "sanity": {
         "description": "Quick sanity check using dummy datasets.",
         "config": {
@@ -125,13 +90,13 @@ PRESETS = {
                 {
                     "task": "order_alignment", 
                     "datasets": ["corpus-of-diverse-styles"],
-                    "episode_sizes": [2],
+                    "episode_sizes": [1],
                     "n_episodes_per_class": 50,
                 },
                 {
                     "task": "retrieval", 
-                    "datasets": ["dummy_retrieval"], # TODO: Replace with a real dataset once we've fixed the speed issue.
-                    "episode_sizes": [50],
+                    "datasets": ["amazon"], # TODO: Replace with a real dataset once we've fixed the speed issue.
+                    "episode_sizes": [-1],
                     "n_episodes_per_class": 1
                 },
                 {
@@ -143,7 +108,7 @@ PRESETS = {
                 {
                     "task": "all_to_all_pair_classification", 
                     "datasets": ["corpus-of-diverse-styles"],
-                    "episode_sizes": [1, 5],
+                    "episode_sizes": [1],
                     "n_episodes_per_class": 100,
                 },
                 {
@@ -155,14 +120,6 @@ PRESETS = {
             ]
         }
     },
-    "moderate": {
-        "description": "Run each dataset once with a set of pre-defined arguments.",
-        "func": get_moderate_config
-    },
-    "exhaustive": {
-        "description": "Run all available tasks on all available datasets with a set of pre-defined arguments.",
-        "func": get_exhaustive_config
-    }
 }
 
 
