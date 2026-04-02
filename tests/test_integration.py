@@ -5,10 +5,12 @@ These tests use small synthetic datasets and simple embedding models to
 verify that the full pipeline (load -> embed -> process -> evaluate) works
 for every supported task type.
 """
+import importlib
 import json
 import os
 import shutil
 import tempfile
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -230,3 +232,124 @@ class TestCacheKeyIncludesSeed:
         assert loader_a._get_dataset_path() != loader_b._get_dataset_path()
         assert "seed42" in loader_a._get_dataset_path()
         assert "seed99" in loader_b._get_dataset_path()
+
+
+# ---------------------------------------------------------------------------
+# Error handling and logging
+# ---------------------------------------------------------------------------
+
+class TestEvaluationErrorHandling:
+    """Verify that evaluation continues when individual tasks fail."""
+
+    def test_failure_does_not_crash_run(self, model, output_folder):
+        """A failing dataset should not prevent other datasets from running."""
+        result = evaluate(
+            model,
+            datasets=["nonexistent_dataset", "dummy_clustering"],
+            episode_sizes=[1],
+            task_name="clustering",
+            n_episodes_per_class=50,
+            batch_size=32,
+            force_reload=True,
+            output_folder=output_folder,
+        )
+
+        assert len(result["failures"]) >= 1
+        assert any(
+            d == "nonexistent_dataset"
+            for d, _, _ in result["successes"]
+        ) is False
+
+        assert len(result["successes"]) >= 1
+        assert any(
+            d == "dummy_clustering"
+            for d, _, _ in result["successes"]
+        )
+
+    def test_task_failure_does_not_block_others(self, model, output_folder):
+        """A task-level error should not prevent subsequent tasks from running."""
+        original_import = importlib.import_module
+
+        def failing_import(name, *args, **kwargs):
+            """Fail only when importing the clustering processor."""
+            if name == "steb.processors.clustering":
+                raise RuntimeError("Simulated processor failure")
+            return original_import(name, *args, **kwargs)
+
+        result = evaluate(
+            model,
+            datasets=["dummy_clustering"],
+            episode_sizes=[1],
+            task_name="clustering",
+            n_episodes_per_class=50,
+            batch_size=32,
+            force_reload=True,
+            output_folder=output_folder,
+        )
+        assert len(result["successes"]) >= 1
+
+        with patch("steb.core.importlib.import_module", side_effect=failing_import):
+            result = evaluate(
+                model,
+                datasets=["dummy_clustering"],
+                episode_sizes=[1],
+                task_name="clustering",
+                n_episodes_per_class=50,
+                batch_size=32,
+                force_reload=True,
+                output_folder=output_folder,
+            )
+
+        assert len(result["failures"]) == 1
+        assert result["failures"][0][2] == "clustering"
+        assert "Simulated processor failure" in result["failures"][0][3]
+
+    def test_log_file_written(self, model, output_folder):
+        """Evaluate should write a JSON log file to the output folder."""
+        result = evaluate(
+            model,
+            datasets=["dummy_clustering"],
+            episode_sizes=[1],
+            task_name="clustering",
+            n_episodes_per_class=50,
+            batch_size=32,
+            force_reload=True,
+            output_folder=output_folder,
+            run_name="test_run",
+        )
+
+        log_path = result["log_path"]
+        assert os.path.exists(log_path)
+        assert "all-MiniLM-L6-v2" in os.path.basename(log_path)
+        assert "test_run" in os.path.basename(log_path)
+
+        with open(log_path) as f:
+            log = json.load(f)
+
+        assert log["model"] == "all-MiniLM-L6-v2"
+        assert log["run_name"] == "test_run"
+        assert log["num_succeeded"] == 1
+        assert log["num_failed"] == 0
+        assert len(log["successes"]) == 1
+        assert log["successes"][0]["task"] == "clustering"
+
+    def test_log_records_failures(self, model, output_folder):
+        """Log file should include failure details."""
+        result = evaluate(
+            model,
+            datasets=["nonexistent_dataset"],
+            episode_sizes=[1],
+            task_name="clustering",
+            n_episodes_per_class=50,
+            batch_size=32,
+            force_reload=True,
+            output_folder=output_folder,
+            run_name="failing_run",
+        )
+
+        with open(result["log_path"]) as f:
+            log = json.load(f)
+
+        assert log["num_failed"] >= 1
+        assert log["failures"][0]["dataset"] == "nonexistent_dataset"
+        assert log["failures"][0]["error"] != ""
