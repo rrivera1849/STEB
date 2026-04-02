@@ -5,7 +5,6 @@ import traceback
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from joblib import Memory
 from termcolor import colored
 from tqdm import tqdm
 from transformers import set_seed
@@ -13,7 +12,7 @@ from transformers import set_seed
 from .dataset_loader import DatasetLoader
 from .models import MODEL_REGISTRY
 from .steb_datasets import DATASET_REGISTRY
-from .utils import CACHE_DIR, RESULTS_DIR
+from .utils import RESULTS_DIR
 
 SUPPORTED_TASKS = [
     "all_to_all_pair_classification",
@@ -262,13 +261,10 @@ def evaluate(
         A dictionary with "successes", "failures", and "log_path" keys.
     """
     set_seed(seed)
-    memory = Memory(CACHE_DIR, verbose=1)
-    memory.clear()
 
     successes: List[Tuple[str, int, str]] = []
     failures: List[Tuple[str, int, str, str]] = []
 
-    @memory.cache(ignore=['show_progress'])
     def extract_features(dataset, episode_size, n_episodes_per_class, batch_size, show_progress=False):
         """
         Extracts features from the dataset using the specified model.
@@ -279,8 +275,6 @@ def evaluate(
 
         Each label maps to a list of ordered sequences. Sequences are grouped into
         episodes, then organized by position (most X, ..., least X).
-
-        This function is cached to avoid re-extracting features on subsequent runs.
         """
         episodes_by_label = {}
         for label, text_list in dataset.items():
