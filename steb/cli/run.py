@@ -170,6 +170,7 @@ def main():
                 force_reload=args.force_reload,
                 progress_bar=args.progress_bar,
                 seed=args.seed,
+                run_name=args.preset,
             )
         return
 
@@ -259,6 +260,7 @@ def main():
         force_reload=args.force_reload,
         progress_bar=args.progress_bar,
         seed=args.seed,
+        run_name=args.task,
     )
 
 if __name__ == "__main__":
