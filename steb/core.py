@@ -362,6 +362,21 @@ def evaluate(
                     print(colored(f"Task '{current_task_name}' not supported by dataset '{dataset_name}'. Skipping.", "yellow"))
                     continue
 
+                model_str = os.path.basename(model.model_name_or_path)
+                if model_str == "":
+                    model_str = os.path.basename(os.path.dirname(model.model_name_or_path))
+                dset_str = os.path.basename(dataset_name)
+                scores_path = os.path.join(
+                    output_folder, dset_str, model_str,
+                    f"{episode_size}_{n_episodes_per_class}", current_task_name,
+                )
+                metrics_path = os.path.join(scores_path, "metrics.json")
+
+                if not force_reload and os.path.exists(metrics_path):
+                    print(colored(f"    -> Skipping (results already exist)", "yellow"))
+                    successes.append((dataset_name, episode_size, current_task_name))
+                    continue
+
                 try:
                     if "record_handler" in task_config:
                         task_loader = DatasetLoader(
@@ -395,15 +410,8 @@ def evaluate(
 
                     metrics = task.evaluate(*processed_data)
 
-                    model_str = os.path.basename(model.model_name_or_path)
-                    if model_str == "":
-                        model_str = os.path.basename(os.path.dirname(model.model_name_or_path))
-
-                    dset_str = os.path.basename(dataset_name)
-                    scores_path = os.path.join(output_folder, dset_str, model_str, f"{episode_size}_{n_episodes_per_class}", current_task_name)
-
                     os.makedirs(scores_path, exist_ok=True)
-                    with open(os.path.join(scores_path, "metrics.json"), "w+") as ouf:
+                    with open(metrics_path, "w+") as ouf:
                         ouf.write(json.dumps(metrics))
 
                     print(colored(f"    -> Metrics: {metrics}", "green"))
