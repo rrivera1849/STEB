@@ -1,0 +1,16 @@
+{
+    "type": "custom",
+    "data_dir": "probing/stackexchange.jsonl",
+    "loader_module": "steb.loaders.probing",
+    "loader_function": "load_probing_dataset",
+    "tasks": {
+        "probing": {
+            "processor": "probing"
+        }
+    },
+    "record_handler": {
+        "text_getter": "text",
+        "label_getter": "steb_unique_label",
+        "custom_record_handler_function": "probing_record_handler"
+    }
+}

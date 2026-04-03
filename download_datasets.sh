@@ -40,11 +40,8 @@ fi
 
 if [ ! -d "enron_authorship_corpus" ]; then
     echo "Downloading enron_authorship_corpus..."
-    curl -O https://prod-dcd-datasets-cache-zipfiles.s3.eu-west-1.amazonaws.com/n77w7mygwg-1.zip
-    unzip n77w7mygwg-1.zip
-    unzip Enron-Authorship-Verification-Corpus.zip
-    rm n77w7mygwg-1.zip
-    rm Enron-Authorship-Verification-Corpus.zip
+    curl https://prod-dcd-datasets-public-files-eu-west-1.s3.eu-west-1.amazonaws.com/f0527105-2774-423e-80ca-cc692b70b6cb --output enron.zip
+    unzip enron.zip
     mv 'Enron (80 authors)' enron_authorship_corpus
 else
     echo "Skipping enron_authorship_corpus (already exists)"
@@ -91,6 +88,18 @@ if [ ! -d "amazon_retrieval" ]; then
     cd ..
 else
     echo "Skipping amazon_retrieval (already exists)"
+fi
+
+if [ ! -d "stackexchange_retrieval" ]; then
+    echo "Downloading stackexchange_retrieval..."
+    mkdir stackexchange_retrieval
+    cd stackexchange_retrieval
+    gdown https://drive.google.com/file/d/1PVu0BI6rvo9MndcIdHOhRdqm4nfaqgSG/view?usp=drive_link --fuzzy
+    tar zxvf stackexchange_retrieval.tar.gz
+    rm stackexchange_retrieval.tar.gz
+    cd ..
+else
+    echo "Skipping stackexchange_retrieval (already exists)"
 fi
 
 # Graded Formality GPT-5-mini
@@ -314,6 +323,84 @@ else
     echo "Skipping DetectRL (already exists)"
 fi
 
+# PAN18 Cross-Domain Authorship Attribution
+if [ ! -d "pan18_cross_domain_authorship_attribution" ]; then
+    echo "Downloading PAN18 Cross-Domain Authorship Attribution..."
+    wget https://zenodo.org/records/3737849/files/pan18-cross-domain-authorship-attribution-dataset.zip
+    unzip pan18-cross-domain-authorship-attribution-dataset.zip
+    unzip pan18-cross-domain-authorship-attribution-test-dataset2-2018-04-20.zip
+    rm pan18-cross-domain-authorship-attribution-dataset.zip
+    rm pan18-cross-domain-authorship-attribution-test-dataset2-2018-04-20.zip
+    rm pan18-cross-domain-authorship-attribution-training-dataset-2017-12-02.zip
+
+    echo "Converting PAN18 to retrieval JSONL format..."
+    python3 -c "
+import json, os
+
+test_dir = 'pan18-cross-domain-authorship-attribution-test-dataset2-2018-04-20'
+out_dir = 'pan18_cross_domain_authorship_attribution'
+os.makedirs(out_dir, exist_ok=True)
+
+with open(os.path.join(test_dir, 'collection-info.json')) as f:
+    collection = json.load(f)
+
+lang_problems = {}
+for entry in collection:
+    lang = entry['language']
+    lang_problems.setdefault(lang, []).append(entry['problem-name'])
+
+lang_names = {'en': 'english', 'fr': 'french', 'it': 'italian', 'pl': 'polish', 'sp': 'spanish'}
+
+for lang, problems in sorted(lang_problems.items()):
+    records = []
+    for problem_name in problems:
+        problem_dir = os.path.join(test_dir, problem_name)
+        with open(os.path.join(problem_dir, 'ground-truth.json')) as f:
+            gt = json.load(f)
+        truth_map = {e['unknown-text']: e['true-author'] for e in gt['ground_truth']}
+
+        # Candidate targets: concatenate known texts per author
+        for candidate_dir in sorted(os.listdir(problem_dir)):
+            candidate_path = os.path.join(problem_dir, candidate_dir)
+            if not os.path.isdir(candidate_path) or candidate_dir == 'unknown':
+                continue
+            known_files = sorted(f for f in os.listdir(candidate_path) if f.endswith('.txt'))
+            texts = []
+            for kf in known_files:
+                with open(os.path.join(candidate_path, kf), encoding='utf-8', errors='replace') as f:
+                    texts.append(f.read())
+            label = f'{problem_name}_{candidate_dir}'
+            records.append({'text': '\n\n'.join(texts), 'label': label, 'is_query': False})
+
+        # Unknown queries
+        unknown_dir = os.path.join(problem_dir, 'unknown')
+        for uf in sorted(os.listdir(unknown_dir)):
+            if not uf.endswith('.txt'):
+                continue
+            with open(os.path.join(unknown_dir, uf), encoding='utf-8', errors='replace') as f:
+                text = f.read()
+            true_author = truth_map.get(uf)
+            if true_author is None:
+                continue
+            label = f'{problem_name}_{true_author}'
+            records.append({'text': text, 'label': label, 'is_query': True})
+
+    lang_name = lang_names[lang]
+    lang_dir = os.path.join(out_dir, lang_name)
+    os.makedirs(lang_dir, exist_ok=True)
+    out_file = os.path.join(lang_dir, f'pan18_{lang_name}.jsonl')
+    with open(out_file, 'w') as f:
+        for r in records:
+            f.write(json.dumps(r) + '\n')
+    n_queries = sum(1 for r in records if r['is_query'])
+    n_targets = sum(1 for r in records if not r['is_query'])
+    print(f'  {lang_name}: {n_targets} targets, {n_queries} queries')
+"
+    rm -rf pan18-cross-domain-authorship-attribution-test-dataset2-2018-04-20
+else
+    echo "Skipping PAN18 Cross-Domain Authorship Attribution (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
@@ -332,6 +419,30 @@ if [ ! -f ./probing/blog.jsonl ]; then
     mv blog.jsonl ./probing/
 else
     echo "Skipping blog.jsonl (already exists)"
+fi
+
+if [ ! -f ./probing/stackexchange.jsonl ]; then
+    echo "Downloading stackexchange.jsonl..."
+    gdown https://drive.google.com/file/d/1SAZME3ezaDuywX-cT2bL-H3IU9-3Ambz/view?usp=drive_link --fuzzy
+    mv stackexchange.jsonl ./probing/
+else
+    echo "Skipping stackexchange.jsonl (already exists)"
+fi
+
+if [ ! -f ./probing/reddit.jsonl ]; then
+    echo "Downloading reddit.jsonl..."
+    gdown https://drive.google.com/file/d/1KTDjsG7PHW-8PMq3O02BLLIrIcqTmALK/view?usp=drive_link --fuzzy
+    mv reddit.jsonl ./probing/
+else
+    echo "Skipping reddit.jsonl (already exists)"
+fi
+
+if [ ! -f ./probing/amazon.jsonl ]; then
+    echo "Downloading amazon.jsonl..."
+    gdown https://drive.google.com/file/d/1dYmKCn04p9bRFQ_ASdgw0Aah-r8A5UKf/view?usp=drive_link --fuzzy
+    mv amazon.jsonl ./probing/
+else
+    echo "Skipping amazon.jsonl (already exists)"
 fi
 
 echo "Done downloading datasets."

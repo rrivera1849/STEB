@@ -222,3 +222,71 @@ def load_pan_jsonl_dataset(
             samples.append({"text": pair[1], "label": label_str})
 
     return samples
+
+
+def load_enron_authorship_dataset(
+    data_dir: str,
+) -> List[Dict[str, Any]]:
+    """Load the Enron Authorship Corpus for authorship verification.
+
+    Each problem is a subdirectory named ``Author.name[Y]`` or
+    ``Author.name[N]``.  ``[Y]`` means the unknown text was written by
+    the same author as the known texts; ``[N]`` means it was not.
+
+    Known-author files are named ``known - Author - Mail_N.txt`` and the
+    unknown file is named ``unknown - ... - Mail_N.txt``.  All known
+    texts are concatenated (separated by double newlines) into one side
+    of the verification pair; the unknown text forms the other.
+
+    Args:
+        data_dir: Path to the root corpus directory containing the
+                  per-problem subdirectories and ``truth.txt``.
+
+    Returns:
+        A list of records with ``text`` and ``label`` keys, emitted in
+        pairs (known, unknown) per problem.
+    """
+    truth_path = os.path.join(data_dir, "truth.txt")
+    if not os.path.exists(truth_path):
+        raise FileNotFoundError(f"truth.txt not found in {data_dir}")
+
+    problem_labels: Dict[str, int] = {}
+    with open(truth_path, "r", encoding="utf-8-sig") as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                pid = parts[0]
+                label_char = parts[1]
+                problem_labels[pid] = 1 if label_char == "Y" else 0
+
+    samples: List[Dict[str, Any]] = []
+    for pid in sorted(problem_labels.keys()):
+        problem_dir = os.path.join(data_dir, pid)
+        if not os.path.exists(problem_dir):
+            continue
+
+        files = os.listdir(problem_dir)
+        known_files = sorted(f for f in files if f.startswith("known"))
+        unknown_files = [f for f in files if f.startswith("unknown")]
+
+        if not known_files or not unknown_files:
+            continue
+
+        try:
+            known_texts = []
+            for kf in known_files:
+                with open(os.path.join(problem_dir, kf), "r", encoding="utf-8", errors="replace") as f:
+                    known_texts.append(f.read())
+            text_a = "\n\n".join(known_texts)
+
+            with open(os.path.join(problem_dir, unknown_files[0]), "r", encoding="utf-8", errors="replace") as f:
+                text_b = f.read()
+        except Exception:
+            continue
+
+        label_str = f"trial_{pid}_true" if problem_labels[pid] == 1 else f"trial_{pid}_false"
+
+        samples.append({"text": text_a, "label": label_str})
+        samples.append({"text": text_b, "label": label_str})
+
+    return samples
