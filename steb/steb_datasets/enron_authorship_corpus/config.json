@@ -1,0 +1,16 @@
+{
+  "dataset_name": "enron_authorship_corpus",
+  "type": "custom",
+  "data_dir": "enron_authorship_corpus",
+  "loader_module": "steb.loaders.pan",
+  "loader_function": "load_enron_authorship_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "pre_defined_pair_classification": {
+      "processor": "pre_defined_pair_classification"
+    }
+  }
+}

@@ -22,7 +22,6 @@ hf-xet==1.1.8
 huggingface-hub==0.34.4
 idna==3.10
 Jinja2==3.1.6
-joblib==1.5.1
 langcodes==3.5.0
 language_data==1.3.0
 marisa-trie==1.3.0

@@ -23,10 +23,10 @@ class RetrievalTask(Task):
             labels: Expected to be size of (num_embeddings,)
         
         NOTE:
-            1. Labels need to follow the format "N_query" and "N_target", where N is a 
-               number convertible to an integer. Fortunately, users don't need to 
-               manually ensure this format, as a built-in processor class handles all 
-               the necessary pre-processing (see README).
+            1. Labels need to follow the format "<ID>_query" and "<ID>_target",
+               where <ID> is any string identifier. Fortunately, users don't need
+               to manually ensure this format, as a built-in processor class
+               handles all the necessary pre-processing (see README).
             2. This task is designed to accommodate any quantity of true matches within the target set.
 
         Returns:
@@ -39,10 +39,10 @@ class RetrievalTask(Task):
         for idx, label in enumerate(labels):
             if "_query" in label:
                 embeddings_query.append(embeddings[idx])
-                query_labels.append(int(label.split("_query")[0]))
+                query_labels.append(label.rsplit("_query", 1)[0])
             elif "_target" in label:
                 embeddings_target.append(embeddings[idx])
-                target_labels.append(int(label.split("_target")[0]))
+                target_labels.append(label.rsplit("_target", 1)[0])
         embeddings_query = np.concatenate(embeddings_query, axis=0)
         embeddings_target = np.concatenate(embeddings_target, axis=0)
         query_labels = np.array(query_labels)

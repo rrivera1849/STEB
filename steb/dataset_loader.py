@@ -73,6 +73,7 @@ class DatasetLoader:
         n_episodes_per_class: int = 50,
         force_reload: bool = False,
         seed: int = 42,
+        task_name: Optional[str] = None,
     ):
         """
         Initializes the DatasetLoader.
@@ -83,12 +84,17 @@ class DatasetLoader:
             n_episodes_per_class: The number of episodes to generate for each class.
             force_reload: If True, forces reprocessing of the dataset.
             seed: The random seed used for sampling (included in cache key).
+            task_name: The task to load data for. When a task defines its own
+                record_handler in config.json, that handler overrides the
+                top-level record_handler. This also affects the cache key so
+                that tasks with different handlers get separate cached files.
         """
         self.dataset_name = dataset_name
         self.episode_size = episode_size
         self.n_episodes_per_class = n_episodes_per_class
         self.force_reload = force_reload
         self.seed = seed
+        self.task_name = task_name
         self.config_path, self.config = self._load_config()
 
     def _load_config(self):
@@ -128,18 +134,20 @@ class DatasetLoader:
         else:
             raise ValueError(f"Unknown dataset type: {self.config['type']}")
 
-        text_getter = self.config["record_handler"].get("text_getter")
-        label_getter = self.config["record_handler"].get("label_getter")
+        effective_rh = self._get_effective_record_handler()
+
+        text_getter = effective_rh.get("text_getter")
+        label_getter = effective_rh.get("label_getter")
 
         label_transform = None
-        if "label_getter_function" in self.config["record_handler"]:
+        if "label_getter_function" in effective_rh:
             loader_module = importlib.import_module(loader_module_name)
-            label_transform = getattr(loader_module, self.config["record_handler"]["label_getter_function"])
+            label_transform = getattr(loader_module, effective_rh["label_getter_function"])
 
         custom_record_handler = None
-        if "custom_record_handler_function" in self.config["record_handler"]:
+        if "custom_record_handler_function" in effective_rh:
             loader_module = importlib.import_module(loader_module_name)
-            custom_record_handler = getattr(loader_module, self.config["record_handler"]["custom_record_handler_function"])
+            custom_record_handler = getattr(loader_module, effective_rh["custom_record_handler_function"])
 
         handler = partial(
             record_handler,
@@ -176,14 +184,57 @@ class DatasetLoader:
 
         return dataset
 
-    def _get_dataset_path(self):
+    def _get_effective_record_handler(self) -> Dict[str, Any]:
+        """
+        Returns the record handler config for the current task.
+
+        If the task defines its own ``record_handler`` in ``config.json``,
+        it is merged on top of the top-level ``record_handler`` so that
+        task-specific keys (e.g. ``custom_record_handler_function``) override
+        the defaults while inheriting anything not explicitly set.
+
+        Returns:
+            A merged record handler dictionary.
+        """
+        base_rh = dict(self.config["record_handler"])
+        if self.task_name is None:
+            return base_rh
+
+        task_config = self.config.get("tasks", {}).get(self.task_name, {})
+        task_rh = task_config.get("record_handler")
+        if task_rh is None:
+            return base_rh
+
+        merged = {**base_rh, **task_rh}
+        return merged
+
+    def _has_task_specific_record_handler(self) -> bool:
+        """
+        Checks whether the current task overrides the top-level record handler.
+
+        Returns:
+            True if the task defines its own record_handler block.
+        """
+        if self.task_name is None:
+            return False
+        task_config = self.config.get("tasks", {}).get(self.task_name, {})
+        return "record_handler" in task_config
+
+    def _get_dataset_path(self) -> str:
         """
         Generates the file path for the cached, processed dataset.
 
         The cache key includes the seed to avoid using stale data when the
-        seed changes.
+        seed changes. When the current task has a task-specific record
+        handler, the task name is appended to the cache key so that tasks
+        with different handlers get separate cached files.
+
+        Returns:
+            The file path for the cached dataset.
         """
         base_str = f"{os.path.basename(self.dataset_name)}_{self.n_episodes_per_class}_{self.episode_size}_seed{self.seed}"
+        if self._has_task_specific_record_handler():
+            base_str += f"_{self.task_name}"
         return os.path.join(PROCESSED_DATA_DIR, base_str + ".json")
 
     def get_valid_labels(self, dataset_iter, handler):
