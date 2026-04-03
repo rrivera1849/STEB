@@ -9,12 +9,12 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.cluster.hierarchy import dendrogram, fcluster, linkage
+from scipy.cluster.hierarchy import dendrogram, fcluster, leaves_list, linkage
 from scipy.spatial.distance import squareform
 from scipy.stats import spearmanr
 
@@ -24,15 +24,59 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from steb.core import get_supported_datasets
 from steb.utils import RESULTS_DIR
 
-# Maps CLI task name -> (path task name, primary metric)
-TASK_CONFIG: Dict[str, Tuple[str, str]] = {
-    "clustering": ("clustering", "v_measure"),
-    "all_to_all_pair_classification": ("pair_classification", "auc"),
-    "pre_defined_pair_classification": ("pair_classification", "auc"),
-    "order_alignment": ("order_alignment", "distractor_acc_mean"),
-    "retrieval": ("retrieval", "mrr"),
-    "probing": ("probing", "average"),
+# Maps task name -> primary metric
+TASK_METRICS: Dict[str, str] = {
+    "clustering": "v_measure",
+    "all_to_all_pair_classification": "auc",
+    "pre_defined_pair_classification": "auc",
+    "order_alignment": "distractor_acc_mean",
+    "retrieval": "mrr",
+    "probing": "average",
 }
+
+# Datasets where the label is primarily semantic (topic, sentiment, content)
+# rather than stylistic. Excluded from analysis by default.
+SEMANTIC_DATASETS = {
+    # Topic / content-based
+    "20_Newsgroups_Fixed",
+    "ag_news",
+    "reuters21578",
+    "stackexchange_retrieval",
+    # Sentiment / emotion
+    "emotion",
+    "financial_phrasebank",
+    "twitter-airline-sentiment",
+    "yelp_polarity",
+    # MISC (not semantic, but I don't want it)
+    "probing_small",
+}
+
+# Non-English datasets. Excluded from analysis by default.
+NON_ENGLISH_DATASETS = {
+    # PAN13
+    "pan13_authorship_verification_greek_test",
+    "pan13_authorship_verification_spanish_test",
+    # PAN14
+    "pan14_authorship_verification_corpus1_dutch_essays_test",
+    "pan14_authorship_verification_corpus1_dutch_reviews_test",
+    "pan14_authorship_verification_corpus1_greek_articles_test",
+    "pan14_authorship_verification_corpus1_spanish_articles_test",
+    "pan14_authorship_verification_corpus2_dutch_essays_test",
+    "pan14_authorship_verification_corpus2_dutch_reviews_test",
+    "pan14_authorship_verification_corpus2_greek_articles_test",
+    "pan14_authorship_verification_corpus2_spanish_articles_test",
+    # PAN15
+    "pan15_authorship_verification_dutch_test",
+    "pan15_authorship_verification_greek_test",
+    "pan15_authorship_verification_spanish_test",
+    # PAN18
+    "pan18_cross_domain_authorship_attribution_french",
+    "pan18_cross_domain_authorship_attribution_italian",
+    "pan18_cross_domain_authorship_attribution_polish",
+    "pan18_cross_domain_authorship_attribution_spanish",
+}
+
+EXCLUDED_DATASETS = SEMANTIC_DATASETS | NON_ENGLISH_DATASETS
 
 LOW_CONFIDENCE_THRESHOLD = 10
 
@@ -40,24 +84,25 @@ LOW_CONFIDENCE_THRESHOLD = 10
 def discover_scores(
     results_dir: str,
     task_name: str,
+    primary_metric: str,
     episode_params: Optional[str],
+    include_excluded: bool = False,
 ) -> pd.DataFrame:
     """Scan the results directory and build a models x datasets score matrix.
 
     Args:
         results_dir: Path to the root results directory.
         task_name: The CLI task name (e.g. 'clustering').
+        primary_metric: The metric to extract from metrics.json.
         episode_params: Episode params filter like '1_50'. If None, picks the
             first episode params found per dataset-model pair.
+        include_excluded: If True, include semantic and non-English datasets.
 
     Returns:
-        A DataFrame with models as rows and datasets as columns, containing
-        the primary metric score for each (model, dataset) pair.
+        A DataFrame with models as rows and datasets as columns.
     """
-    path_task_name, primary_metric = TASK_CONFIG[task_name]
     supported_datasets = set(get_supported_datasets(task_name))
-
-    scores: Dict[Tuple[str, str], float] = {}
+    scores: Dict[str, Dict[str, float]] = {}
     results_path = Path(results_dir)
 
     if not results_path.exists():
@@ -70,21 +115,20 @@ def discover_scores(
         dataset_name = dataset_dir.name
         if dataset_name not in supported_datasets:
             continue
+        if not include_excluded and dataset_name in EXCLUDED_DATASETS:
+            continue
 
         for model_dir in sorted(dataset_dir.iterdir()):
             if not model_dir.is_dir():
                 continue
 
-            model_name = model_dir.name
-
             for ep_dir in sorted(model_dir.iterdir()):
                 if not ep_dir.is_dir():
                     continue
-
                 if episode_params and ep_dir.name != episode_params:
                     continue
 
-                metrics_file = ep_dir / path_task_name / "metrics.json"
+                metrics_file = ep_dir / task_name / "metrics.json"
                 if not metrics_file.exists():
                     continue
 
@@ -94,34 +138,13 @@ def discover_scores(
                 if primary_metric not in metrics:
                     continue
 
-                scores[(model_name, dataset_name)] = metrics[primary_metric]
+                scores.setdefault(model_dir.name, {})[dataset_name] = metrics[primary_metric]
                 break  # Take first matching episode params
 
     if not scores:
         return pd.DataFrame()
 
-    models = sorted({m for m, _ in scores})
-    datasets = sorted({d for _, d in scores})
-
-    data = {
-        d: [scores.get((m, d), np.nan) for m in models]
-        for d in datasets
-    }
-    return pd.DataFrame(data, index=models)
-
-
-def filter_complete_rows(
-    df: pd.DataFrame,
-) -> pd.DataFrame:
-    """Drop models (rows) that don't have results for all datasets.
-
-    Args:
-        df: The raw score matrix with models as rows, datasets as columns.
-
-    Returns:
-        A DataFrame with only complete rows (no NaN values).
-    """
-    return df.dropna(axis=0, how="any")
+    return pd.DataFrame(scores).T.rename_axis("model")
 
 
 def compute_correlation_matrix(
@@ -135,17 +158,15 @@ def compute_correlation_matrix(
     Returns:
         A symmetric DataFrame of pairwise Spearman correlations.
     """
-    n_datasets = len(df.columns)
-    corr = np.ones((n_datasets, n_datasets))
+    n = len(df.columns)
+    corr = np.ones((n, n))
 
-    for i in range(n_datasets):
-        for j in range(i + 1, n_datasets):
+    for i in range(n):
+        for j in range(i + 1, n):
             rho, _ = spearmanr(df.iloc[:, i], df.iloc[:, j])
-            # NaN can occur with constant columns or single-row data
             if np.isnan(rho):
                 rho = 0.0
-            corr[i, j] = rho
-            corr[j, i] = rho
+            corr[i, j] = corr[j, i] = rho
 
     return pd.DataFrame(corr, index=df.columns, columns=df.columns)
 
@@ -165,22 +186,13 @@ def plot_dendrogram(
     Returns:
         The linkage matrix from hierarchical clustering.
     """
-    # Convert correlation to distance (1 - corr), clip to avoid negative values
     dist = np.clip(1 - corr_matrix.values, 0, 2)
     np.fill_diagonal(dist, 0)
-    # Ensure perfect symmetry after floating-point operations
     dist = (dist + dist.T) / 2
-    condensed = squareform(dist)
-    Z = linkage(condensed, method="ward")
+    Z = linkage(squareform(dist), method="ward")
 
     fig, ax = plt.subplots(figsize=(max(10, len(corr_matrix) * 0.8), 6))
-    dendrogram(
-        Z,
-        labels=corr_matrix.columns.tolist(),
-        ax=ax,
-        leaf_rotation=90,
-        leaf_font_size=9,
-    )
+    dendrogram(Z, labels=corr_matrix.columns.tolist(), ax=ax, leaf_rotation=90, leaf_font_size=9)
     ax.set_title(f"Dataset Clustering — {task_name}")
     ax.set_ylabel("Distance (1 − Spearman ρ)")
     fig.tight_layout()
@@ -204,8 +216,6 @@ def plot_heatmap(
         task_name: Task name for the plot title.
         output_path: File path to save the figure.
     """
-    # Reorder by dendrogram leaf order
-    from scipy.cluster.hierarchy import leaves_list
     order = leaves_list(Z)
     ordered_labels = [corr_matrix.columns[i] for i in order]
     ordered_corr = corr_matrix.loc[ordered_labels, ordered_labels]
@@ -219,7 +229,6 @@ def plot_heatmap(
     ax.set_yticklabels(ordered_labels, fontsize=8)
     ax.set_title(f"Spearman Correlation — {task_name}")
 
-    # Annotate cells
     for i in range(n):
         for j in range(n):
             val = ordered_corr.values[i, j]
@@ -254,8 +263,7 @@ def build_summary(
 
     clusters: Dict[str, List[str]] = {}
     for dataset, label in zip(datasets, labels):
-        key = f"cluster_{label}"
-        clusters.setdefault(key, []).append(dataset)
+        clusters.setdefault(f"cluster_{label}", []).append(dataset)
 
     return {
         "n_models": n_models,
@@ -299,49 +307,49 @@ def aggregate_scores(
 def analyze_task(
     results_dir: str,
     task_name: str,
+    primary_metric: str,
     episode_params: Optional[str],
     output_dir: str,
     min_models: int,
-    metric: Optional[str],
-) -> bool:
+    include_excluded: bool = False,
+    threshold: float = 1.0,
+) -> Optional[pd.Series]:
     """Run the full clustering analysis for a single task.
 
     Args:
         results_dir: Path to the root results directory.
         task_name: The CLI task name.
+        primary_metric: The metric to extract and rank by.
         episode_params: Episode params filter (e.g. '1_50').
         output_dir: Directory to write output files.
         min_models: Minimum number of models with complete results.
-        metric: Override for the primary metric. If None, uses the default.
+        include_excluded: If True, include semantic and non-English datasets.
+        threshold: Distance threshold for flat clustering.
 
     Returns:
-        True if analysis was produced, False if skipped.
+        A Series of per-model task scores, or None if the task was skipped.
     """
-    if metric:
-        path_task_name = TASK_CONFIG[task_name][0]
-        TASK_CONFIG[task_name] = (path_task_name, metric)
-
     print(f"\n{'='*60}")
     print(f"Task: {task_name}")
     print(f"{'='*60}")
 
-    df = discover_scores(results_dir, task_name, episode_params)
+    df = discover_scores(results_dir, task_name, primary_metric, episode_params, include_excluded)
     if df.empty:
         print(f"  No results found. Skipping.")
-        return False
+        return None
 
     print(f"  Raw matrix: {len(df)} models × {len(df.columns)} datasets")
 
-    df = filter_complete_rows(df)
+    df = df.dropna(axis=0, how="any")
     if len(df) < min_models:
         print(f"  Only {len(df)} models with complete results (need {min_models}). Skipping.")
-        return False
+        return None
 
     print(f"  Complete matrix: {len(df)} models × {len(df.columns)} datasets")
 
     if len(df.columns) < 2:
         print(f"  Only {len(df.columns)} dataset(s). Nothing to cluster. Skipping.")
-        return False
+        return None
 
     if len(df) < LOW_CONFIDENCE_THRESHOLD:
         print(f"  Warning: fewer than {LOW_CONFIDENCE_THRESHOLD} models — results are low-confidence.")
@@ -370,7 +378,7 @@ def analyze_task(
     print(f"  Saved heatmap: {heatmap_path}")
 
     # Summary
-    summary = build_summary(Z, corr, n_models=len(df))
+    summary = build_summary(Z, corr, n_models=len(df), threshold=threshold)
     summary_path = os.path.join(output_dir, f"{task_name}_summary.json")
     with open(summary_path, "w") as f:
         json.dump(summary, f, indent=2)
@@ -379,7 +387,7 @@ def analyze_task(
     for name, members in summary["clusters"].items():
         print(f"    {name}: {members}")
 
-    # Aggregated scores: mean within clusters, then mean across clusters
+    # Aggregated scores
     agg = aggregate_scores(df, summary["clusters"])
     agg_path = os.path.join(output_dir, f"{task_name}_aggregated.csv")
     agg.to_csv(agg_path)
@@ -388,7 +396,56 @@ def analyze_task(
     for model in agg.index:
         print(f"    {model}: {agg.loc[model, 'task_score']:.4f}")
 
-    return True
+    return agg["task_score"]
+
+
+def print_summary_table(
+    task_scores: Dict[str, pd.Series],
+    task_metrics: Dict[str, str],
+    output_dir: str,
+) -> None:
+    """Print a Markdown table summarizing per-model scores across tasks.
+
+    Bolds the best score in each column. Saves the table to a text file.
+
+    Args:
+        task_scores: Mapping from task name to a Series of per-model task scores.
+        task_metrics: Mapping from task name to metric name (for column headers).
+        output_dir: Directory to save the summary table file.
+    """
+    if not task_scores:
+        return
+
+    columns = {
+        f"{task} ({task_metrics[task]})": scores
+        for task, scores in task_scores.items()
+    }
+    df = pd.DataFrame(columns)
+    df.index.name = "Model"
+
+    # Bold the best value in each column
+    for col in df.columns:
+        valid = df[col].dropna()
+        if valid.empty:
+            df[col] = "—"
+            continue
+        best_idx = valid.idxmax()
+        df[col] = df[col].apply(lambda x: f"{x:.4f}" if pd.notna(x) else "—")
+        df.at[best_idx, col] = f"**{df.at[best_idx, col]}**"
+
+    table = df.to_markdown()
+
+    print(f"\n{'='*60}")
+    print("Summary")
+    print(f"{'='*60}\n")
+    print(table)
+    print()
+
+    os.makedirs(output_dir, exist_ok=True)
+    table_path = os.path.join(output_dir, "summary_table.md")
+    with open(table_path, "w") as f:
+        f.write(table + "\n")
+    print(f"Saved summary table: {table_path}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -407,7 +464,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--task",
-        choices=list(TASK_CONFIG.keys()),
+        choices=list(TASK_METRICS.keys()),
         help="Task to analyze. If omitted with --all-tasks, analyzes all.",
     )
     parser.add_argument(
@@ -434,6 +491,18 @@ def parse_args() -> argparse.Namespace:
         default=3,
         help="Minimum models with complete results to run analysis (default: %(default)s).",
     )
+    parser.add_argument(
+        "--include-excluded",
+        action="store_true",
+        help="Include semantic and non-English datasets that are excluded by default.",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=1.0,
+        help="Distance threshold for flat clustering (default: %(default)s). "
+             "Lower = more clusters (0.5 ≈ ρ≥0.5), higher = fewer (1.5 ≈ ρ≥-0.5).",
+    )
     return parser.parse_args()
 
 
@@ -445,21 +514,31 @@ def main() -> None:
         print("Error: specify --task <name> or --all-tasks.")
         sys.exit(1)
 
-    tasks = list(TASK_CONFIG.keys()) if args.all_tasks else [args.task]
-    produced = 0
+    tasks = list(TASK_METRICS.keys()) if args.all_tasks else [args.task]
+    task_scores: Dict[str, pd.Series] = {}
+    effective_metrics: Dict[str, str] = {}
 
     for task in tasks:
-        if analyze_task(
+        metric = args.metric if not args.all_tasks else TASK_METRICS[task]
+        if metric is None:
+            metric = TASK_METRICS[task]
+        effective_metrics[task] = metric
+
+        result = analyze_task(
             args.results_dir,
             task,
+            metric,
             args.episode_params,
             args.output_dir,
             args.min_models,
-            args.metric if not args.all_tasks else None,
-        ):
-            produced += 1
+            args.include_excluded,
+            args.threshold,
+        )
+        if result is not None:
+            task_scores[task] = result
 
-    print(f"\nDone. Produced analysis for {produced}/{len(tasks)} tasks.")
+    print_summary_table(task_scores, effective_metrics, args.output_dir)
+    print(f"Done. Produced analysis for {len(task_scores)}/{len(tasks)} tasks.")
 
 
 if __name__ == "__main__":
