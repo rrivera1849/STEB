@@ -41,14 +41,13 @@ SEMANTIC_DATASETS = {
     "20_Newsgroups_Fixed",
     "ag_news",
     "reuters21578",
-    "stackexchange_retrieval",
     # Sentiment / emotion
     "emotion",
     "financial_phrasebank",
     "twitter-airline-sentiment",
     "yelp_polarity",
     # MISC (not semantic, but I don't want it)
-    "probing_small",
+    "probing_blog_small",
 }
 
 # Non-English datasets. Excluded from analysis by default.
