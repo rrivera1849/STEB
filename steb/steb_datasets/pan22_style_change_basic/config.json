@@ -1,0 +1,15 @@
+{
+    "type": "custom",
+    "loader_module": "steb.loaders.pan",
+    "loader_function": "load_pan22_style_change",
+    "data_dir": "pan22-style-change/basic",
+    "record_handler": {
+        "text_getter": "text",
+        "label_getter": "label"
+    },
+    "tasks": {
+        "pre_defined_pair_classification": {
+            "processor": "pre_defined_pair_classification"
+        }
+    }
+}
