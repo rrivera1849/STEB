@@ -10,7 +10,7 @@ from tqdm import tqdm
 from transformers import set_seed
 
 from .dataset_loader import DatasetLoader
-from .models import MODEL_REGISTRY
+from .models import get_model_registry
 from .steb_datasets import DATASET_REGISTRY
 from .utils import RESULTS_DIR
 
@@ -100,14 +100,18 @@ def get_model(model_name_or_path: str):
     Returns:
         An instance of a STEBModel.
     """
-    for model_cls in MODEL_REGISTRY.values():
-        if model_name_or_path in model_cls.supported_models:
-            return model_cls(model_name_or_path)
-
-    if _is_causal_model(model_name_or_path):
-        return MODEL_REGISTRY["causal"](model_name_or_path)
-
-    return MODEL_REGISTRY["hf"](model_name_or_path)
+    model_class = None
+    registry = get_model_registry()
+    # Allow models to be referenced with prefixes, e.g. "lftk:config.yaml" or
+    # "tfidfngrams:/path/to/vectorizers.pkl" by matching on the part before ":".
+    prefix = model_name_or_path.split(":", 1)[0]
+    for model_cls in registry.values():
+        if prefix in getattr(model_cls, "supported_models", []):
+            model_class = model_cls
+            break
+    if model_class is None:
+        model_class = registry["hf"]
+    return model_class(model_name_or_path)
 
 
 def get_all_datasets() -> List[str]:
@@ -402,7 +406,18 @@ def evaluate(
                     task_class = getattr(task_module, task_class_name)
                     task = task_class()
 
-                    metrics = task.evaluate(*processed_data)
+                    # LFTK uses abs-diff / L1-diff for pair tasks and clustering; others use cosine / K-Means
+                    from .models.lftk_model import LFTKModel
+
+                    is_lftk = isinstance(model, LFTKModel)
+                    if current_task_name in ("pre_defined_pair_classification", "all_to_all_pair_classification"):
+                        score_mode = "abs_diff" if is_lftk else "cosine"
+                        metrics = task.evaluate(*processed_data, score_mode=score_mode)
+                    elif current_task_name == "clustering":
+                        distance_mode = "l1_diff" if is_lftk else "euclidean"
+                        metrics = task.evaluate(*processed_data, distance_mode=distance_mode)
+                    else:
+                        metrics = task.evaluate(*processed_data)
 
                     os.makedirs(scores_path, exist_ok=True)
                     with open(metrics_path, "w+") as ouf:

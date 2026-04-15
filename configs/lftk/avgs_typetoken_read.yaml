@@ -1,0 +1,9 @@
+# LFTK feature config:
+# Use: steb evaluate lftk:configs/lftk/avgs_typetoken_read.yaml ...
+families:
+  - avgwordsent
+  - avgworddiff
+  - avgpartofspeech
+  - typetokenratio
+  - readformula
+  - readtimeformula
