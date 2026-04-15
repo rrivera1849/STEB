@@ -1,0 +1,6 @@
+# LFTK feature config: all surface-domain features and partofspeech family
+# Use: steb evaluate lftk:configs/lftk/surface_pos.yaml ...
+domains:
+  - surface
+families:
+  - partofspeech
