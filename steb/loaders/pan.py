@@ -68,7 +68,7 @@ def load_pan15_dataset(data_dir):
         # Yield Text A then Text B
         samples.append({"text": text_a, "label": label_str})
         samples.append({"text": text_b, "label": label_str})
-        
+
     return samples
 
 
@@ -372,7 +372,7 @@ def load_pan18_style_change(
         doc_id = os.path.basename(problem_path)[len("problem-"):-len(".txt")]
         truth_path = os.path.join(data_dir, f"problem-{doc_id}.truth")
         if not os.path.exists(truth_path):
-            continue
+            raise FileNotFoundError(f"Truth file not found for {problem_path}")
 
         with open(problem_path, "r", encoding="utf-8", errors="replace") as f:
             text = f.read()
@@ -382,7 +382,7 @@ def load_pan18_style_change(
         if truth.get("changes"):
             positions = truth.get("positions", [])
             if not positions:
-                continue
+                raise ValueError("Positions not found for truth file...", truth_path)
             split = positions[0]
             end = positions[1] if len(positions) > 1 else len(text)
             text_a = text[:split]
@@ -469,7 +469,7 @@ def _load_pan_style_change_dataset(
         doc_id = os.path.basename(problem_path)[len("problem-"):-len(".txt")]
         truth_path = os.path.join(data_dir, f"truth-problem-{doc_id}.json")
         if not os.path.exists(truth_path):
-            continue
+            raise FileNotFoundError(f"Truth file not found for {problem_path}")
 
         with open(problem_path, "r", encoding="utf-8", errors="replace") as f:
             sentences = [line for line in f.read().splitlines() if line.strip()]
@@ -648,11 +648,10 @@ def load_pan26_style_change(
 
     The raw PAN26 pair distribution is heavily imbalanced toward the
     same-author class (up to ~96% in the medium split), which would
-    dominate the metric and inflate embedding cost. This loader applies
-    a per-document stratified downsampling that keeps all
-    different-author pairs and samples same-author pairs per document
-    so that the overall pair counts are balanced. See
-    :func:`_load_pan_style_change_dataset` for details.
+    inflate embedding cost. This loader applies a per-document stratified
+    downsampling that keeps all different-author pairs and samples
+    same-author pairs per document so that the overall pair counts are
+    balanced. See :func:`_load_pan_style_change_dataset` for details.
 
     Args:
         data_dir: Path whose last component is the difficulty level
