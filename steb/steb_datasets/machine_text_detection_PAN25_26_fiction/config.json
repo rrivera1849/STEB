@@ -1,0 +1,16 @@
+{
+  "dataset_name": "machine_text_detection_PAN25_26_fiction",
+  "type": "custom",
+  "data_dir": "pan25-26-generative-ai-detection-task1/fiction",
+  "loader_module": "steb.loaders.pan",
+  "loader_function": "load_pan25_26_generative_ai_detection",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {
+      "processor": "clustering"
+    }
+  }
+}
