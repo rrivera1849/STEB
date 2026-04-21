@@ -3,9 +3,12 @@ import json
 import os
 import sys
 
+from termcolor import colored
+
 from steb import evaluate, get_all_datasets, get_model, get_supported_datasets
 from steb.presets import PRESETS, resolve_preset
 from steb.utils import RESULTS_DIR
+from steb.validation import validate_all_configs
 
 
 def add_common_arguments(parser):
@@ -26,9 +29,6 @@ def add_iteration_arguments(parser):
 
 def run_validate():
     """Validates all dataset config.json files."""
-    from termcolor import colored
-    from steb.validation import validate_all_configs
-
     print(colored("Validating all dataset configs...", "cyan"))
     num_valid, num_invalid = validate_all_configs()
     print()
@@ -39,8 +39,6 @@ def run_validate():
 
 def run_new_dataset(args):
     """Scaffolds a new dataset directory with a template config.json."""
-    from termcolor import colored
-
     package_dir = os.path.dirname(os.path.abspath(__file__))
     steb_dir = os.path.dirname(package_dir)
     datasets_dir = os.path.join(steb_dir, "steb_datasets")
@@ -114,6 +112,43 @@ def run_new_dataset(args):
     print("  4. Run 'steb validate' to check your config")
 
 
+def parse_new_dataset_args() -> argparse.Namespace:
+    """
+    Creates and parses arguments for the 'new-dataset' subcommand.
+
+    Returns:
+        Parsed arguments namespace.
+    """
+    parser = argparse.ArgumentParser(description="Scaffold a new STEB dataset.")
+    parser.add_argument("cmd", help=argparse.SUPPRESS)
+    parser.add_argument("name", help="Name for the new dataset.")
+    parser.add_argument(
+        "--type",
+        choices=["huggingface", "custom"],
+        default="huggingface",
+        help="Dataset type.",
+    )
+    return parser.parse_args()
+
+
+def create_preset_parser() -> argparse.ArgumentParser:
+    """
+    Creates the argument parser for the '--preset' mode.
+
+    Returns:
+        An ArgumentParser configured for preset evaluation.
+    """
+    parser = argparse.ArgumentParser(description="Run STEB with a preset configuration.")
+    parser.add_argument(
+        "--preset",
+        type=str,
+        required=True,
+        help=f"Preset name. Available: {list(PRESETS.keys())}",
+    )
+    add_common_arguments(parser)
+    return parser
+
+
 def main():
     """
     The main function for the STEB CLI.
@@ -125,19 +160,12 @@ def main():
         return
 
     if len(sys.argv) >= 2 and sys.argv[1] == "new-dataset":
-        parser = argparse.ArgumentParser(description="Scaffold a new STEB dataset.")
-        parser.add_argument("cmd", help=argparse.SUPPRESS)
-        parser.add_argument("name", help="Name for the new dataset.")
-        parser.add_argument("--type", choices=["huggingface", "custom"], default="huggingface", help="Dataset type.")
-        args = parser.parse_args()
+        args = parse_new_dataset_args()
         run_new_dataset(args)
         return
 
     if "--preset" in sys.argv:
-        # Preset mode parser
-        parser = argparse.ArgumentParser(description="Run STEB with a preset configuration.")
-        parser.add_argument("--preset", type=str, required=True, help=f"Preset name. Available: {list(PRESETS.keys())}")
-        add_common_arguments(parser)
+        parser = create_preset_parser()
         args = parser.parse_args()
 
         if not args.model_name_or_path:
@@ -207,6 +235,7 @@ def main():
     order_alignment_parser.add_argument("--dataset", choices=get_supported_datasets("order_alignment"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     order_alignment_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
+    # 'retrieval' task parser
     retrieval_parser = subparsers.add_parser("retrieval", help="Run retrieval task.", parents=[base_parser])
     retrieval_parser.add_argument("--dataset", choices=get_supported_datasets("retrieval"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     retrieval_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")

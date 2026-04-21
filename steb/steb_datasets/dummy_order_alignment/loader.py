@@ -1,7 +1,7 @@
 from typing import Dict, List
 
 
-def load_dummy_order_alignment_dataset(path: str) -> List[Dict[str, List[str]]]:
+def load_dummy_order_alignment_dataset(_path: str) -> List[Dict[str, List[str]]]:
     """
     Provides ordered text sequences for two synthetic stylistic axes.
 

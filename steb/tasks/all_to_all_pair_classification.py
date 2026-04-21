@@ -11,7 +11,11 @@ class AllToAllPairClassificationTask(Task):
     """
     A task for evaluating pair classification performance (All-to-All).
     """
-    def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
+    def evaluate(
+        self,
+        embeddings: np.ndarray,
+        labels: List[Any],
+    ) -> Dict[str, float]:
         """
         Evaluates the performance of a pair classification model using EER and AUC.
 
@@ -24,7 +28,6 @@ class AllToAllPairClassificationTask(Task):
         Returns:
             A dictionary of evaluation metrics, including EER, AUC, and AUC at various FPR thresholds.
         """
-        # Extract the 0th position (most style) from record
         embeddings_flat = np.array([episode[0] for episode in embeddings])
 
         scores = cosine_similarity(

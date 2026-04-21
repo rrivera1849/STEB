@@ -8,7 +8,11 @@ class Processor(ABC):
     """
 
     @abstractmethod
-    def process(self, embeddings: Any, labels: List[Any]) -> Any:
+    def process(
+        self,
+        embeddings: Any,
+        labels: List[Any],
+    ) -> Any:
         """
         Processes the given embeddings and labels.
 

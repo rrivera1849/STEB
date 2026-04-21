@@ -10,7 +10,11 @@ class Task(ABC):
     """
 
     @abstractmethod
-    def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
+    def evaluate(
+        self,
+        embeddings: np.ndarray,
+        labels: List[Any],
+    ) -> Dict[str, float]:
         """
         Evaluates the given embeddings and labels.
 

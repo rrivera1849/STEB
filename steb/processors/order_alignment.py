@@ -8,7 +8,11 @@ class OrderAlignmentProcessor(Processor):
     A processor for order alignment tasks.
     This processor simply returns the embeddings and labels as is.
     """
-    def process(self, embeddings: Any, labels: List[Any]) -> Any:
+    def process(
+        self,
+        embeddings: Any,
+        labels: List[Any],
+    ) -> Any:
         """
         Processes the given embeddings and labels for order alignment.
 

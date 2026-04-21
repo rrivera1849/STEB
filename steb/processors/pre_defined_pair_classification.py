@@ -9,7 +9,11 @@ class PreDefinedPairClassificationProcessor(Processor):
     This processor takes embeddings and labels, assumes they are loaded as pairs (episode_size=2),
     and formats them for the task.
     """
-    def process(self, embeddings: Any, labels: List[Any]) -> Any:
+    def process(
+        self,
+        embeddings: Any,
+        labels: List[Any],
+    ) -> Any:
         # embeddings is a list of episodes.
         # If episode_size=2 was used during loading, each episode has 2 positions (texts).
         # We pass them as is, the task will handle the pairing logic.
