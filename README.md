@@ -75,6 +75,9 @@ steb all "rrivera1849/LUAR-MUD"
 # Run a specific task on a specific dataset
 steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam"
 
+# Override episode size (clustering, all_to_all_pair_classification, order_alignment)
+steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam" -e 1 2 5
+
 # Run with a preset configuration
 steb --preset fast "rrivera1849/LUAR-MUD"
 ```
