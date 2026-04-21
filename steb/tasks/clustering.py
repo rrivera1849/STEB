@@ -10,7 +10,11 @@ class ClusteringTask(Task):
     """
     A task for evaluating clustering performance.
     """
-    def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
+    def evaluate(
+        self,
+        embeddings: np.ndarray,
+        labels: List[Any],
+    ) -> Dict[str, float]:
         """
         Trains a K-Means model and evaluates its performance using V-measure.
 
@@ -23,7 +27,6 @@ class ClusteringTask(Task):
         Returns:
             A dictionary containing the V-measure score.
         """
-        # Extract the 0th position (most style) from each record
         embeddings_flat = np.array([episode[0] for episode in embeddings])
 
         return calculate_clustering_metrics(embeddings_flat, labels)

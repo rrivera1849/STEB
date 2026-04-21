@@ -8,8 +8,6 @@
   },
   "loader_function": "load_dummy_pair_classification_dataset",
   "tasks": {
-    "pre_defined_pair_classification": {
-      "processor": "pre_defined_pair_classification"
-    }
+    "pre_defined_pair_classification": {}
   }
 }

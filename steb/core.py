@@ -7,10 +7,15 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from termcolor import colored
 from tqdm import tqdm
-from transformers import set_seed
+from transformers import AutoConfig, set_seed
+from transformers.models.auto.modeling_auto import (
+    MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
+    MODEL_FOR_MASKED_LM_MAPPING_NAMES,
+)
 
 from .dataset_loader import DatasetLoader
 from .models import MODEL_REGISTRY
+from .processors.base import Processor
 from .steb_datasets import DATASET_REGISTRY
 from .utils import RESULTS_DIR
 
@@ -23,6 +28,14 @@ SUPPORTED_TASKS = [
     "probing",
 ]
 
+TASK_DEFAULTS = {
+    "clustering": {"episode_sizes": [1], "n_episodes_per_class": 50},
+    "all_to_all_pair_classification": {"episode_sizes": [1], "n_episodes_per_class": 50},
+    "order_alignment": {"episode_sizes": [1], "n_episodes_per_class": 50},
+    "pre_defined_pair_classification": {"episode_sizes": [1], "n_episodes_per_class": 2},
+    "probing": {"episode_sizes": [1], "n_episodes_per_class": 1},
+    "retrieval": {"episode_sizes": [1], "n_episodes_per_class": 1},
+}
 
 def get_supported_tasks() -> list[str]:
     """Returns the list of all supported task names."""
@@ -41,11 +54,6 @@ def _get_causal_only_model_types() -> set:
     Returns:
         A frozenset of model_type strings for causal-only architectures.
     """
-    from transformers.models.auto.modeling_auto import (
-        MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
-        MODEL_FOR_MASKED_LM_MAPPING_NAMES,
-    )
-
     causal_types = set(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.keys())
     masked_types = set(MODEL_FOR_MASKED_LM_MAPPING_NAMES.keys())
     return causal_types - masked_types
@@ -68,8 +76,6 @@ def _is_causal_model(model_name_or_path: str) -> bool:
     Returns:
         True if the model is a causal LM, False otherwise.
     """
-    from transformers import AutoConfig
-
     config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
     causal_only_types = _get_causal_only_model_types()
 
@@ -222,14 +228,64 @@ def _write_evaluation_log(
     return log_path
 
 
+def _evaluate_submetrics(
+    submetrics_config: Dict[str, List[str]],
+    processed_data: Any,
+    task: Any,
+) -> Dict[str, Any]:
+    """
+    Evaluates submetrics by filtering processed data to label subsets.
+
+    Args:
+        submetrics_config: Mapping of submetric name to list of labels to keep.
+        processed_data: Tuple of (X, y) from the processor.
+        task: The task instance to call evaluate() on.
+
+    Returns:
+        A dict mapping submetric names to their metric dicts.
+    """
+    all_X, all_y = processed_data
+    submetrics = {}
+
+    for sub_name, label_subset in submetrics_config.items():
+        label_set = set(label_subset)
+        filtered = [
+            (x, y) for x, y in zip(all_X, all_y)
+            if y in label_set
+        ]
+
+        # RRS - Removing for now, but we want something more intelligent here.
+        # I think Order Alignment is the only task where you can have one label.
+        # unique_labels = set(y for _, y in filtered)
+        # if len(unique_labels) < 2:
+        #     msg = f"only {len(unique_labels)} unique label(s) found, need at least 2"
+        #     print(colored(f"    FAILED submetric '{sub_name}': {msg}", "red"))
+        #     submetrics[sub_name] = {"error": msg}
+        #     continue
+
+        try:
+            sub_X, sub_y = zip(*filtered)
+            sub_metrics = task.evaluate(list(sub_X), list(sub_y))
+            submetrics[sub_name] = sub_metrics
+            print(colored(f"    -> Submetric '{sub_name}': {sub_metrics}", "green"))
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {e}"
+            print(colored(f"    FAILED submetric '{sub_name}': {error_msg}", "red"))
+            traceback.print_exc()
+            submetrics[sub_name] = {"error": error_msg}
+
+    return submetrics
+
+
 def evaluate(
     model,
     datasets: List[str],
-    episode_sizes: List[int],
+    episode_sizes: Optional[List[int]] = None,
     task_name: Optional[str] = None,
-    n_episodes_per_class: int = 50,
+    n_episodes_per_class: Optional[int] = None,
     batch_size: int = 32,
     force_reload: bool = False,
+    force_rerun: bool = False,
     progress_bar: bool = False,
     output_folder: str = RESULTS_DIR,
     seed: int = 42,
@@ -246,11 +302,14 @@ def evaluate(
     Args:
         model: The model to evaluate.
         datasets: A list of dataset names to evaluate on.
-        episode_sizes: A list of episode sizes to evaluate.
+        episode_sizes: A list of episode sizes to evaluate. If None,
+            uses per-task defaults from TASK_DEFAULTS.
         task_name: The name of the task to evaluate. If None, runs all tasks.
-        n_episodes_per_class: The number of episodes per class.
+        n_episodes_per_class: The number of episodes per class. If None,
+            uses per-task defaults from TASK_DEFAULTS.
         batch_size: The batch size for embedding.
         force_reload: Whether to force reload the datasets.
+        force_rerun: Whether to re-run evaluations even if metrics already exist.
         progress_bar: Whether to show a progress bar.
         output_folder: The folder to save the results to.
         seed: The random seed to use.
@@ -265,22 +324,55 @@ def evaluate(
     successes: List[Tuple[str, int, str]] = []
     failures: List[Tuple[str, int, str, str]] = []
 
-    def extract_features(dataset, episode_size, n_episodes_per_class, batch_size, show_progress=False):
+    def safe_load(
+        loader: DatasetLoader,
+        dataset_name: str,
+        episode_size: int,
+        current_task_name: str,
+    ) -> Optional[Dict]:
+        """
+        Attempts to load a dataset, logging and recording the failure if it occurs.
+
+        Args:
+            loader: The DatasetLoader to call load() on.
+            dataset_name: Name of the dataset (for error reporting).
+            episode_size: Current episode size (for error reporting).
+            current_task_name: Current task name (for error reporting).
+
+        Returns:
+            The loaded dataset, or None if loading failed.
+        """
+        try:
+            return loader.load()
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {e}"
+            print(colored(f"    FAILED to load dataset: {error_msg}", "red"))
+            traceback.print_exc()
+            failures.append((dataset_name, episode_size, current_task_name, error_msg))
+            return None
+
+    def extract_features(
+        dataset,
+        episode_size,
+        n_episodes_per_class,
+        batch_size,
+        show_progress=False,
+    ):
         """
         Extracts features from the dataset using the specified model.
 
         Expects dataset format:
             Order Alignment: {"label": [[seq1_most, ..., seq1_least], [seq2_most, ..., seq2_least], ...]}
+                Each label maps to a list of ordered sequences. Sequences are grouped into
+                episodes, then organized by position (most X, ..., least X).
             Others: {"label": [[text_1, ..., text_N], [text_1, ..., text_M], ...]}
 
-        Each label maps to a list of ordered sequences. Sequences are grouped into
-        episodes, then organized by position (most X, ..., least X).
         """
         episodes_by_label = {}
         for label, text_list in dataset.items():
             # Validate nested list format
             assert text_list and isinstance(text_list[0], list), \
-                f"Dataset for label '{label}' must be a list of lists (ordered sequences)"
+                f"Dataset for label '{label}' must be a list of lists"
 
             seq_len = len(text_list[0])
             if episode_size == -1:
@@ -294,7 +386,6 @@ def evaluate(
                 ]
                 assert len(episodes_by_label[label]) == n_episodes_per_class
                 assert all(len(episode[0]) == episode_size for episode in episodes_by_label[label])
-
         all_episodes = [episode for label, episodes in episodes_by_label.items() for episode in episodes]
         y = [label for label, episodes in episodes_by_label.items() for _ in episodes]
         num_positions = len(all_episodes[0])
@@ -309,52 +400,39 @@ def evaluate(
         X = [X_flat[i:i+num_positions] for i in range(0, len(X_flat), num_positions)]
         return X, y
 
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+
     dataset_iterator = tqdm(datasets, desc="Evaluating Datasets", disable=not progress_bar)
     for dataset_name in dataset_iterator:
-        for episode_size in episode_sizes:
-            print(colored(f"--- Evaluating {dataset_name} (episode size: {episode_size}) ---", "cyan"))
+        config_path = os.path.join(package_dir, "steb_datasets", dataset_name, "config.json")
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {e}"
+            print(colored(f"  FAILED to read config for {dataset_name}: {error_msg}", "red"))
+            traceback.print_exc()
+            failures.append((dataset_name, -1, "config_read", error_msg))
+            continue
 
-            try:
-                dset_loader = DatasetLoader(
-                    dataset_name=dataset_name,
-                    episode_size=episode_size,
-                    n_episodes_per_class=n_episodes_per_class,
-                    force_reload=force_reload,
-                    seed=seed,
-                )
+        tasks_to_run = [task_name] if task_name else list(config.get("tasks", {}).keys())
 
-                with open(dset_loader.config_path) as f:
-                    config = json.load(f)
+        # Cache default embeddings by (episode_size, n_episodes_per_class)
+        # so tasks sharing the same parameters reuse the same embeddings.
+        default_cache: Dict[Tuple[int, int], Tuple[Any, Any]] = {}
 
-                tasks_to_run = [task_name] if task_name else list(config.get("tasks", {}).keys())
-
-                # Only load the default (non-task-specific) dataset if at least
-                # one task uses the top-level record handler.
-                default_X, default_y = None, None
-                needs_default = any(
-                    "record_handler" not in config.get("tasks", {}).get(t, {})
-                    for t in tasks_to_run
-                )
-                if needs_default:
-                    dataset = dset_loader.load()
-                    if not dataset:
-                        continue
-                    default_X, default_y = extract_features(
-                        dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar,
-                    )
-            except Exception as e:
-                error_msg = f"{type(e).__name__}: {e}"
-                print(colored(f"  FAILED to load dataset: {error_msg}", "red"))
-                traceback.print_exc()
-                failures.append((dataset_name, episode_size, "dataset_load", error_msg))
+        for current_task_name in tasks_to_run:
+            task_config = config.get("tasks", {}).get(current_task_name)
+            if task_config is None:
+                print(colored(f"Task '{current_task_name}' not supported by dataset '{dataset_name}'. Skipping.", "yellow"))
                 continue
 
-            for current_task_name in tasks_to_run:
-                print(colored(f"  - Running task: {current_task_name}", "blue"))
-                task_config = config.get("tasks", {}).get(current_task_name)
-                if not task_config:
-                    print(colored(f"Task '{current_task_name}' not supported by dataset '{dataset_name}'. Skipping.", "yellow"))
-                    continue
+            task_defaults = TASK_DEFAULTS.get(current_task_name, {})
+            resolved_episode_sizes = episode_sizes or task_defaults.get("episode_sizes")
+            resolved_n_episodes = n_episodes_per_class or task_defaults.get("n_episodes_per_class")
+
+            for episode_size in resolved_episode_sizes:
+                print(colored(f"--- Evaluating {dataset_name} | {current_task_name} (episode size: {episode_size}) ---", "cyan"))
 
                 model_str = os.path.basename(model.model_name_or_path)
                 if model_str == "":
@@ -362,11 +440,11 @@ def evaluate(
                 dset_str = os.path.basename(dataset_name)
                 scores_path = os.path.join(
                     output_folder, dset_str, model_str,
-                    f"{episode_size}_{n_episodes_per_class}", current_task_name,
+                    f"{episode_size}_{resolved_n_episodes}", current_task_name,
                 )
                 metrics_path = os.path.join(scores_path, "metrics.json")
 
-                if not force_reload and os.path.exists(metrics_path):
+                if not force_rerun and os.path.exists(metrics_path):
                     print(colored(f"    -> Skipping (results already exist)", "yellow"))
                     successes.append((dataset_name, episode_size, current_task_name))
                     continue
@@ -376,24 +454,42 @@ def evaluate(
                         task_loader = DatasetLoader(
                             dataset_name=dataset_name,
                             episode_size=episode_size,
-                            n_episodes_per_class=n_episodes_per_class,
+                            n_episodes_per_class=resolved_n_episodes,
                             force_reload=force_reload,
                             seed=seed,
                             task_name=current_task_name,
                         )
-                        task_dataset = task_loader.load()
-                        if not task_dataset:
+                        task_dataset = safe_load(task_loader, dataset_name, episode_size, current_task_name)
+                        if task_dataset is None:
                             continue
                         current_X, current_y = extract_features(
-                            task_dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar,
+                            task_dataset, episode_size, resolved_n_episodes, batch_size, show_progress=progress_bar,
                         )
                     else:
-                        current_X, current_y = default_X, default_y
+                        cache_key = (episode_size, resolved_n_episodes)
+                        if cache_key not in default_cache:
+                            dset_loader = DatasetLoader(
+                                dataset_name=dataset_name,
+                                episode_size=episode_size,
+                                n_episodes_per_class=resolved_n_episodes,
+                                force_reload=force_reload,
+                                seed=seed,
+                            )
+                            dataset = safe_load(dset_loader, dataset_name, episode_size, current_task_name)
+                            if dataset is None:
+                                continue
+                            default_cache[cache_key] = extract_features(
+                                dataset, episode_size, resolved_n_episodes, batch_size, show_progress=progress_bar,
+                            )
+                        current_X, current_y = default_cache[cache_key]
 
-                    processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
-                    processor_class_name = f"{task_config['processor'].replace('_', ' ').title().replace(' ', '')}Processor"
-                    processor_class = getattr(processor_module, processor_class_name)
-                    processor = processor_class()
+                    if "processor" in task_config:
+                        processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
+                        processor_class_name = f"{task_config['processor'].replace('_', ' ').title().replace(' ', '')}Processor"
+                        processor_class = getattr(processor_module, processor_class_name)
+                        processor = processor_class()
+                    else:
+                        processor = Processor()
 
                     processed_data = processor.process(current_X, current_y)
 
@@ -403,6 +499,14 @@ def evaluate(
                     task = task_class()
 
                     metrics = task.evaluate(*processed_data)
+
+                    submetrics_config = task_config.get("submetrics", {})
+                    if submetrics_config:
+                        metrics["submetrics"] = _evaluate_submetrics(
+                            submetrics_config,
+                            processed_data,
+                            task,
+                        )
 
                     os.makedirs(scores_path, exist_ok=True)
                     with open(metrics_path, "w+") as ouf:

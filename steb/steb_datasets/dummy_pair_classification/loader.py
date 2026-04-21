@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 
 
-def load_dummy_pair_classification_dataset(path: str) -> List[Dict[str, Any]]:
+def load_dummy_pair_classification_dataset(_path: str) -> List[Dict[str, Any]]:
     """
     Provides a minimal synthetic dataset for pre-defined pair classification tests.
 
