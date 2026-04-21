@@ -109,25 +109,32 @@ class ProbingTask(Task):
     def evaluate(
         self,
         embeddings: np.ndarray,
-        labels: List[Dict[str, Any]]
+        labels: List[Dict[str, Any]],
     ) -> Dict[str, float]:
+        """
+        Evaluates probing accuracy for each feature via logistic regression.
 
-        # labels is a list of dictionaries with keys: "label", "split"
-        # "label" is a list of integers, one for each task
-        # "split" is a list of strings, one for each task
+        Args:
+            embeddings: Array of shape (num_texts, embedding_dim).
+            labels: List of metadata dicts, each with "feature_names",
+                "labels" (dict of feature_name -> int/None), and
+                "splits" (dict of feature_name -> str/None).
 
+        Returns:
+            A dict mapping feature names to test accuracy, plus "average".
+        """
         batch_size = 512
-        num_tasks = len(labels[0]["label"])
+        feature_names = labels[0]["feature_names"]
         results = {}
 
-        for task_idx in range(num_tasks):
+        for feature_name in feature_names:
             train_X, train_y = [], []
             val_X, val_y = [], []
             test_X, test_y = [], []
 
             for emb, meta in zip(embeddings, labels):
-                label = meta["label"][task_idx]
-                split = meta["split"][task_idx]
+                label = meta["labels"][feature_name]
+                split = meta["splits"][feature_name]
 
                 if label is None or split is None:
                     continue
@@ -177,9 +184,9 @@ class ProbingTask(Task):
                 tenacity=5,
                 L2reg=[10**t for t in range(-5, -1)],
             )
-            results[f"task_{task_idx}"] = acc
+            results[feature_name] = acc
 
         if results:
             results["average"] = np.mean(list(results.values()))
-            
+
         return results
