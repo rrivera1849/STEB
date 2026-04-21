@@ -60,7 +60,7 @@ import steb
 
 model = steb.get_model("rrivera1849/LUAR-MUD")
 datasets = steb.get_supported_datasets(task_name="clustering")
-steb.evaluate(model, datasets=datasets, task_name="clustering", episode_sizes=[1])
+steb.evaluate(model, datasets=datasets, task_name="clustering")
 ```
 
 ### CLI
@@ -69,11 +69,11 @@ steb.evaluate(model, datasets=datasets, task_name="clustering", episode_sizes=[1
 # List datasets for a task
 steb clustering --list-datasets
 
-# Run all tasks on all datasets
-steb all "rrivera1849/LUAR-MUD" -e 1
+# Run all tasks on all datasets (uses per-task defaults)
+steb all "rrivera1849/LUAR-MUD"
 
 # Run a specific task on a specific dataset
-steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam" -e 1
+steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam"
 
 # Run with a preset configuration
 steb --preset fast "rrivera1849/LUAR-MUD"
@@ -97,7 +97,7 @@ steb new-dataset my_dataset --type custom
 Evaluates how well embeddings form clusters that align with style-based class labels. Episodes are embedded and K-Means clustering is applied. Quality is measured using [V-measure](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.v_measure_score.html).
 
 ```bash
-steb clustering rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
+steb clustering rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles
 ```
 
 ### All-to-All Pair Classification
@@ -107,7 +107,7 @@ Evaluates whether embeddings can distinguish same-class vs. different-class text
 **Metrics:** EER (lower is better), AUC (higher is better), AUC@FPR at thresholds 0.01, 0.05, 0.10, 0.20, 0.30, 0.50.
 
 ```bash
-steb all_to_all_pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles -e 5
+steb all_to_all_pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles
 ```
 
 ### Pre-defined Pair Classification
@@ -133,7 +133,7 @@ Evaluates how well embeddings retrieve style-matched texts. Given query and targ
 **Metrics:** MRR, Mean Rank, Recall@K (K = 1, 8, 16, 32, 64, 128).
 
 ```bash
-steb retrieval rrivera1849/LUAR-MUD --dataset <dataset_name> -e 50 --n-episodes-per-class 1
+steb retrieval rrivera1849/LUAR-MUD --dataset <dataset_name>
 ```
 
 For datasets with the standard JSONL format (`text`, `label`, `is_query` fields), use the default retrieval loader in `steb/loaders/retrieval.py`. See `steb/steb_datasets/dummy_retrieval/config.json` for an example.
@@ -142,7 +142,7 @@ For datasets with the standard JSONL format (`text`, `label`, `is_query` fields)
 
 Trains a logistic regression probe on frozen embeddings to evaluate what linguistic properties are encoded. Uses train/val/test splits defined per-sample in the dataset.
 
-**Metrics:** Per-task accuracy and average accuracy across all probing tasks.
+**Metrics:** Per-feature accuracy (e.g., `n_adj`, `n_adp`, ...) and `average` accuracy across all probing features.
 
 ## Developer Guide
 
@@ -193,8 +193,8 @@ This creates `steb/steb_datasets/my_dataset/config.json` (and a stub `loader.py`
     "split": "train"
   },
   "tasks": {
-    "clustering": { "processor": "clustering" },
-    "all_to_all_pair_classification": { "processor": "all_to_all_pair_classification" }
+    "clustering": {},
+    "all_to_all_pair_classification": {}
   }
 }
 ```
