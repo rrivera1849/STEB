@@ -7,7 +7,7 @@ from steb.tasks.order_alignment import OrderAlignmentTask
 
 
 def test_dummy_order_alignment_dataset_has_multiple_sequences_per_label():
-    records = load_dummy_order_alignment_dataset(path="unused")
+    records = load_dummy_order_alignment_dataset(_path="unused")
     assert records, "Dummy order-alignment dataset should not be empty"
 
     by_label = {}
@@ -23,7 +23,7 @@ def test_dummy_order_alignment_dataset_has_multiple_sequences_per_label():
 
 
 def test_order_alignment_on_dummy_dataset_yields_high_accuracy():
-    records = load_dummy_order_alignment_dataset(path="unused")
+    records = load_dummy_order_alignment_dataset(_path="unused")
     assert len(records) >= 2
 
     seq_len = len(records[0]["text"])
