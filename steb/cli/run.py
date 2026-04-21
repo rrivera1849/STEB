@@ -3,9 +3,12 @@ import json
 import os
 import sys
 
+from termcolor import colored
+
 from steb import evaluate, get_all_datasets, get_model, get_supported_datasets
 from steb.presets import PRESETS, resolve_preset
 from steb.utils import RESULTS_DIR
+from steb.validation import validate_all_configs
 
 
 def add_common_arguments(parser):
@@ -14,6 +17,7 @@ def add_common_arguments(parser):
     parser.add_argument("--batch-size", type=int, default=32, help="Batch size for embedding.")
     parser.add_argument("--output-folder", default=RESULTS_DIR, help="Folder to save the results to.")
     parser.add_argument("--force-reload", default=False, action="store_true", help="Whether to force reload the datasets.")
+    parser.add_argument("--force-rerun", default=False, action="store_true", help="Re-run evaluations even if metrics file already exists.")
     parser.add_argument("--progress-bar", default=False, action="store_true", help="Show a progress bar.")
     parser.add_argument("--seed", type=int, default=42, help="The random seed to use.")
 
@@ -26,9 +30,6 @@ def add_iteration_arguments(parser):
 
 def run_validate():
     """Validates all dataset config.json files."""
-    from termcolor import colored
-    from steb.validation import validate_all_configs
-
     print(colored("Validating all dataset configs...", "cyan"))
     num_valid, num_invalid = validate_all_configs()
     print()
@@ -39,8 +40,6 @@ def run_validate():
 
 def run_new_dataset(args):
     """Scaffolds a new dataset directory with a template config.json."""
-    from termcolor import colored
-
     package_dir = os.path.dirname(os.path.abspath(__file__))
     steb_dir = os.path.dirname(package_dir)
     datasets_dir = os.path.join(steb_dir, "steb_datasets")
@@ -114,6 +113,43 @@ def run_new_dataset(args):
     print("  4. Run 'steb validate' to check your config")
 
 
+def parse_new_dataset_args() -> argparse.Namespace:
+    """
+    Creates and parses arguments for the 'new-dataset' subcommand.
+
+    Returns:
+        Parsed arguments namespace.
+    """
+    parser = argparse.ArgumentParser(description="Scaffold a new STEB dataset.")
+    parser.add_argument("cmd", help=argparse.SUPPRESS)
+    parser.add_argument("name", help="Name for the new dataset.")
+    parser.add_argument(
+        "--type",
+        choices=["huggingface", "custom"],
+        default="huggingface",
+        help="Dataset type.",
+    )
+    return parser.parse_args()
+
+
+def create_preset_parser() -> argparse.ArgumentParser:
+    """
+    Creates the argument parser for the '--preset' mode.
+
+    Returns:
+        An ArgumentParser configured for preset evaluation.
+    """
+    parser = argparse.ArgumentParser(description="Run STEB with a preset configuration.")
+    parser.add_argument(
+        "--preset",
+        type=str,
+        required=True,
+        help=f"Preset name. Available: {list(PRESETS.keys())}",
+    )
+    add_common_arguments(parser)
+    return parser
+
+
 def main():
     """
     The main function for the STEB CLI.
@@ -125,19 +161,12 @@ def main():
         return
 
     if len(sys.argv) >= 2 and sys.argv[1] == "new-dataset":
-        parser = argparse.ArgumentParser(description="Scaffold a new STEB dataset.")
-        parser.add_argument("cmd", help=argparse.SUPPRESS)
-        parser.add_argument("name", help="Name for the new dataset.")
-        parser.add_argument("--type", choices=["huggingface", "custom"], default="huggingface", help="Dataset type.")
-        args = parser.parse_args()
+        args = parse_new_dataset_args()
         run_new_dataset(args)
         return
 
     if "--preset" in sys.argv:
-        # Preset mode parser
-        parser = argparse.ArgumentParser(description="Run STEB with a preset configuration.")
-        parser.add_argument("--preset", type=str, required=True, help=f"Preset name. Available: {list(PRESETS.keys())}")
-        add_common_arguments(parser)
+        parser = create_preset_parser()
         args = parser.parse_args()
 
         if not args.model_name_or_path:
@@ -151,13 +180,15 @@ def main():
             parser.error(str(e))
 
         task_configs = preset_config["config"]["tasks"]
-        print(f"Running preset: {args.preset}")
-        print("Found #{:02d} evaluations in preset".format(len(task_configs)))
+        print(colored(f"Running preset: {args.preset}", "cyan"))
+        print(colored("Found #{:02d} tasks in preset".format(len(task_configs)), "cyan"))
         for item in task_configs:
             task_name = item["task"]
             datasets = item["datasets"]
             current_episode_sizes = item["episode_sizes"]
             current_n_episodes = item["n_episodes_per_class"]
+            print(colored(f"Running task: {task_name}", "green"))
+            print(colored(f"\tDatasets: {datasets}", "green"))
             
             evaluate(
                 model,
@@ -168,6 +199,7 @@ def main():
                 batch_size=args.batch_size,
                 output_folder=args.output_folder,
                 force_reload=args.force_reload,
+                force_rerun=args.force_rerun,
                 progress_bar=args.progress_bar,
                 seed=args.seed,
                 run_name=args.preset,
@@ -178,22 +210,26 @@ def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="task", required=True)
 
-    # Base parser for common arguments
+    # Base parser for common arguments (no episode args)
     base_parser = argparse.ArgumentParser(add_help=False)
     add_common_arguments(base_parser)
-    add_iteration_arguments(base_parser)
 
-    # 'all' task parser
+    # Base parser that also includes episode arguments
+    episode_parser = argparse.ArgumentParser(add_help=False)
+    add_common_arguments(episode_parser)
+    add_iteration_arguments(episode_parser)
+
+    # 'all' task parser (no episode args — uses per-task defaults)
     all_parser = subparsers.add_parser("all", help="Run all tasks.", parents=[base_parser])
     all_parser.add_argument("--dataset", default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
 
     # 'clustering' task parser
-    clustering_parser = subparsers.add_parser("clustering", help="Run clustering task.", parents=[base_parser])
+    clustering_parser = subparsers.add_parser("clustering", help="Run clustering task.", parents=[episode_parser])
     clustering_parser.add_argument("--dataset", choices=get_supported_datasets("clustering"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     clustering_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
     # 'all_to_all_pair_classification' task parser
-    all_to_all_pair_classification_parser = subparsers.add_parser("all_to_all_pair_classification", help="Run all-to-all pair classification task.", parents=[base_parser])
+    all_to_all_pair_classification_parser = subparsers.add_parser("all_to_all_pair_classification", help="Run all-to-all pair classification task.", parents=[episode_parser])
     all_to_all_pair_classification_parser.add_argument("--dataset", choices=get_supported_datasets("all_to_all_pair_classification"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     all_to_all_pair_classification_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
@@ -203,10 +239,11 @@ def main():
     pre_defined_pair_classification_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
     # 'order_alignment' task parser
-    order_alignment_parser = subparsers.add_parser("order_alignment", help="Run order alignment task.", parents=[base_parser])
+    order_alignment_parser = subparsers.add_parser("order_alignment", help="Run order alignment task.", parents=[episode_parser])
     order_alignment_parser.add_argument("--dataset", choices=get_supported_datasets("order_alignment"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     order_alignment_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
+    # 'retrieval' task parser
     retrieval_parser = subparsers.add_parser("retrieval", help="Run retrieval task.", parents=[base_parser])
     retrieval_parser.add_argument("--dataset", choices=get_supported_datasets("retrieval"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     retrieval_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
@@ -230,16 +267,6 @@ def main():
     if not args.model_name_or_path:
         parser.error("the following arguments are required: model_name_or_path")
 
-    if args.task == "pre_defined_pair_classification":
-        args.episode_sizes = [1]
-        args.n_episodes_per_class = 2
-    elif args.task == "probing":
-        args.episode_sizes = [1]
-        args.n_episodes_per_class = 1
-
-    if not args.episode_sizes:
-        parser.error("the following arguments are required: -e/--episode-sizes")
-
     model = get_model(args.model_name_or_path)
 
     if args.task == "all":
@@ -249,15 +276,21 @@ def main():
         datasets = get_supported_datasets(args.task) if not args.dataset else [args.dataset]
         task_name = args.task
 
+    # Only pass episode args if the task supports them and they were provided.
+    # Otherwise, evaluate() will use per-task defaults from TASK_DEFAULTS.
+    episode_sizes = getattr(args, "episode_sizes", None) or None
+    n_episodes_per_class = getattr(args, "n_episodes_per_class", None)
+
     evaluate(
         model,
         datasets,
-        episode_sizes=args.episode_sizes,
+        episode_sizes=episode_sizes,
         task_name=task_name,
-        n_episodes_per_class=args.n_episodes_per_class,
+        n_episodes_per_class=n_episodes_per_class,
         batch_size=args.batch_size,
         output_folder=args.output_folder,
         force_reload=args.force_reload,
+        force_rerun=args.force_rerun,
         progress_bar=args.progress_bar,
         seed=args.seed,
         run_name=args.task,

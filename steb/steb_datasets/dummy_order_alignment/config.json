@@ -8,8 +8,6 @@
   },
   "loader_function": "load_dummy_order_alignment_dataset",
   "tasks": {
-    "order_alignment": {
-      "processor": "order_alignment"
-    }
+    "order_alignment": {}
   }
 }

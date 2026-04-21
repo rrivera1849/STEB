@@ -12,6 +12,6 @@
   "record_handler": {
     "text_getter": "text",
     "label_getter": "steb_unique_label",
-    "custom_record_handler_function": "dummy_probing_record_handler"
+    "custom_record_handler_function": "probing_record_handler"
   }
 }

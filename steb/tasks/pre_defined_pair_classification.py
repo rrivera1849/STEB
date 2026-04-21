@@ -11,7 +11,11 @@ class PreDefinedPairClassificationTask(Task):
     """
     A task for evaluating pair classification performance on pre-defined pairs.
     """
-    def evaluate(self, embeddings: List[Any], labels: List[Any]) -> Dict[str, float]:
+    def evaluate(
+        self,
+        embeddings: List[Any],
+        labels: List[Any],
+    ) -> Dict[str, float]:
         """
         Evaluates the performance of a pair classification model using EER and AUC.
         

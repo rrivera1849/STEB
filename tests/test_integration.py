@@ -215,7 +215,7 @@ class TestProbingIntegration:
 
         with open(metrics_path) as f:
             metrics = json.load(f)
-        assert "task_0" in metrics
+        assert "sentence_length" in metrics
         assert "average" in metrics
 
 
@@ -271,9 +271,9 @@ class TestEvaluationErrorHandling:
         original_import = importlib.import_module
 
         def failing_import(name, *args, **kwargs):
-            """Fail only when importing the clustering processor."""
-            if name == "steb.processors.clustering":
-                raise RuntimeError("Simulated processor failure")
+            """Fail only when importing the clustering task."""
+            if name == "steb.tasks.clustering":
+                raise RuntimeError("Simulated task failure")
             return original_import(name, *args, **kwargs)
 
         result = evaluate(
@@ -284,6 +284,7 @@ class TestEvaluationErrorHandling:
             n_episodes_per_class=50,
             batch_size=32,
             force_reload=True,
+            force_rerun=True,
             output_folder=output_folder,
         )
         assert len(result["successes"]) >= 1
@@ -296,13 +297,13 @@ class TestEvaluationErrorHandling:
                 task_name="clustering",
                 n_episodes_per_class=50,
                 batch_size=32,
-                force_reload=True,
+                force_rerun=True,
                 output_folder=output_folder,
             )
 
         assert len(result["failures"]) == 1
         assert result["failures"][0][2] == "clustering"
-        assert "Simulated processor failure" in result["failures"][0][3]
+        assert "Simulated task failure" in result["failures"][0][3]
 
     def test_log_file_written(self, model, output_folder):
         """Evaluate should write a JSON log file to the output folder."""
