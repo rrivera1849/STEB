@@ -227,6 +227,7 @@ def evaluate(
     n_episodes_per_class: int = 50,
     batch_size: int = 32,
     force_reload: bool = False,
+    force_rerun: bool = False,
     progress_bar: bool = False,
     output_folder: str = RESULTS_DIR,
     seed: int = 42,
@@ -248,6 +249,7 @@ def evaluate(
         n_episodes_per_class: The number of episodes per class.
         batch_size: The batch size for embedding.
         force_reload: Whether to force reload the datasets.
+        force_rerun: Whether to re-run evaluations even if metrics already exist.
         progress_bar: Whether to show a progress bar.
         output_folder: The folder to save the results to.
         seed: The random seed to use.
@@ -261,6 +263,33 @@ def evaluate(
 
     successes: List[Tuple[str, int, str]] = []
     failures: List[Tuple[str, int, str, str]] = []
+
+    def safe_load(
+        loader: DatasetLoader,
+        dataset_name: str,
+        episode_size: int,
+        current_task_name: str,
+    ) -> Optional[Dict]:
+        """
+        Attempts to load a dataset, logging and recording the failure if it occurs.
+
+        Args:
+            loader: The DatasetLoader to call load() on.
+            dataset_name: Name of the dataset (for error reporting).
+            episode_size: Current episode size (for error reporting).
+            current_task_name: Current task name (for error reporting).
+
+        Returns:
+            The loaded dataset, or None if loading failed.
+        """
+        try:
+            return loader.load()
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {e}"
+            print(colored(f"    FAILED to load dataset: {error_msg}", "red"))
+            traceback.print_exc()
+            failures.append((dataset_name, episode_size, current_task_name, error_msg))
+            return None
 
     def extract_features(
         dataset,
@@ -330,24 +359,14 @@ def evaluate(
 
                 tasks_to_run = [task_name] if task_name else list(config.get("tasks", {}).keys())
 
-                # Only load the default (non-task-specific) dataset if at least
-                # one task uses the top-level record handler.
+                # Lazily loaded: only embed the default dataset when a task
+                # actually needs it (i.e., has no custom record_handler and
+                # its metrics don't already exist).
                 default_X, default_y = None, None
-                needs_default = any(
-                    "record_handler" not in config.get("tasks", {}).get(t, {})
-                    for t in tasks_to_run
-                ) # This happens in CSD, where Order Alignment has a specific record handler
-                  # Note that if we have more than one task that has a record handler, this will fail.
-                if needs_default:
-                    dataset = dset_loader.load()
-                    if not dataset:
-                        continue
-                    default_X, default_y = extract_features(
-                        dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar,
-                    )
+                default_loaded = False
             except Exception as e:
                 error_msg = f"{type(e).__name__}: {e}"
-                print(colored(f"  FAILED to load dataset: {error_msg}", "red"))
+                print(colored(f"  FAILED to initialize dataset loader: {error_msg}", "red"))
                 traceback.print_exc()
                 failures.append((dataset_name, episode_size, "dataset_load", error_msg))
                 continue
@@ -369,7 +388,7 @@ def evaluate(
                 )
                 metrics_path = os.path.join(scores_path, "metrics.json")
 
-                if not force_reload and os.path.exists(metrics_path):
+                if not force_rerun and os.path.exists(metrics_path):
                     print(colored(f"    -> Skipping (results already exist)", "yellow"))
                     successes.append((dataset_name, episode_size, current_task_name))
                     continue
@@ -384,13 +403,21 @@ def evaluate(
                             seed=seed,
                             task_name=current_task_name,
                         )
-                        task_dataset = task_loader.load()
-                        if not task_dataset:
+                        task_dataset = safe_load(task_loader, dataset_name, episode_size, current_task_name)
+                        if task_dataset is None:
                             continue
                         current_X, current_y = extract_features(
                             task_dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar,
                         )
                     else:
+                        if not default_loaded:
+                            dataset = safe_load(dset_loader, dataset_name, episode_size, current_task_name)
+                            if dataset is None:
+                                continue
+                            default_X, default_y = extract_features(
+                                dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar,
+                            )
+                            default_loaded = True
                         current_X, current_y = default_X, default_y
 
                     processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
