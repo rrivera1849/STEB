@@ -421,7 +421,7 @@ def evaluate(
 
         for current_task_name in tasks_to_run:
             task_config = config.get("tasks", {}).get(current_task_name)
-            if not task_config:
+            if task_config is None:
                 print(colored(f"Task '{current_task_name}' not supported by dataset '{dataset_name}'. Skipping.", "yellow"))
                 continue
 
