@@ -1,18 +1,17 @@
-from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, List, Tuple
 
 
-class Processor(ABC):
+class Processor:
     """
-    An abstract base class for data processors.
+    Base data processor. Returns embeddings and labels as-is.
+    Subclass and override process() for custom behavior.
     """
 
-    @abstractmethod
     def process(
         self,
         embeddings: Any,
         labels: List[Any],
-    ) -> Any:
+    ) -> Tuple[Any, List[Any]]:
         """
         Processes the given embeddings and labels.
 
@@ -21,6 +20,6 @@ class Processor(ABC):
             labels: The corresponding labels.
 
         Returns:
-            The processed data.
+            A tuple of the embeddings and labels.
         """
-        pass
+        return embeddings, labels

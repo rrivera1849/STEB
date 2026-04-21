@@ -9,8 +9,6 @@
     "label_getter": "label"
   },
   "tasks": {
-    "clustering": {
-      "processor": "clustering"
-    }
+    "clustering": {}
   }
 }
