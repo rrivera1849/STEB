@@ -3,7 +3,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 
-def load_dummy_probing_dataset(path: str) -> List[Dict[str, Any]]:
+def load_dummy_probing_dataset(_path: str) -> List[Dict[str, Any]]:
     """
     Provides a minimal synthetic dataset for probing task tests.
 

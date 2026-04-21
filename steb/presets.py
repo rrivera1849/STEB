@@ -44,19 +44,18 @@ def get_benchmark_config() -> Dict[str, Any]:
         if task not in args_dict:
             continue
 
-        supported_datasets = get_supported_datasets(task)
+        supported_datasets = [
+            d for d in get_supported_datasets(task)
+            if "dummy" not in d and "fisher" not in d
+        ]
 
-        for dataset in supported_datasets:
-            if "dummy" in dataset:
-                continue
-            if "fisher" in dataset:
-                continue
-
+        if supported_datasets:
             to_return.append({
                 "task": task,
-                "datasets": [dataset],
+                "datasets": supported_datasets,
                 **args_dict[task],
             })
+
     return {"config": {"tasks": to_return}}
 
 PRESETS = {

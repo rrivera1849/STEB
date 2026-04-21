@@ -14,7 +14,12 @@ DEFAULT_RESULTS_DIR = "results" # Relative to CWD
 # DEFAULT_RAW_DATASETS_DIR is relative to CWD (repository root), matching the README expectation of ./raw_datasets
 DEFAULT_RAW_DATASETS_DIR = "raw_datasets"
 
-def get_config_value(env_var: str, config_section: str, config_key: str, default: str) -> str:
+def get_config_value(
+    env_var: str,
+    config_section: str,
+    config_key: str,
+    default: str,
+) -> str:
     """
     Retrieves a configuration value from (priority):
     1. Environment Variable

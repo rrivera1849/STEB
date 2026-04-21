@@ -14,7 +14,11 @@ class LogisticRegression(nn.Module):
     """Simple Linear -> Sigmoid classifier.
        NOTE: We should NOT make this a stronger model.
     """
-    def __init__(self, input_dim, output_dim):
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+    ):
         super().__init__()
         self.linear = nn.Linear(input_dim, output_dim)
 

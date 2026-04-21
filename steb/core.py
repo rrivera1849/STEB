@@ -7,7 +7,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from termcolor import colored
 from tqdm import tqdm
-from transformers import set_seed
+from transformers import AutoConfig, set_seed
+from transformers.models.auto.modeling_auto import (
+    MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
+    MODEL_FOR_MASKED_LM_MAPPING_NAMES,
+)
 
 from .dataset_loader import DatasetLoader
 from .models import MODEL_REGISTRY
@@ -41,11 +45,6 @@ def _get_causal_only_model_types() -> set:
     Returns:
         A frozenset of model_type strings for causal-only architectures.
     """
-    from transformers.models.auto.modeling_auto import (
-        MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
-        MODEL_FOR_MASKED_LM_MAPPING_NAMES,
-    )
-
     causal_types = set(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.keys())
     masked_types = set(MODEL_FOR_MASKED_LM_MAPPING_NAMES.keys())
     return causal_types - masked_types
@@ -68,8 +67,6 @@ def _is_causal_model(model_name_or_path: str) -> bool:
     Returns:
         True if the model is a causal LM, False otherwise.
     """
-    from transformers import AutoConfig
-
     config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
     causal_only_types = _get_causal_only_model_types()
 
@@ -265,22 +262,28 @@ def evaluate(
     successes: List[Tuple[str, int, str]] = []
     failures: List[Tuple[str, int, str, str]] = []
 
-    def extract_features(dataset, episode_size, n_episodes_per_class, batch_size, show_progress=False):
+    def extract_features(
+        dataset,
+        episode_size,
+        n_episodes_per_class,
+        batch_size,
+        show_progress=False,
+    ):
         """
         Extracts features from the dataset using the specified model.
 
         Expects dataset format:
             Order Alignment: {"label": [[seq1_most, ..., seq1_least], [seq2_most, ..., seq2_least], ...]}
+                Each label maps to a list of ordered sequences. Sequences are grouped into
+                episodes, then organized by position (most X, ..., least X).
             Others: {"label": [[text_1, ..., text_N], [text_1, ..., text_M], ...]}
 
-        Each label maps to a list of ordered sequences. Sequences are grouped into
-        episodes, then organized by position (most X, ..., least X).
         """
         episodes_by_label = {}
         for label, text_list in dataset.items():
             # Validate nested list format
             assert text_list and isinstance(text_list[0], list), \
-                f"Dataset for label '{label}' must be a list of lists (ordered sequences)"
+                f"Dataset for label '{label}' must be a list of lists"
 
             seq_len = len(text_list[0])
             if episode_size == -1:
@@ -294,7 +297,6 @@ def evaluate(
                 ]
                 assert len(episodes_by_label[label]) == n_episodes_per_class
                 assert all(len(episode[0]) == episode_size for episode in episodes_by_label[label])
-
         all_episodes = [episode for label, episodes in episodes_by_label.items() for episode in episodes]
         y = [label for label, episodes in episodes_by_label.items() for _ in episodes]
         num_positions = len(all_episodes[0])
@@ -334,7 +336,8 @@ def evaluate(
                 needs_default = any(
                     "record_handler" not in config.get("tasks", {}).get(t, {})
                     for t in tasks_to_run
-                )
+                ) # This happens in CSD, where Order Alignment has a specific record handler
+                  # Note that if we have more than one task that has a record handler, this will fail.
                 if needs_default:
                     dataset = dset_loader.load()
                     if not dataset:

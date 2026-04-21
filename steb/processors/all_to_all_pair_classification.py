@@ -8,7 +8,11 @@ class AllToAllPairClassificationProcessor(Processor):
     A processor for all-to-all pair classification tasks.
     This processor simply returns the embeddings and labels as is.
     """
-    def process(self, embeddings: Any, labels: List[Any]) -> Any:
+    def process(
+        self,
+        embeddings: Any,
+        labels: List[Any],
+    ) -> Any:
         """
         Processes the given embeddings and labels for pair classification.
 

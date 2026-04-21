@@ -18,7 +18,11 @@ def group_indices_by_label(labels: List[Hashable]) -> Dict[Hashable, List[int]]:
     return label_to_indices
 
 
-def align_and_score(emb_src: np.ndarray, emb_tgt: np.ndarray, offset: int = 0) -> Dict[str, float]:
+def align_and_score(
+    emb_src: np.ndarray,
+    emb_tgt: np.ndarray,
+    offset: int = 0,
+) -> Dict[str, float]:
     """
     Align positions from emb_src to emb_tgt with Hungarian algorithm and compute
     alignment accuracy. emb_src has shape (n_src, dim), emb_tgt (n_tgt, dim).
@@ -62,7 +66,11 @@ class OrderAlignmentTask(Task):
     Measures how well embeddings preserve the ordering of style intensity levels when using the Hungarian algorithm for alignment.
     Includes distractor variants where either the least- or most-intense item from the first list is moved into the second list and removed from the first list.
     """
-    def evaluate(self, embeddings: np.ndarray, labels: List[Any]) -> Dict[str, float]:
+    def evaluate(
+        self,
+        embeddings: np.ndarray,
+        labels: List[Any],
+    ) -> Dict[str, float]:
         """
         Args:
             embeddings: The embeddings to evaluate.

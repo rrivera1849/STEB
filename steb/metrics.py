@@ -7,6 +7,7 @@ from scipy.optimize import brentq
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics import pairwise_distances, roc_auc_score, roc_curve, v_measure_score
 
+DEFAULT_FPR_THRESHOLDS = [0.01, 0.05, 0.10, 0.20, 0.30, 0.50]
 
 def l2_normalize(
     embeddings: np.ndarray,
@@ -42,11 +43,6 @@ def calculate_eer(
     eer = brentq(lambda x: 1. - x - interp1d(fpr, tpr)(x), 0., 1.)
     return float(eer)
 
-
-
-DEFAULT_FPR_THRESHOLDS = [0.01, 0.05, 0.10, 0.20, 0.30, 0.50]
-
-
 def calculate_pair_classification_metrics(
     y_true: np.ndarray,
     y_score: np.ndarray,
@@ -80,7 +76,6 @@ def calculate_pair_classification_metrics(
     return metrics
 
 
-
 def calculate_clustering_metrics(
     embeddings: np.ndarray,
     labels: List[Any],
@@ -105,7 +100,6 @@ def calculate_clustering_metrics(
     kmeans.fit(embeddings)
     v_measure = v_measure_score(labels, kmeans.labels_)
     return {"v_measure": v_measure}
-
 
 
 def calculate_retrieval_metrics(
