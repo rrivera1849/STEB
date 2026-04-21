@@ -180,13 +180,15 @@ def main():
             parser.error(str(e))
 
         task_configs = preset_config["config"]["tasks"]
-        print(f"Running preset: {args.preset}")
-        print("Found #{:02d} evaluations in preset".format(len(task_configs)))
+        print(colored(f"Running preset: {args.preset}", "cyan"))
+        print(colored("Found #{:02d} tasks in preset".format(len(task_configs)), "cyan"))
         for item in task_configs:
             task_name = item["task"]
             datasets = item["datasets"]
             current_episode_sizes = item["episode_sizes"]
             current_n_episodes = item["n_episodes_per_class"]
+            print(colored(f"Running task: {task_name}", "green"))
+            print(colored(f"\tDatasets: {datasets}", "green"))
             
             evaluate(
                 model,
@@ -208,22 +210,26 @@ def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="task", required=True)
 
-    # Base parser for common arguments
+    # Base parser for common arguments (no episode args)
     base_parser = argparse.ArgumentParser(add_help=False)
     add_common_arguments(base_parser)
-    add_iteration_arguments(base_parser)
 
-    # 'all' task parser
+    # Base parser that also includes episode arguments
+    episode_parser = argparse.ArgumentParser(add_help=False)
+    add_common_arguments(episode_parser)
+    add_iteration_arguments(episode_parser)
+
+    # 'all' task parser (no episode args — uses per-task defaults)
     all_parser = subparsers.add_parser("all", help="Run all tasks.", parents=[base_parser])
     all_parser.add_argument("--dataset", default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
 
     # 'clustering' task parser
-    clustering_parser = subparsers.add_parser("clustering", help="Run clustering task.", parents=[base_parser])
+    clustering_parser = subparsers.add_parser("clustering", help="Run clustering task.", parents=[episode_parser])
     clustering_parser.add_argument("--dataset", choices=get_supported_datasets("clustering"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     clustering_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
     # 'all_to_all_pair_classification' task parser
-    all_to_all_pair_classification_parser = subparsers.add_parser("all_to_all_pair_classification", help="Run all-to-all pair classification task.", parents=[base_parser])
+    all_to_all_pair_classification_parser = subparsers.add_parser("all_to_all_pair_classification", help="Run all-to-all pair classification task.", parents=[episode_parser])
     all_to_all_pair_classification_parser.add_argument("--dataset", choices=get_supported_datasets("all_to_all_pair_classification"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     all_to_all_pair_classification_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
@@ -233,7 +239,7 @@ def main():
     pre_defined_pair_classification_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
     # 'order_alignment' task parser
-    order_alignment_parser = subparsers.add_parser("order_alignment", help="Run order alignment task.", parents=[base_parser])
+    order_alignment_parser = subparsers.add_parser("order_alignment", help="Run order alignment task.", parents=[episode_parser])
     order_alignment_parser.add_argument("--dataset", choices=get_supported_datasets("order_alignment"), default=None, help="Dataset to evaluate on. If not specified, runs on all supported datasets.")
     order_alignment_parser.add_argument("--list-datasets", action="store_true", help="List all available datasets for this task.")
 
@@ -261,16 +267,6 @@ def main():
     if not args.model_name_or_path:
         parser.error("the following arguments are required: model_name_or_path")
 
-    if args.task == "pre_defined_pair_classification":
-        args.episode_sizes = [1]
-        args.n_episodes_per_class = 2
-    elif args.task == "probing":
-        args.episode_sizes = [1]
-        args.n_episodes_per_class = 1
-
-    if not args.episode_sizes:
-        parser.error("the following arguments are required: -e/--episode-sizes")
-
     model = get_model(args.model_name_or_path)
 
     if args.task == "all":
@@ -280,12 +276,17 @@ def main():
         datasets = get_supported_datasets(args.task) if not args.dataset else [args.dataset]
         task_name = args.task
 
+    # Only pass episode args if the task supports them and they were provided.
+    # Otherwise, evaluate() will use per-task defaults from TASK_DEFAULTS.
+    episode_sizes = getattr(args, "episode_sizes", None) or None
+    n_episodes_per_class = getattr(args, "n_episodes_per_class", None)
+
     evaluate(
         model,
         datasets,
-        episode_sizes=args.episode_sizes,
+        episode_sizes=episode_sizes,
         task_name=task_name,
-        n_episodes_per_class=args.n_episodes_per_class,
+        n_episodes_per_class=n_episodes_per_class,
         batch_size=args.batch_size,
         output_folder=args.output_folder,
         force_reload=args.force_reload,

@@ -14,11 +14,11 @@ def get_benchmark_config() -> Dict[str, Any]:
 
     args_dict = {
         "clustering": {
-            "episode_sizes": [1, 2, 5],
+            "episode_sizes": [1, 2, 3],
             "n_episodes_per_class": 50,
         },
         "all_to_all_pair_classification": {
-            "episode_sizes": [1, 2, 5],
+            "episode_sizes": [1, 2, 3],
             "n_episodes_per_class": 50,
         },
         "order_alignment": {
