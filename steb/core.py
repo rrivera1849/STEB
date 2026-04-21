@@ -27,6 +27,14 @@ SUPPORTED_TASKS = [
     "probing",
 ]
 
+TASK_DEFAULTS = {
+    "clustering": {"episode_sizes": [1], "n_episodes_per_class": 50},
+    "all_to_all_pair_classification": {"episode_sizes": [1], "n_episodes_per_class": 50},
+    "order_alignment": {"episode_sizes": [1], "n_episodes_per_class": 50},
+    "pre_defined_pair_classification": {"episode_sizes": [1], "n_episodes_per_class": 2},
+    "probing": {"episode_sizes": [1], "n_episodes_per_class": 1},
+    "retrieval": {"episode_sizes": [1], "n_episodes_per_class": 1},
+}
 
 def get_supported_tasks() -> list[str]:
     """Returns the list of all supported task names."""
@@ -222,9 +230,9 @@ def _write_evaluation_log(
 def evaluate(
     model,
     datasets: List[str],
-    episode_sizes: List[int],
+    episode_sizes: Optional[List[int]] = None,
     task_name: Optional[str] = None,
-    n_episodes_per_class: int = 50,
+    n_episodes_per_class: Optional[int] = None,
     batch_size: int = 32,
     force_reload: bool = False,
     force_rerun: bool = False,
@@ -244,9 +252,11 @@ def evaluate(
     Args:
         model: The model to evaluate.
         datasets: A list of dataset names to evaluate on.
-        episode_sizes: A list of episode sizes to evaluate.
+        episode_sizes: A list of episode sizes to evaluate. If None,
+            uses per-task defaults from TASK_DEFAULTS.
         task_name: The name of the task to evaluate. If None, runs all tasks.
-        n_episodes_per_class: The number of episodes per class.
+        n_episodes_per_class: The number of episodes per class. If None,
+            uses per-task defaults from TASK_DEFAULTS.
         batch_size: The batch size for embedding.
         force_reload: Whether to force reload the datasets.
         force_rerun: Whether to re-run evaluations even if metrics already exist.
@@ -340,43 +350,39 @@ def evaluate(
         X = [X_flat[i:i+num_positions] for i in range(0, len(X_flat), num_positions)]
         return X, y
 
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+
     dataset_iterator = tqdm(datasets, desc="Evaluating Datasets", disable=not progress_bar)
     for dataset_name in dataset_iterator:
-        for episode_size in episode_sizes:
-            print(colored(f"--- Evaluating {dataset_name} (episode size: {episode_size}) ---", "cyan"))
+        config_path = os.path.join(package_dir, "steb_datasets", dataset_name, "config.json")
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {e}"
+            print(colored(f"  FAILED to read config for {dataset_name}: {error_msg}", "red"))
+            traceback.print_exc()
+            failures.append((dataset_name, -1, "config_read", error_msg))
+            continue
 
-            try:
-                dset_loader = DatasetLoader(
-                    dataset_name=dataset_name,
-                    episode_size=episode_size,
-                    n_episodes_per_class=n_episodes_per_class,
-                    force_reload=force_reload,
-                    seed=seed,
-                )
+        tasks_to_run = [task_name] if task_name else list(config.get("tasks", {}).keys())
 
-                with open(dset_loader.config_path) as f:
-                    config = json.load(f)
+        # Cache default embeddings by (episode_size, n_episodes_per_class)
+        # so tasks sharing the same parameters reuse the same embeddings.
+        default_cache: Dict[Tuple[int, int], Tuple[Any, Any]] = {}
 
-                tasks_to_run = [task_name] if task_name else list(config.get("tasks", {}).keys())
-
-                # Lazily loaded: only embed the default dataset when a task
-                # actually needs it (i.e., has no custom record_handler and
-                # its metrics don't already exist).
-                default_X, default_y = None, None
-                default_loaded = False
-            except Exception as e:
-                error_msg = f"{type(e).__name__}: {e}"
-                print(colored(f"  FAILED to initialize dataset loader: {error_msg}", "red"))
-                traceback.print_exc()
-                failures.append((dataset_name, episode_size, "dataset_load", error_msg))
+        for current_task_name in tasks_to_run:
+            task_config = config.get("tasks", {}).get(current_task_name)
+            if not task_config:
+                print(colored(f"Task '{current_task_name}' not supported by dataset '{dataset_name}'. Skipping.", "yellow"))
                 continue
 
-            for current_task_name in tasks_to_run:
-                print(colored(f"  - Running task: {current_task_name}", "blue"))
-                task_config = config.get("tasks", {}).get(current_task_name)
-                if not task_config:
-                    print(colored(f"Task '{current_task_name}' not supported by dataset '{dataset_name}'. Skipping.", "yellow"))
-                    continue
+            task_defaults = TASK_DEFAULTS.get(current_task_name, {})
+            resolved_episode_sizes = episode_sizes or task_defaults.get("episode_sizes")
+            resolved_n_episodes = n_episodes_per_class or task_defaults.get("n_episodes_per_class")
+
+            for episode_size in resolved_episode_sizes:
+                print(colored(f"--- Evaluating {dataset_name} | {current_task_name} (episode size: {episode_size}) ---", "cyan"))
 
                 model_str = os.path.basename(model.model_name_or_path)
                 if model_str == "":
@@ -384,7 +390,7 @@ def evaluate(
                 dset_str = os.path.basename(dataset_name)
                 scores_path = os.path.join(
                     output_folder, dset_str, model_str,
-                    f"{episode_size}_{n_episodes_per_class}", current_task_name,
+                    f"{episode_size}_{resolved_n_episodes}", current_task_name,
                 )
                 metrics_path = os.path.join(scores_path, "metrics.json")
 
@@ -398,7 +404,7 @@ def evaluate(
                         task_loader = DatasetLoader(
                             dataset_name=dataset_name,
                             episode_size=episode_size,
-                            n_episodes_per_class=n_episodes_per_class,
+                            n_episodes_per_class=resolved_n_episodes,
                             force_reload=force_reload,
                             seed=seed,
                             task_name=current_task_name,
@@ -407,18 +413,25 @@ def evaluate(
                         if task_dataset is None:
                             continue
                         current_X, current_y = extract_features(
-                            task_dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar,
+                            task_dataset, episode_size, resolved_n_episodes, batch_size, show_progress=progress_bar,
                         )
                     else:
-                        if not default_loaded:
+                        cache_key = (episode_size, resolved_n_episodes)
+                        if cache_key not in default_cache:
+                            dset_loader = DatasetLoader(
+                                dataset_name=dataset_name,
+                                episode_size=episode_size,
+                                n_episodes_per_class=resolved_n_episodes,
+                                force_reload=force_reload,
+                                seed=seed,
+                            )
                             dataset = safe_load(dset_loader, dataset_name, episode_size, current_task_name)
                             if dataset is None:
                                 continue
-                            default_X, default_y = extract_features(
-                                dataset, episode_size, n_episodes_per_class, batch_size, show_progress=progress_bar,
+                            default_cache[cache_key] = extract_features(
+                                dataset, episode_size, resolved_n_episodes, batch_size, show_progress=progress_bar,
                             )
-                            default_loaded = True
-                        current_X, current_y = default_X, default_y
+                        current_X, current_y = default_cache[cache_key]
 
                     processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
                     processor_class_name = f"{task_config['processor'].replace('_', ' ').title().replace(' ', '')}Processor"
