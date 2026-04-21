@@ -254,12 +254,14 @@ def _evaluate_submetrics(
             if y in label_set
         ]
 
-        unique_labels = set(y for _, y in filtered)
-        if len(unique_labels) < 2:
-            msg = f"only {len(unique_labels)} unique label(s) found, need at least 2"
-            print(colored(f"    FAILED submetric '{sub_name}': {msg}", "red"))
-            submetrics[sub_name] = {"error": msg}
-            continue
+        # RRS - Removing for now, but we want something more intelligent here.
+        # I think Order Alignment is the only task where you can have one label.
+        # unique_labels = set(y for _, y in filtered)
+        # if len(unique_labels) < 2:
+        #     msg = f"only {len(unique_labels)} unique label(s) found, need at least 2"
+        #     print(colored(f"    FAILED submetric '{sub_name}': {msg}", "red"))
+        #     submetrics[sub_name] = {"error": msg}
+        #     continue
 
         try:
             sub_X, sub_y = zip(*filtered)

@@ -1,21 +1,21 @@
-import hashlib
-import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+from steb.loaders.probing import probing_record_handler  # noqa: F401
 
 
 def load_dummy_probing_dataset(_path: str) -> List[Dict[str, Any]]:
     """
     Provides a minimal synthetic dataset for probing task tests.
 
-    Generates records with a single probing task (binary classification).
-    Each record has text, a label list, and a split list following the
-    probing dataset format.
+    Generates records with a single probing feature (sentence_length,
+    binary classification). Each record has text and per-feature
+    label_*/split_* fields following the probing dataset format.
 
     Args:
-        path: Unused, kept for loader interface compatibility.
+        _path: Unused, kept for loader interface compatibility.
 
     Returns:
-        A list of records with 'text', 'label', and 'split' fields.
+        A list of records with 'text' and per-feature label/split fields.
     """
     records = []
 
@@ -23,61 +23,39 @@ def load_dummy_probing_dataset(_path: str) -> List[Dict[str, Any]]:
     for i in range(40):
         records.append({
             "text": f"This is a short simple sentence number {i}.",
-            "label": [0],
-            "split": ["train"],
+            "label_sentence_length": 0,
+            "split_sentence_length": "train",
         })
         records.append({
             "text": f"The extraordinarily complex and multifaceted nature of this particular sentence number {i} is remarkable.",
-            "label": [1],
-            "split": ["train"],
+            "label_sentence_length": 1,
+            "split_sentence_length": "train",
         })
 
     # Validation set: 10 samples per class
     for i in range(10):
         records.append({
             "text": f"A brief sentence for validation {i}.",
-            "label": [0],
-            "split": ["val"],
+            "label_sentence_length": 0,
+            "split_sentence_length": "val",
         })
         records.append({
             "text": f"An exceedingly elaborate and thoroughly detailed validation sentence number {i} indeed.",
-            "label": [1],
-            "split": ["val"],
+            "label_sentence_length": 1,
+            "split_sentence_length": "val",
         })
 
     # Test set: 10 samples per class
     for i in range(10):
         records.append({
             "text": f"Short test text {i}.",
-            "label": [0],
-            "split": ["test"],
+            "label_sentence_length": 0,
+            "split_sentence_length": "test",
         })
         records.append({
             "text": f"A remarkably intricate and exceptionally verbose test sentence number {i} for evaluation.",
-            "label": [1],
-            "split": ["test"],
+            "label_sentence_length": 1,
+            "split_sentence_length": "test",
         })
 
     return records
-
-
-def dummy_probing_record_handler(example: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    Assigns a unique label to each text for the probing task.
-
-    Args:
-        example: A dataset record with "text", "label", and "split" fields.
-
-    Returns:
-        The example with a "steb_unique_label" field added.
-    """
-    text = example.get("text", "")
-    text_id = hashlib.md5(text.encode("utf-8")).hexdigest()
-
-    metadata = {
-        "text_id": text_id,
-        "label": example.get("label"),
-        "split": example.get("split"),
-    }
-    example["steb_unique_label"] = json.dumps(metadata)
-    return example
