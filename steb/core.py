@@ -15,6 +15,7 @@ from transformers.models.auto.modeling_auto import (
 
 from .dataset_loader import DatasetLoader
 from .models import MODEL_REGISTRY
+from .processors.base import Processor
 from .steb_datasets import DATASET_REGISTRY
 from .utils import RESULTS_DIR
 
@@ -433,10 +434,13 @@ def evaluate(
                             )
                         current_X, current_y = default_cache[cache_key]
 
-                    processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
-                    processor_class_name = f"{task_config['processor'].replace('_', ' ').title().replace(' ', '')}Processor"
-                    processor_class = getattr(processor_module, processor_class_name)
-                    processor = processor_class()
+                    if "processor" in task_config:
+                        processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
+                        processor_class_name = f"{task_config['processor'].replace('_', ' ').title().replace(' ', '')}Processor"
+                        processor_class = getattr(processor_module, processor_class_name)
+                        processor = processor_class()
+                    else:
+                        processor = Processor()
 
                     processed_data = processor.process(current_X, current_y)
 

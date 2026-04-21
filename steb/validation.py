@@ -16,12 +16,7 @@ from .core import SUPPORTED_TASKS
 VALID_DATASET_TYPES = ("huggingface", "custom")
 
 VALID_PROCESSORS = (
-    "all_to_all_pair_classification",
-    "clustering",
-    "order_alignment",
-    "pre_defined_pair_classification",
     "probing",
-    "retrieval",
 )
 
 
@@ -68,9 +63,7 @@ def validate_config(
         for task_name, task_config in config["tasks"].items():
             if task_name not in SUPPORTED_TASKS:
                 errors.append(f"Unknown task: '{task_name}'. Supported: {SUPPORTED_TASKS}")
-            if "processor" not in task_config:
-                errors.append(f"Task '{task_name}' missing 'processor' field")
-            elif task_config["processor"] not in VALID_PROCESSORS:
+            if "processor" in task_config and task_config["processor"] not in VALID_PROCESSORS:
                 errors.append(f"Unknown processor '{task_config['processor']}' in task '{task_name}'")
             if "record_handler" in task_config:
                 task_rh = task_config["record_handler"]

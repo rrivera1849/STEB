@@ -1,17 +1,15 @@
 {
-    "dataset_name": "pan18_cross_domain_authorship_attribution_french",
-    "type": "custom",
-    "loader_module": "steb.loaders.retrieval",
-    "loader_function": "default_retrieval_loader",
-    "data_dir": "pan18_cross_domain_authorship_attribution/french",
-    "record_handler": {
-        "text_getter": "text",
-        "label_getter": "label",
-        "custom_record_handler_function": "default_retrieval_record_handler"
-    },
-    "tasks": {
-        "retrieval": {
-            "processor": "retrieval"
-        }
-    }
+  "dataset_name": "pan18_cross_domain_authorship_attribution_french",
+  "type": "custom",
+  "loader_module": "steb.loaders.retrieval",
+  "loader_function": "default_retrieval_loader",
+  "data_dir": "pan18_cross_domain_authorship_attribution/french",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label",
+    "custom_record_handler_function": "default_retrieval_record_handler"
+  },
+  "tasks": {
+    "retrieval": {}
+  }
 }
