@@ -1,0 +1,117 @@
+# Manual dataset clusters for STEB benchmark reporting.
+#
+# Each cluster answers a question like "Which model is best at X?"
+# Datasets within a cluster are averaged (after any automatic redundancy
+# de-duplication) to produce a single cluster score per model.
+
+machine_text_detection:
+  description: "Distinguishing human-written from machine-generated text"
+  datasets:
+    # DetectRL
+    - machine_text_detection_DetectRL_arxiv
+    - machine_text_detection_DetectRL_direct_prompt
+    - machine_text_detection_DetectRL_writing_prompt
+    - machine_text_detection_DetectRL_xsum
+    - machine_text_detection_DetectRL_yelp_review
+    # M4
+    - machine_text_detection_M4_arxiv
+    - machine_text_detection_M4_peerread
+    - machine_text_detection_M4_reddit
+    - machine_text_detection_M4_wikihow
+    - machine_text_detection_M4_wikipedia
+    # MAGE
+    - machine_text_detection_MAGE_cmv
+    - machine_text_detection_MAGE_eli5
+    - machine_text_detection_MAGE_hswag
+    - machine_text_detection_MAGE_roct
+    - machine_text_detection_MAGE_sci_gen
+    - machine_text_detection_MAGE_squad
+    - machine_text_detection_MAGE_tldr
+    - machine_text_detection_MAGE_wp
+    - machine_text_detection_MAGE_xsum
+    - machine_text_detection_MAGE_yelp
+    # PAN
+    - machine_text_detection_PAN24_news
+    - machine_text_detection_PAN25_26_essays
+    - machine_text_detection_PAN25_26_fiction
+    - machine_text_detection_PAN25_26_news
+    - machine_text_detection_PAN25_collaborative
+    # GEDE
+    - gede_essay_detection
+
+machine_text_detection_adversarial:
+  description: "Detecting machine text under adversarial attacks (paraphrase, perturbation, prompt)"
+  datasets:
+    - machine_text_detection_DetectRL_paraphrase_attacks
+    - machine_text_detection_DetectRL_perturbation_attacks
+    - machine_text_detection_DetectRL_prompt_attacks
+
+authorship_verification:
+  description: "Determining whether two texts were written by the same author"
+  datasets:
+    - pan13_authorship_verification_english_test
+    - pan14_authorship_verification_corpus1_english_essays_test
+    - pan14_authorship_verification_corpus1_english_novels_test
+    - pan14_authorship_verification_corpus2_english_essays_test
+    - pan14_authorship_verification_corpus2_english_novels_test
+    - pan15_authorship_verification_english_test
+    - pan20_authorship_verification_test
+    - pan21_authorship_verification_test
+    - pan18_style_change
+    - pan22_style_change_basic
+    - pan22_style_change_sentence
+    - pan22_style_change_advanced
+    - pan23_style_change_easy
+    - pan23_style_change_medium
+    - pan23_style_change_hard
+    - pan24_style_change_easy
+    - pan24_style_change_medium
+    - pan24_style_change_hard
+    - pan25_style_change_easy
+    - pan25_style_change_medium
+    - pan25_style_change_hard
+    - pan26_style_change_easy
+    - pan26_style_change_medium
+    - pan26_style_change_hard
+    - enron_authorship_corpus
+
+authorship_retrieval:
+  description: "Retrieving texts by the same author"
+  datasets:
+    - pan18_cross_domain_authorship_attribution_english
+    - amazon
+    - fanfiction
+    - stackexchange_retrieval
+    - radiotalk
+
+speaker_attribution:
+  description: "Identifying speakers in transcribed conversations"
+  datasets:
+    - fisher_speaker_attribution_bbn_base
+    - fisher_speaker_attribution_bbn_hard
+    - fisher_speaker_attribution_bbn_harder
+    - fisher_speaker_attribution_ldc_base
+    - fisher_speaker_attribution_ldc_hard
+    - fisher_speaker_attribution_ldc_harder
+    - radiotalk
+
+formality_and_complexity:
+  description: "Capturing text formality level and reading complexity"
+  datasets:
+    - graded_formality
+    - OneStopEnglishCorpus
+
+style_similarity:
+  description: "Judging which of two texts is more stylistically similar to a reference"
+  datasets:
+    - STEL
+    - SynthSTEL
+    - corpus-of-diverse-styles
+
+style_probing:
+  description: "Probing embeddings for stylistic features"
+  datasets:
+    - probing_amazon
+    - probing_blog
+    - probing_reddit
+    - probing_stackexchange
