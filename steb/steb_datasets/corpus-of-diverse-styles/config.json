@@ -11,7 +11,11 @@
   },
   "tasks": {
     "all_to_all_pair_classification": {},
-    "clustering": {},
+    "clustering": {
+      "submetrics": {
+        "tweets_vs_switchboard": ["tweets", "switchboard"]
+      }
+    },
     "order_alignment": {
       "record_handler": {
         "custom_record_handler_function": "corpus_of_diverse_styles_record_handler"

@@ -70,6 +70,13 @@ def validate_config(
                 for key in task_rh:
                     if key not in ("text_getter", "label_getter", "label_getter_function", "custom_record_handler_function"):
                         errors.append(f"Task '{task_name}' record_handler has unknown key: '{key}'")
+            if "submetrics" in task_config:
+                if not isinstance(task_config["submetrics"], dict):
+                    errors.append(f"Task '{task_name}' submetrics must be a dict")
+                else:
+                    for sub_name, label_list in task_config["submetrics"].items():
+                        if not isinstance(label_list, list) or len(label_list) < 2:
+                            errors.append(f"Task '{task_name}' submetric '{sub_name}' must be a list of at least 2 labels")
 
     # Type-specific validation
     if config.get("type") == "huggingface":

@@ -228,6 +228,53 @@ def _write_evaluation_log(
     return log_path
 
 
+def _evaluate_submetrics(
+    submetrics_config: Dict[str, List[str]],
+    processed_data: Any,
+    task: Any,
+) -> Dict[str, Any]:
+    """
+    Evaluates submetrics by filtering processed data to label subsets.
+
+    Args:
+        submetrics_config: Mapping of submetric name to list of labels to keep.
+        processed_data: Tuple of (X, y) from the processor.
+        task: The task instance to call evaluate() on.
+
+    Returns:
+        A dict mapping submetric names to their metric dicts.
+    """
+    all_X, all_y = processed_data
+    submetrics = {}
+
+    for sub_name, label_subset in submetrics_config.items():
+        label_set = set(label_subset)
+        filtered = [
+            (x, y) for x, y in zip(all_X, all_y)
+            if y in label_set
+        ]
+
+        unique_labels = set(y for _, y in filtered)
+        if len(unique_labels) < 2:
+            msg = f"only {len(unique_labels)} unique label(s) found, need at least 2"
+            print(colored(f"    FAILED submetric '{sub_name}': {msg}", "red"))
+            submetrics[sub_name] = {"error": msg}
+            continue
+
+        try:
+            sub_X, sub_y = zip(*filtered)
+            sub_metrics = task.evaluate(list(sub_X), list(sub_y))
+            submetrics[sub_name] = sub_metrics
+            print(colored(f"    -> Submetric '{sub_name}': {sub_metrics}", "green"))
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {e}"
+            print(colored(f"    FAILED submetric '{sub_name}': {error_msg}", "red"))
+            traceback.print_exc()
+            submetrics[sub_name] = {"error": error_msg}
+
+    return submetrics
+
+
 def evaluate(
     model,
     datasets: List[str],
@@ -450,6 +497,14 @@ def evaluate(
                     task = task_class()
 
                     metrics = task.evaluate(*processed_data)
+
+                    submetrics_config = task_config.get("submetrics", {})
+                    if submetrics_config:
+                        metrics["submetrics"] = _evaluate_submetrics(
+                            submetrics_config,
+                            processed_data,
+                            task,
+                        )
 
                     os.makedirs(scores_path, exist_ok=True)
                     with open(metrics_path, "w+") as ouf:
