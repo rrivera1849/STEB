@@ -1,15 +1,13 @@
 {
-    "dataset_name": "gede_essay_detection",
-    "type": "custom",
-    "data_dir": "gede_essay_detection",
-    "loader_function": "load_gede",
-    "record_handler": {
-        "text_getter": "text",
-        "label_getter": "label"
-    },
-    "tasks": {
-        "clustering": {
-            "processor": "clustering"
-        }
-    }
+  "dataset_name": "gede_essay_detection",
+  "type": "custom",
+  "data_dir": "gede_essay_detection",
+  "loader_function": "load_gede",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {}
+  }
 }

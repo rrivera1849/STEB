@@ -24,7 +24,6 @@ class ClusteringTask(Task):
         Returns:
             A dictionary containing the V-measure score.
         """
-        # Extract the 0th position (most style) from each record
         embeddings_flat = np.array([episode[0] for episode in embeddings])
 
         return calculate_clustering_metrics(embeddings_flat, labels, distance_mode=distance_mode)

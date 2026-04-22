@@ -9,8 +9,6 @@
     "label_getter": "label"
   },
   "tasks": {
-    "pre_defined_pair_classification": {
-      "processor": "pre_defined_pair_classification"
-    }
+    "pre_defined_pair_classification": {}
   }
 }

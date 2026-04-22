@@ -1,15 +1,13 @@
 {
-    "type": "custom",
-    "loader_module": "steb.loaders.fisher",
-    "loader_function": "load_fisher",
-    "data_dir": "fisher_speaker_attribution/bbn_test_hard_trials.npy",
-    "record_handler": {
-        "text_getter": "text",
-        "label_getter": "label"
-    },
-    "tasks": {
-        "pre_defined_pair_classification": {
-            "processor": "pre_defined_pair_classification"
-        }
-    }
+  "type": "custom",
+  "loader_module": "steb.loaders.fisher",
+  "loader_function": "load_fisher",
+  "data_dir": "fisher_speaker_attribution/bbn_test_hard_trials.npy",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "pre_defined_pair_classification": {}
+  }
 }
