@@ -546,7 +546,7 @@ fi
 
 if [ ! -f ./probing/blog.jsonl ]; then
     echo "Downloading blog.jsonl..."
-    gdown https://drive.google.com/file/d/1hrG48JsBx0NUVJ3m9mj37Mct83CfWeLt/view?usp=drive_link --fuzzy
+    gdown https://drive.google.com/file/d/1JU9F5SbPV8PaefcBwpy7wUCWrzNXsydO/view?usp=drive_link --fuzzy
     mv blog.jsonl ./probing/
 else
     echo "Skipping blog.jsonl (already exists)"
@@ -554,7 +554,7 @@ fi
 
 if [ ! -f ./probing/stackexchange.jsonl ]; then
     echo "Downloading stackexchange.jsonl..."
-    gdown https://drive.google.com/file/d/1SAZME3ezaDuywX-cT2bL-H3IU9-3Ambz/view?usp=drive_link --fuzzy
+    gdown https://drive.google.com/file/d/1Ke_Re3kwfOmr2ljApcS8GP2CdsiNPHz7/view?usp=drive_link --fuzzy
     mv stackexchange.jsonl ./probing/
 else
     echo "Skipping stackexchange.jsonl (already exists)"
@@ -562,7 +562,7 @@ fi
 
 if [ ! -f ./probing/reddit.jsonl ]; then
     echo "Downloading reddit.jsonl..."
-    gdown https://drive.google.com/file/d/1KTDjsG7PHW-8PMq3O02BLLIrIcqTmALK/view?usp=drive_link --fuzzy
+    gdown https://drive.google.com/file/d/1pU-Yo--OMtgG8qafk-7DBd_4WhYH_urc/view?usp=drive_link --fuzzy
     mv reddit.jsonl ./probing/
 else
     echo "Skipping reddit.jsonl (already exists)"
@@ -570,7 +570,7 @@ fi
 
 if [ ! -f ./probing/amazon.jsonl ]; then
     echo "Downloading amazon.jsonl..."
-    gdown https://drive.google.com/file/d/1dYmKCn04p9bRFQ_ASdgw0Aah-r8A5UKf/view?usp=drive_link --fuzzy
+    gdown https://drive.google.com/file/d/1zIRqhSMEdQZ4EZq3-jCLpccuTvXsmCyx/view?usp=drive_link --fuzzy
     mv amazon.jsonl ./probing/
 else
     echo "Skipping amazon.jsonl (already exists)"
