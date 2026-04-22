@@ -11,8 +11,6 @@
     "split": "train"
   },
   "tasks": {
-    "order_alignment": {
-      "processor": "order_alignment"
-    }
+    "order_alignment": {}
   }
 }

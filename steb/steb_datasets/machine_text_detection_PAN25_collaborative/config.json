@@ -1,0 +1,14 @@
+{
+  "dataset_name": "machine_text_detection_PAN25_collaborative",
+  "type": "custom",
+  "data_dir": "pan25-generative-ai-detection-task2",
+  "loader_module": "steb.loaders.pan",
+  "loader_function": "load_pan25_collaborative_text_classification",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {}
+  }
+}

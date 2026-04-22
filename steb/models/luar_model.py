@@ -30,7 +30,12 @@ class LUARModel(STEBModel):
         self.model.eval()
 
     @torch.inference_mode()
-    def embed_multiple(self, episodes: List[List[str]], batch_size: int, show_progress: bool = False) -> np.ndarray:
+    def embed_multiple(
+        self,
+        episodes: List[List[str]],
+        batch_size: int,
+        show_progress: bool = False,
+    ) -> np.ndarray:
         """
         Embeds a list of episodes, where each episode is a list of texts.
 
@@ -42,7 +47,8 @@ class LUARModel(STEBModel):
         Returns:
             A numpy array of embeddings.
         """
-        # Expand episodes by chunking texts that exceed context length
+        # Expands out texts that are longer than the model's max length, so the episodes 
+        # could be of varying lengths. 
         max_length = self.tokenizer.model_max_length
         episodes = [
             [chunk for text in episode for chunk in chunk_text(text, self.tokenizer, max_length)]

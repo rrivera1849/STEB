@@ -36,7 +36,6 @@ class AllToAllPairClassificationTask(Task):
         Returns:
             A dictionary of evaluation metrics, including EER, AUC, and AUC at various FPR thresholds.
         """
-        # Extract the 0th position (most style) from record
         embeddings_flat = np.array([episode[0] for episode in embeddings])
 
         scores = _pair_scores_matrix(embeddings_flat, score_mode)

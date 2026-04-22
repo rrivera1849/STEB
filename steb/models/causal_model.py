@@ -5,9 +5,9 @@ import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
 
-from .base import STEBModel
+from .base import STEBModel, get_model_max_length
 from .chunking import chunk_text
-from .hf_model import _aggregate_chunks, get_model_max_length
+from .hf_model import _aggregate_chunks
 
 
 def last_token_pooling(
@@ -55,7 +55,6 @@ class CausalModel(STEBModel):
         self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
 
-        # Causal LMs need left-padding so the last real token is at the end
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer.padding_side = "left"
@@ -111,6 +110,7 @@ class CausalModel(STEBModel):
                 return_tensors="pt",
             ).to(self.device)
             features = self.model(**tokenized_batch)
+            # RRS - We can technically just take the last index, since we're doing left-padding
             features = last_token_pooling(features, tokenized_batch["attention_mask"])
             features = features.detach().cpu().numpy()
             all_embeddings.append(features)

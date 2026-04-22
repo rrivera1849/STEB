@@ -1,0 +1,14 @@
+{
+  "dataset_name": "machine_text_detection_PAN24_news",
+  "type": "custom",
+  "data_dir": "pan24-generative-authorship-news",
+  "loader_module": "steb.loaders.pan",
+  "loader_function": "load_pan24_generative_authorship",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {}
+  }
+}

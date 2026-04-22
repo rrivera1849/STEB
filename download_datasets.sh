@@ -323,6 +323,137 @@ else
     echo "Skipping DetectRL (already exists)"
 fi
 
+# PAN24 Generative Authorship (news)
+if [ ! -d "pan24-generative-authorship-news" ]; then
+    echo "Downloading PAN24 Generative Authorship (news)..."
+    curl -L -o pan24-generative-authorship-news.zip https://zenodo.org/records/10718757/files/pan24-generative-authorship-news.zip
+    unzip -q pan24-generative-authorship-news.zip
+    rm pan24-generative-authorship-news.zip
+else
+    echo "Skipping pan24-generative-authorship-news (already exists)"
+fi
+
+# PAN18 Style Change Detection — validation set only
+if [ ! -d "pan18-style-change" ]; then
+    echo "Downloading PAN18 Style Change Detection..."
+    curl -L -o pan18-style-change.zip https://zenodo.org/records/3746040/files/pan18-style-change-detection-validation-dataset-2018-01-31.zip
+    mkdir -p pan18-style-change/_tmp
+    unzip -q pan18-style-change.zip -d pan18-style-change/_tmp
+    mv pan18-style-change/_tmp/pan18-style-change-detection-validation-dataset-2018-01-31/* pan18-style-change/
+    rm -rf pan18-style-change/_tmp pan18-style-change.zip
+else
+    echo "Skipping pan18-style-change (already exists)"
+fi
+
+# PAN22 Style Change Detection — three tasks, validation sets only
+if [ ! -d "pan22-style-change" ]; then
+    echo "Downloading PAN22 Style Change Detection..."
+    curl -L -o pan22.zip https://zenodo.org/records/6334245/files/pan22.zip
+    mkdir -p pan22-style-change/_tmp
+    unzip -q pan22.zip -d pan22-style-change/_tmp
+    for i in 1 2 3; do
+        case $i in
+            1) task=basic ;;
+            2) task=advanced ;;
+            3) task=sentence ;;
+        esac
+        mkdir -p pan22-style-change/$task
+        mv pan22-style-change/_tmp/dataset$i/validation/* pan22-style-change/$task/
+    done
+    rm -rf pan22-style-change/_tmp pan22.zip
+else
+    echo "Skipping pan22-style-change (already exists)"
+fi
+
+# PAN23 Style Change Detection (multi-author writing style analysis) — validation sets only
+if [ ! -d "pan23-style-change" ]; then
+    echo "Downloading PAN23 Style Change Detection..."
+    curl -L -o pan23-multi-author-analysis.zip https://zenodo.org/records/7729178/files/pan23-multi-author-analysis.zip
+    mkdir -p pan23-style-change/_tmp
+    unzip -q pan23-multi-author-analysis.zip -d pan23-style-change/_tmp
+    pan23_base="pan23-style-change/_tmp/release"
+    for i in 1 2 3; do
+        case $i in
+            1) diff=easy ;;
+            2) diff=medium ;;
+            3) diff=hard ;;
+        esac
+        mkdir -p pan23-style-change/$diff
+        mv "$pan23_base/pan23-multi-author-analysis-dataset$i/pan23-multi-author-analysis-dataset$i-validation"/* pan23-style-change/$diff/
+    done
+    rm -rf pan23-style-change/_tmp pan23-multi-author-analysis.zip
+else
+    echo "Skipping pan23-style-change (already exists)"
+fi
+
+# PAN24 Style Change Detection (multi-author writing style analysis) — validation sets only
+if [ ! -d "pan24-style-change" ]; then
+    echo "Downloading PAN24 Style Change Detection..."
+    curl -L -o pan24-multi-author-analysis.zip https://zenodo.org/records/10677876/files/pan24-multi-author-analysis.zip
+    mkdir -p pan24-style-change/_tmp
+    unzip -q pan24-multi-author-analysis.zip -d pan24-style-change/_tmp
+    for diff in easy medium hard; do
+        mkdir -p pan24-style-change/$diff
+        mv pan24-style-change/_tmp/$diff/validation/* pan24-style-change/$diff/
+    done
+    rm -rf pan24-style-change/_tmp pan24-multi-author-analysis.zip
+else
+    echo "Skipping pan24-style-change (already exists)"
+fi
+
+# PAN25 Style Change Detection (multi-author writing style analysis) — validation sets only
+if [ ! -d "pan25-style-change" ]; then
+    echo "Downloading PAN25 Style Change Detection..."
+    curl -L -o pan25-multi-author-analysis.zip https://zenodo.org/records/14891299/files/pan25-multi-author-analysis.zip
+    mkdir -p pan25-style-change/_tmp
+    unzip -q pan25-multi-author-analysis.zip -d pan25-style-change/_tmp
+    for diff in easy medium hard; do
+        mkdir -p pan25-style-change/$diff
+        mv pan25-style-change/_tmp/$diff/validation/* pan25-style-change/$diff/
+    done
+    rm -rf pan25-style-change/_tmp pan25-multi-author-analysis.zip
+else
+    echo "Skipping pan25-style-change (already exists)"
+fi
+
+# PAN26 Style Change Detection (multi-author writing style analysis) — validation sets only
+if [ ! -d "pan26-style-change" ]; then
+    echo "Downloading PAN26 Style Change Detection..."
+    curl -L -o mawsa26-pan-zenodo.zip https://zenodo.org/records/19068843/files/mawsa26-pan-zenodo.zip
+    unzip -q mawsa26-pan-zenodo.zip
+    mkdir -p pan26-style-change
+    for diff in easy medium hard; do
+        mkdir -p pan26-style-change/$diff
+        mv mawsa26-pan-zenodo/$diff/validation/* pan26-style-change/$diff/
+    done
+    rm -rf mawsa26-pan-zenodo mawsa26-pan-zenodo.zip
+else
+    echo "Skipping pan26-style-change (already exists)"
+fi
+
+# PAN25 Generative AI Detection (Task 2) — dev set only
+if [ ! -d "pan25-generative-ai-detection-task2" ]; then
+    echo "Downloading PAN25 Generative AI Detection (Task 2)..."
+    curl -L -o pan25-generative-ai-detection-task2.zip https://zenodo.org/records/14966981/files/pan25-generative-ai-detection-task2-train.zip
+    mkdir -p pan25-generative-ai-detection-task2
+    unzip -q -j pan25-generative-ai-detection-task2.zip dev.jsonl -d pan25-generative-ai-detection-task2
+    rm pan25-generative-ai-detection-task2.zip
+else
+    echo "Skipping pan25-generative-ai-detection-task2 (already exists)"
+fi
+
+# PAN25/26 Generative AI Detection (Task 1) — validation set only
+# (Same data is used in both the 2025 and 2026 editions of the shared task.)
+if [ ! -d "pan25-26-generative-ai-detection-task1" ]; then
+    echo "Downloading PAN25/26 Generative AI Detection (Task 1)..."
+    curl -L -o pan25-26-generative-ai-detection-task1.zip https://zenodo.org/records/14962653/files/pan25-generative-ai-detection-task1-train.zip
+    mkdir -p pan25-26-generative-ai-detection-task1
+    unzip -q -j pan25-26-generative-ai-detection-task1.zip val.jsonl -d pan25-26-generative-ai-detection-task1
+    rm pan25-26-generative-ai-detection-task1.zip
+else
+    echo "Skipping pan25-26-generative-ai-detection-task1 (already exists)"
+fi
+
 # PAN18 Cross-Domain Authorship Attribution
 if [ ! -d "pan18_cross_domain_authorship_attribution" ]; then
     echo "Downloading PAN18 Cross-Domain Authorship Attribution..."

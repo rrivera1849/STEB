@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 
 
-def load_dummy_clustering_dataset(path: str) -> List[Dict[str, Any]]:
+def load_dummy_clustering_dataset(_path: str) -> List[Dict[str, Any]]:
     """
     Provides a minimal synthetic dataset for clustering and pair classification tests.
 

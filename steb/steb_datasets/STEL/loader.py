@@ -5,7 +5,10 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 
-def parse_id_component(component: str, style_type: str) -> Optional[Tuple[str, int]]:
+def parse_id_component(
+    component: str,
+    style_type: str,
+) -> Optional[Tuple[str, int]]:
     """
     Parse an ID component and return (base_id, position).
     Position 0 = most style, Position 1 = least style.
@@ -53,7 +56,10 @@ def parse_id_component(component: str, style_type: str) -> Optional[Tuple[str, i
     return None
 
 
-def split_id_components(id_part: str, style_type: str) -> List[str]:
+def split_id_components(
+    id_part: str,
+    style_type: str,
+) -> List[str]:
     """
     Split an ID part into its two components based on known prefixes.
     Uses '-' or '_' as delimiters to find component boundaries.
@@ -164,7 +170,10 @@ def parse_stel_id(id_str: str) -> Optional[Tuple[str, str]]:
     return anchor_ids, alt_ids
 
 
-def extract_pairs_from_row(row: Dict[str, str], style_type: str) -> List[Tuple[str, str]]:
+def extract_pairs_from_row(
+    row: Dict[str, str],
+    style_type: str,
+) -> List[Tuple[str, str]]:
     """
     Extract ordered text pairs from a row in the TSV file.
     Returns list of (most_style_text, least_style_text) tuples.
