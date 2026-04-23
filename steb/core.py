@@ -428,8 +428,16 @@ def evaluate(
                 continue
 
             task_defaults = TASK_DEFAULTS.get(current_task_name, {})
-            resolved_episode_sizes = episode_sizes or task_defaults.get("episode_sizes")
-            resolved_n_episodes = n_episodes_per_class or task_defaults.get("n_episodes_per_class")
+            resolved_episode_sizes = (
+                episode_sizes
+                or task_config.get("episode_sizes")
+                or task_defaults.get("episode_sizes")
+            )
+            resolved_n_episodes = (
+                n_episodes_per_class
+                or task_config.get("n_episodes_per_class")
+                or task_defaults.get("n_episodes_per_class")
+            )
 
             for episode_size in resolved_episode_sizes:
                 print(colored(f"--- Evaluating {dataset_name} | {current_task_name} (episode size: {episode_size}) ---", "cyan"))
