@@ -1,15 +1,29 @@
 #!/bin/sh
 
-# Usage: ./download_datasets.sh [--purge]
-#   --purge    Remove all existing datasets before downloading
+# Usage: ./download_datasets.sh [--purge] [output_dir]
+#   --purge      Remove all existing datasets before downloading
+#   output_dir   Directory to download datasets into (default: ./raw_datasets)
 
-if [ "$1" = "--purge" ]; then
-    echo "Purging all datasets in ./raw_datasets..."
-    rm -rf ./raw_datasets
+PURGE=false
+OUTPUT_DIR=""
+
+for arg in "$@"; do
+    if [ "$arg" = "--purge" ]; then
+        PURGE=true
+    else
+        OUTPUT_DIR="$arg"
+    fi
+done
+
+OUTPUT_DIR="${OUTPUT_DIR:-./raw_datasets}"
+
+if [ "$PURGE" = true ]; then
+    echo "Purging all datasets in ${OUTPUT_DIR}..."
+    rm -rf "$OUTPUT_DIR"
 fi
 
-mkdir -p ./raw_datasets
-cd ./raw_datasets
+mkdir -p "$OUTPUT_DIR"
+cd "$OUTPUT_DIR"
 
 # Note: The blog_authorship_corpus download is currently disabled due to an unreliable server.
 # curl -k -O http://www.cs.biu.ac.il/~koppel/blogs/blogs.zip
