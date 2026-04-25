@@ -23,7 +23,7 @@ def get_benchmark_config() -> Dict[str, Any]:
         },
         "order_alignment": {
             "episode_sizes": [1],
-            "n_episodes_per_class": 100,
+            "n_episodes_per_class": 90,
         },
         "pre_defined_pair_classification": {
             "episode_sizes": [1],
