@@ -99,8 +99,10 @@ class OrderAlignmentTask(Task):
         distractor_last_accuracies: List[float] = []
         distractor_first_accuracies: List[float] = []
 
-        # Per-label accumulators. Insertion order is preserved by defaultdict,
-        # which makes the emitted `_per_label` dict deterministic.
+        # Per-label accumulators. Dict insertion order is preserved in modern
+        # Python, so the emitted `_per_label` dict is deterministic and follows
+        # the insertion order of `label_to_indices` (that is, the first-seen
+        # order of labels in the input).
         per_label_alignment_acc: Dict[Hashable, List[float]] = defaultdict(list)
         per_label_distractor_acc: Dict[Hashable, List[float]] = defaultdict(list)
 
