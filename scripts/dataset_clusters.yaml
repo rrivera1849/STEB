@@ -118,11 +118,12 @@ style_probing:
 
 dialect:
   description: "Recognising English dialect identity (AAVE, ChcE, CollSgE, IndE, JamE) across NLU-task content"
-  # endive_humaneval (4 fully-aligned source-ids) and endive_multirc (15)
-  # can't satisfy any benchmark preset configuration (which needs up to 150
-  # samples per label) — excluded from the cluster. endive_wsc (66),
-  # endive_logic_bench_yn (131), and endive_mbpp (126) work at episode_size
-  # ≤ 1 or 2 only and contribute partial results at the larger episode sizes.
+  # Per-dataset parallel coverage (source-ids aligned across all 5 dialect
+  # splits) varies; smaller members (endive_multirc=15, endive_wsc=66,
+  # endive_mbpp=126, endive_logic_bench_yn=131) can only contribute results
+  # at smaller episode_size / n_episodes_per_class settings. endive_humaneval
+  # is omitted (the dataset config is removed in a follow-up PR) since its
+  # 4 aligned source-ids are too few to support any benchmark configuration.
   datasets:
     - endive_boolq
     - endive_copa
@@ -131,6 +132,7 @@ dialect:
     - endive_logic_bench_mcq
     - endive_logic_bench_yn
     - endive_mbpp
+    - endive_multirc
     - endive_sst2
     - endive_svamp
     - endive_wsc
