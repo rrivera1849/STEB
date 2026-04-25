@@ -57,7 +57,7 @@ def _load_one_nlu_task(
     nlu_task: str,
 ) -> List[Dict[str, Any]]:
     """
-    Fetch one EnDive NLU task from Hugging Face and emit per-record entries.
+    Load one EnDive NLU task from Hugging Face.
 
     Loads the 5 dialect splits from ``abhaygupta1266/<nlu_task>``, intersects
     rows by SAE source text (so only sources translated into all 5 dialects
@@ -96,9 +96,9 @@ def _load_one_nlu_task(
         s for s, d in by_source.items() if all(name in d for name in DIALECTS)
     )
 
-    rng = random.Random(42)
+    rn_gen = random.Random(42)
     if len(fully_aligned) > N_PER_TASK:
-        fully_aligned = sorted(rng.sample(fully_aligned, N_PER_TASK))
+        fully_aligned = sorted(rn_gen.sample(fully_aligned, N_PER_TASK))
 
     records: List[Dict[str, Any]] = []
     for src_text in fully_aligned:
