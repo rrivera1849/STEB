@@ -513,10 +513,9 @@ def evaluate(
 
                     metrics = task.evaluate(*processed_data)
 
-                    # Tasks may emit per-label results under the internal key
-                    # "_per_label". Tasks listed in AUTO_PER_LABEL_TASKS lift
-                    # that payload into metrics["submetrics"] by default; a
-                    # dataset config may override with an explicit flag.
+                    # Tasks emit per-label results under the internal key
+                    # "_per_label" for order_alignment; other tasks default
+                    # to off (and validation rejects the flag on them currently).
                     # Either way, strip the internal key before serialisation
                     # so it never appears at the top level.
                     internal_per_label = metrics.pop("_per_label", None)
