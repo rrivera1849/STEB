@@ -110,7 +110,7 @@ style:
     - graded_formality
     - OneStopEnglishCorpus
 
-style_probing:
+feature_probing:
   description: "Probing embeddings for stylistic features"
   datasets:
     - probing_amazon
