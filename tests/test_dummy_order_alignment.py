@@ -4,7 +4,6 @@ from steb.steb_datasets.dummy_order_alignment.loader import (
     load_dummy_order_alignment_dataset,
 )
 from steb.tasks.order_alignment import OrderAlignmentTask
-from steb.validation import validate_config
 
 
 def test_dummy_order_alignment_dataset_has_multiple_sequences_per_label():
@@ -46,3 +45,4 @@ def test_order_alignment_on_dummy_dataset_yields_high_accuracy():
     # Perfect alignment expected for perfectly structured embeddings
     assert metrics["acc_mean"] == 1.0
     assert metrics["distractor_acc_mean"] == 1.0
+
