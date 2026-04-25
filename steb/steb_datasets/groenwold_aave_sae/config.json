@@ -1,0 +1,13 @@
+{
+  "dataset_name": "groenwold_aave_sae",
+  "type": "custom",
+  "data_dir": "groenwold_aave_sae",
+  "loader_function": "load_groenwold_aave_sae",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "order_alignment": {}
+  }
+}
