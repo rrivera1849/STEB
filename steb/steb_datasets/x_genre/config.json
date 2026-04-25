@@ -1,0 +1,14 @@
+{
+  "dataset_name": "x_genre",
+  "type": "custom",
+  "data_dir": "x_genre",
+  "loader_function": "load_x_genre_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}
