@@ -4,7 +4,7 @@ from datasets import load_dataset
 
 
 HF_PATH = "TajaKuzmanPungersek/X-GENRE-text-genre-dataset"
-SPLITS = ["train", "test", "dev"]
+HF_CONFIGS = ["train", "test", "dev"]
 KEEP_SOURCES = {"CORE", "FTD"}
 
 
@@ -13,11 +13,14 @@ def load_x_genre_dataset(
 ) -> List[Dict[str, Any]]:
     """
     Load the X-GENRE genre-classification dataset, restricted to the CORE
-    and FTD source-subsets and merged across train, test, and dev splits.
+    and FTD source-subsets and merged across the train, test, and dev
+    HuggingFace configs.
 
-    The HuggingFace dataset tags every row with a ``dataset`` field
+    The HuggingFace dataset exposes ``train`` / ``test`` / ``dev`` as named
+    configs (not splits); each config is loaded as a DatasetDict and every
+    split inside it is consumed. Every row has a ``dataset`` field
     (``CORE`` / ``FTD`` / ``GINCO``); GINCO rows are Slovenian and are
-    dropped here. The genre class is read from the ``labels`` field and
+    dropped. The genre class is read from the ``labels`` field and
     re-emitted under STEB's standard ``label`` key.
 
     Args:
@@ -26,11 +29,12 @@ def load_x_genre_dataset(
 
     Returns:
         A list of records with ``text`` and ``label`` fields, one per
-        retained CORE/FTD row across all three splits.
+        retained CORE/FTD row across all three configs.
     """
     records: List[Dict[str, Any]] = []
-    for split in SPLITS:
-        rows = load_dataset(HF_PATH, split=split)
+    for config_name in HF_CONFIGS:
+        ds_dict = load_dataset(HF_PATH, name=config_name)
+        rows = [row for split_rows in ds_dict.values() for row in split_rows]
         for row in rows:
             if row.get("dataset") not in KEEP_SOURCES:
                 continue
