@@ -35,49 +35,9 @@ def _detect_columns(
         ``(source_col, dialect_col)`` — the SAE-original column and the
         dialect-translation column for this NLU task.
     """
-    columns = list(example.keys())
-    dialect_candidates = [c for c in columns if c.startswith("Dialect (")]
-    if not dialect_candidates:
-        raise ValueError(
-            "Could not detect EnDive dialect column: expected exactly one "
-            f"column starting with 'Dialect (', found none. Available columns: {columns}"
-        )
-    if len(dialect_candidates) > 1:
-        raise ValueError(
-            "Could not detect EnDive dialect column: expected exactly one "
-            f"column starting with 'Dialect (', found {len(dialect_candidates)}: "
-            f"{dialect_candidates}. Available columns: {columns}"
-        )
-
-    dialect_col = dialect_candidates[0]
-    if not dialect_col.endswith(")"):
-        raise ValueError(
-            "Malformed EnDive dialect column: expected format 'Dialect (<X>)', "
-            f"got {dialect_col!r}. Available columns: {columns}"
-        )
-
+    dialect_col = next(c for c in example.keys() if c.startswith("Dialect ("))
     inner = dialect_col[len("Dialect ("):-1]
-    if not inner:
-        raise ValueError(
-            "Malformed EnDive dialect column: expected non-empty inner name in "
-            f"{dialect_col!r}. Available columns: {columns}"
-        )
-
-    source_candidates = [c for c in columns if c.lower() == inner.lower()]
-    if not source_candidates:
-        raise ValueError(
-            "Could not detect EnDive source column: expected exactly one column "
-            f"matching {inner!r} case-insensitively for dialect column {dialect_col!r}, "
-            f"found none. Available columns: {columns}"
-        )
-    if len(source_candidates) > 1:
-        raise ValueError(
-            "Could not detect EnDive source column: expected exactly one column "
-            f"matching {inner!r} case-insensitively for dialect column {dialect_col!r}, "
-            f"found {len(source_candidates)}: {source_candidates}. Available columns: {columns}"
-        )
-
-    source_col = source_candidates[0]
+    source_col = next(c for c in example.keys() if c.lower() == inner.lower())
     return source_col, dialect_col
 
 
