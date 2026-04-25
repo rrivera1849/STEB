@@ -40,7 +40,7 @@ TASK_DEFAULTS = {
 # Tasks for which auto_submetric_per_label defaults to true. A dataset can
 # still override per-task via "auto_submetric_per_label": false in its config.
 # Validation rejects the flag on tasks not in this set.
-AUTO_PER_LABEL_TASKS = {"order_alignment"}
+AUTO_PER_LABEL_TASKS = {"order_alignment", "all_to_all_pair_classification"}
 
 def get_supported_tasks() -> list[str]:
     """Returns the list of all supported task names."""

@@ -121,6 +121,15 @@ class TestAllToAllPairClassificationIntegration:
             metrics = json.load(f)
         assert "auc" in metrics
         assert "eer" in metrics
+        # all_to_all_pair_classification is in AUTO_PER_LABEL_TASKS, so the
+        # serialized metrics must carry per-label entries under "submetrics"
+        # and must NOT carry the internal "_per_label" key.
+        assert "_per_label" not in metrics
+        assert "submetrics" in metrics
+        assert metrics["submetrics"], "expected at least one per-label submetric"
+        sample_label, sample_scores = next(iter(metrics["submetrics"].items()))
+        assert "auc" in sample_scores
+        assert "eer" in sample_scores
 
 
 # ---------------------------------------------------------------------------
