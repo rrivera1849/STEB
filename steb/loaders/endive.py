@@ -109,7 +109,7 @@ def load_endive(
     hf_path = f"abhaygupta1266/{nlu_task}"
 
     splits = {
-        d: list(load_dataset(hf_path, split=HF_SPLIT_NAMES[d]))
+        d: load_dataset(hf_path, split=HF_SPLIT_NAMES[d])
         for d in DIALECTS
     }
 
