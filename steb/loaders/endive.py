@@ -13,7 +13,9 @@ HF_SPLIT_NAMES = {                                       # HF uses original-case
     "inde": "IndE",
     "jame": "JamE",
 }
-N_PER_DATASET = 100
+# Keep at least 150 aligned samples per dialect so benchmark settings that
+# require episode_size=3 and n_episodes_per_class=50 do not drop all labels.
+N_PER_DATASET = 150
 
 
 def _detect_columns(
