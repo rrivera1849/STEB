@@ -513,21 +513,19 @@ def evaluate(
 
                     metrics = task.evaluate(*processed_data)
 
-                    # Tasks emit per-label results under the internal key
-                    # "_per_label" for order_alignment; other tasks default
-                    # to off (and validation rejects the flag on them currently).
-                    # Either way, strip the internal key before serialisation
-                    # so it never appears at the top level.
+                    # order_alignment emits per-label results under the internal key
+                    # "_per_label" -> promote to "submetrics"
                     internal_per_label = metrics.pop("_per_label", None)
                     auto_per_label = task_config.get(
                         "auto_submetric_per_label",
                         current_task_name in AUTO_PER_LABEL_TASKS,
                     )
-
-                    submetrics_config = task_config.get("submetrics", {})
                     submetrics_out: Dict[str, Any] = {}
                     if auto_per_label and internal_per_label is not None:
                         submetrics_out.update(internal_per_label)
+                    # currently: config overrides auto flag, but this shouldn't really happen for AUTO_PER_LABEL_TASKS
+                    #   -> throw warning
+                    submetrics_config = task_config.get("submetrics", {})
                     if submetrics_config:
                         submetrics_out.update(_evaluate_submetrics(
                             submetrics_config,
