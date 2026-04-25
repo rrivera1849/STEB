@@ -36,26 +36,27 @@ def discover_genre_files(
 
 
 def split_into_equal_chunks(
-    words: List[str],
+    text: str,
     n_chunks: int,
 ) -> List[str]:
     """
-    Splits a word list into `n_chunks` contiguous chunks of as-equal-as-possible
-    length, joined back with single spaces.
+    Splits a string into `n_chunks` contiguous character-range chunks of
+    as-equal-as-possible length. Original whitespace (including newlines) is
+    preserved; chunks may start or end mid-word.
 
     Args:
-        words: Whitespace-tokenized word list for the whole genre.
+        text: Source string for the whole genre.
         n_chunks: Number of chunks to produce.
 
     Returns:
-        A list of `n_chunks` strings whose concatenated words equal the input.
+        A list of `n_chunks` substrings whose concatenation equals the input.
     """
-    total = len(words)
+    total = len(text)
     chunks = []
     for i in range(n_chunks):
         start = (i * total) // n_chunks
         end = ((i + 1) * total) // n_chunks
-        chunks.append(" ".join(words[start:end]))
+        chunks.append(text[start:end])
     return chunks
 
 
@@ -65,9 +66,9 @@ def load_masc_text_genre_dataset(
     """
     Loads the MASC 3.0.0 corpus as a text-genre dataset. Each genre (the leaf
     folder under data/spoken or data/written) contributes exactly 150 samples.
-    All .txt files for a genre are concatenated in alphabetic-path order, the
-    result is whitespace-tokenized, and the tokens are split into 150
-    equal-length contiguous chunks.
+    All .txt files for a genre are concatenated in alphabetic-path order
+    (separated by a newline) and the resulting string is split into 150
+    equal-length contiguous character ranges.
 
     Args:
         data_dir: Path to the extracted MASC-3.0.0 root containing data/spoken
@@ -84,7 +85,7 @@ def load_masc_text_genre_dataset(
         for path in genre_files[genre]:
             with open(path, "r", encoding="utf-8", errors="replace") as f:
                 texts.append(f.read())
-        words = " ".join(texts).split()
-        for chunk in split_into_equal_chunks(words, SAMPLES_PER_GENRE):
+        joined = "\n".join(texts)
+        for chunk in split_into_equal_chunks(joined, SAMPLES_PER_GENRE):
             records.append({"text": chunk, "label": genre})
     return records
