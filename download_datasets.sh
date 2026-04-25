@@ -546,6 +546,17 @@ else
     echo "Skipping PAN18 Cross-Domain Authorship Attribution (already exists)"
 fi
 
+# Groenwold et al. 2020 AAVE/SAE parallel tweets (EMNLP 2020)
+if [ ! -d "twitter_aave_sae" ]; then
+    echo "Downloading twitter_aave_sae..."
+    mkdir -p twitter_aave_sae
+    curl -L -o twitter_aave_sae.zip https://aclanthology.org/attachments/2020.emnlp-main.473.OptionalSupplementaryMaterial.zip
+    unzip -q -j twitter_aave_sae.zip "EMNLP-AAVE-files/aave_samples.txt" "EMNLP-AAVE-files/sae_samples.txt" -d twitter_aave_sae
+    rm twitter_aave_sae.zip
+else
+    echo "Skipping twitter_aave_sae (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
