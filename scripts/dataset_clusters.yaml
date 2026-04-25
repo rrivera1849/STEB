@@ -115,3 +115,19 @@ style_probing:
     - probing_blog
     - probing_reddit
     - probing_stackexchange
+
+dialect:
+  description: "Recognising English dialect identity (AAVE, ChcE, CollSgE, IndE, JamE) across NLU-task content"
+  datasets:
+    - endive_boolq
+    - endive_copa
+    - endive_folio
+    - endive_gsm8k
+    - endive_humaneval
+    - endive_logic_bench_mcq
+    - endive_logic_bench_yn
+    - endive_mbpp
+    - endive_multirc
+    - endive_sst2
+    - endive_svamp
+    - endive_wsc
