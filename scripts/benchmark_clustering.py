@@ -8,8 +8,9 @@ import argparse
 import json
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import yaml
 
@@ -95,6 +96,39 @@ EXCLUDED_MODELS.add("tfidf")
 EXCLUDED_MODELS.add("tfidfngrams")
 
 LOW_CONFIDENCE_THRESHOLD = 10
+
+
+@dataclass(frozen=True)
+class ClusterEntry:
+    """One entry in a manual cluster's `datasets:` list.
+
+    A plain dataset name in the YAML is represented as ``ClusterEntry(dataset=name)``
+    and contributes the dataset's top-level metric for every task the dataset
+    supports — same behaviour as before.
+
+    A mapping entry like
+    ``{dataset: STEL, task: order_alignment, submetrics: [formal, complex]}``
+    contributes a per-model score equal to the *mean* of the named submetrics'
+    primary metrics (e.g. acc_mean) read from
+    ``results/<dataset>/<model>/<ep>/<task>/metrics.json["submetrics"][s]``.
+    Submetric entries are scoped to a single task; ``task`` is required when
+    ``submetrics`` is set.
+    """
+    dataset: str
+    task: Optional[str] = None
+    submetrics: Optional[Tuple[str, ...]] = None
+
+    @property
+    def label(self) -> str:
+        """Stable human-readable identifier for the entry.
+
+        Plain entries use the dataset name (so existing column listings are
+        unchanged). Submetric entries embed the submetric list and task so
+        that two entries on the same dataset don't collide.
+        """
+        if self.submetrics:
+            return f"{self.dataset}[{'+'.join(self.submetrics)}]@{self.task}"
+        return self.dataset
 
 
 def discover_scores(
@@ -565,27 +599,131 @@ def discover_all_scores(
 
 def load_manual_clusters(
     clusters_path: str,
-) -> Dict[str, List[str]]:
+) -> Dict[str, List[ClusterEntry]]:
     """Load manual dataset clusters from a YAML file.
+
+    Each entry under ``datasets:`` is either:
+      - a plain string ``<dataset_name>`` (existing behaviour) — contributes
+        the top-level metric for every task the dataset supports.
+      - a mapping ``{dataset: <name>, task: <task>, submetrics: [<s1>, <s2>]}``
+        — contributes the mean of the listed submetrics' primary metric for
+        the named task. ``task`` is required whenever ``submetrics`` is set.
 
     Args:
         clusters_path: Path to the YAML file with cluster definitions.
 
     Returns:
-        A dict mapping cluster name to list of dataset names.
+        A dict mapping cluster name to list of ``ClusterEntry`` objects.
     """
     with open(clusters_path) as f:
         raw = yaml.safe_load(f)
 
-    clusters = {}
+    clusters: Dict[str, List[ClusterEntry]] = {}
     for name, config in raw.items():
-        clusters[name] = config["datasets"]
+        entries: List[ClusterEntry] = []
+        for raw_entry in config["datasets"]:
+            if isinstance(raw_entry, str):
+                entries.append(ClusterEntry(dataset=raw_entry))
+            elif isinstance(raw_entry, dict):
+                if "dataset" not in raw_entry:
+                    raise ValueError(
+                        f"Cluster '{name}' has an entry without a 'dataset' "
+                        f"field: {raw_entry!r}"
+                    )
+                submetrics = raw_entry.get("submetrics")
+                task = raw_entry.get("task")
+                if submetrics is not None and task is None:
+                    raise ValueError(
+                        f"Cluster '{name}' entry for dataset "
+                        f"'{raw_entry['dataset']}' has 'submetrics' but no "
+                        f"'task'; submetric entries must specify which task "
+                        f"the submetrics belong to."
+                    )
+                entries.append(ClusterEntry(
+                    dataset=raw_entry["dataset"],
+                    task=task,
+                    submetrics=tuple(submetrics) if submetrics else None,
+                ))
+            else:
+                raise ValueError(
+                    f"Cluster '{name}' has an unsupported entry type: "
+                    f"{type(raw_entry).__name__} ({raw_entry!r})"
+                )
+        clusters[name] = entries
     return clusters
+
+
+def _read_submetric_scores(
+    results_dir: str,
+    dataset: str,
+    task: str,
+    submetric: str,
+    primary_metric: str,
+    episode_params: Optional[str],
+    include_excluded: bool = False,
+) -> Dict[str, float]:
+    """Read per-model scores for one specific submetric of a (dataset, task).
+
+    Walks ``results/<dataset>/<model>/<ep>/<task>/metrics.json`` and pulls
+    ``metrics["submetrics"][submetric][primary_metric]`` for each model.
+
+    Args:
+        results_dir: Path to the root results directory.
+        dataset: The dataset name (must be a directory under ``results_dir``).
+        task: The task name. Submetrics are scoped to a single task because
+            the same submetric label can exist under different tasks of the
+            same dataset (e.g. CoDS clustering vs. order_alignment).
+        submetric: The submetric key inside ``metrics["submetrics"]``.
+        primary_metric: Which metric inside the submetric dict to extract
+            (e.g. ``"acc_mean"`` for order_alignment, ``"v_measure"`` for
+            clustering).
+        episode_params: Optional ``<ep>_<n>`` filter. If None, the first
+            matching episode_params dir per model is used (mirroring the
+            existing ``discover_all_scores`` behaviour).
+        include_excluded: If True, do not skip excluded datasets.
+
+    Returns:
+        A ``{model: score}`` dict. Models without the submetric are absent.
+    """
+    out: Dict[str, float] = {}
+    dataset_path = Path(results_dir) / dataset
+    if not dataset_path.is_dir():
+        return out
+    if not include_excluded and dataset in EXCLUDED_DATASETS:
+        return out
+
+    for model_dir in sorted(dataset_path.iterdir()):
+        if not model_dir.is_dir():
+            continue
+        if model_dir.name in EXCLUDED_MODELS:
+            continue
+
+        for ep_dir in sorted(model_dir.iterdir()):
+            if not ep_dir.is_dir():
+                continue
+            if episode_params and ep_dir.name != episode_params:
+                continue
+
+            metrics_file = ep_dir / task / "metrics.json"
+            if not metrics_file.exists():
+                continue
+
+            with open(metrics_file) as f:
+                metrics = json.load(f)
+
+            sub = metrics.get("submetrics", {}).get(submetric)
+            if not isinstance(sub, dict) or primary_metric not in sub:
+                continue
+
+            out[model_dir.name] = sub[primary_metric]
+            break  # First matching episode_params wins, like discover_all_scores
+
+    return out
 
 
 def build_manual_cluster_tables(
     results_dir: str,
-    clusters: Dict[str, List[str]],
+    clusters: Dict[str, List[ClusterEntry]],
     episode_params: Optional[str],
     include_excluded: bool = False,
     complete_datasets: bool = False,
@@ -593,84 +731,115 @@ def build_manual_cluster_tables(
     """Build one table per manual cluster.
 
     For each cluster, produces a DataFrame where rows are models and columns
-    are tasks. Each cell is the average metric across datasets in that cluster
-    that support the task.
+    are tasks. Each cell is the average metric across the entries in that
+    cluster that contribute to the task.
+
+    Plain entries contribute the dataset's top-level metric for every task it
+    supports. Submetric entries contribute the mean of the listed submetrics'
+    primary metric, scoped to a single task. Within a (cluster, task) cell
+    each entry counts as one independent contribution that gets averaged in.
 
     Args:
         results_dir: Path to the root results directory.
-        clusters: Mapping from cluster name to list of dataset names.
+        clusters: Mapping from cluster name to list of ``ClusterEntry`` objects.
         episode_params: Episode params filter (e.g. '1_50').
         include_excluded: If True, include semantic and non-English datasets.
         complete_datasets: If True, within each (cluster, task) group, drop
-            datasets that not all models have results for.
+            entries that not all models have results for.
 
     Returns:
         A tuple of:
           - A dict mapping cluster name to a DataFrame (models x tasks).
           - A dict mapping cluster name to a dict of task column name to
-            list of dataset names included in that column.
+            list of entry labels included in that column.
     """
     all_scores = discover_all_scores(results_dir, include_excluded)
-    if not all_scores:
-        return {}, {}
 
-    # Invert clusters: dataset -> cluster name
-    dataset_to_cluster: Dict[str, str] = {}
-    for cluster_name, datasets in clusters.items():
-        for ds in datasets:
-            dataset_to_cluster[ds] = cluster_name
+    # For each (cluster, task) we collect a dict keyed by entry label so that
+    # multiple entries on the same dataset (e.g. one plain + one submetric
+    # subset) don't clobber each other.
+    cluster_task_groups: Dict[Tuple[str, str], Dict[str, Dict[str, float]]] = {}
 
-    # Collect per-dataset scores: (cluster, task, dataset) -> {model: score}
-    # A dataset may appear multiple times across episode configs; we take the
-    # first one encountered (sorted order from discover_all_scores).
-    per_dataset: Dict[tuple, Dict[str, float]] = {}
-
-    for (dataset, task, ep_config), model_scores in all_scores.items():
+    # Pre-build "tasks the dataset supports" so plain entries fan out the same
+    # way the original code did via discover_all_scores keys.
+    dataset_tasks: Dict[str, set] = {}
+    for (dataset, task, ep_config), _ in all_scores.items():
         if episode_params and ep_config != episode_params:
             continue
-        if dataset not in dataset_to_cluster:
-            continue
+        dataset_tasks.setdefault(dataset, set()).add(task)
 
-        cluster_name = dataset_to_cluster[dataset]
-        key = (cluster_name, task, dataset)
-        if key not in per_dataset:
-            per_dataset[key] = {}
-        per_dataset[key].update(model_scores)
+    for cluster_name, entries in clusters.items():
+        for entry in entries:
+            if entry.submetrics:
+                # Submetric entry: contributes only to entry.task. Reads the
+                # metrics file directly via _read_submetric_scores so we get
+                # the per-submetric values, then averages them per model.
+                primary_metric = TASK_METRICS.get(entry.task)
+                if primary_metric is None:
+                    print(f"  Skipping submetric entry in cluster "
+                          f"'{cluster_name}': unknown task '{entry.task}'.")
+                    continue
+                per_model: Dict[str, List[float]] = {}
+                for sub in entry.submetrics:
+                    sub_scores = _read_submetric_scores(
+                        results_dir, entry.dataset, entry.task, sub,
+                        primary_metric, episode_params, include_excluded,
+                    )
+                    for model, score in sub_scores.items():
+                        per_model.setdefault(model, []).append(score)
+                if not per_model:
+                    continue
+                merged = {model: float(np.mean(scores))
+                          for model, scores in per_model.items()}
+                key = (cluster_name, entry.task)
+                cluster_task_groups.setdefault(key, {})[entry.label] = merged
+            else:
+                # Plain entry: same fan-out across tasks the dataset supports
+                # as in the original behaviour, pulling top-level scores out
+                # of all_scores.
+                for task in dataset_tasks.get(entry.dataset, ()):
+                    merged: Dict[str, float] = {}
+                    for (ds, t, ep_config), model_scores in all_scores.items():
+                        if ds != entry.dataset or t != task:
+                            continue
+                        if episode_params and ep_config != episode_params:
+                            continue
+                        merged.update(model_scores)
+                    if not merged:
+                        continue
+                    key = (cluster_name, task)
+                    cluster_task_groups.setdefault(key, {})[entry.label] = merged
 
-    # Group by (cluster, task) to find all models and datasets
-    cluster_task_groups: Dict[tuple, Dict[str, Dict[str, float]]] = {}
-    for (cluster_name, task, dataset), model_scores in per_dataset.items():
-        group_key = (cluster_name, task)
-        cluster_task_groups.setdefault(group_key, {})
-        cluster_task_groups[group_key][dataset] = model_scores
+    if not cluster_task_groups:
+        return {}, {}
 
     # Apply complete_datasets filter: within each (cluster, task), drop
-    # datasets that not all models have results for.
+    # entries that not all models have results for.
     if complete_datasets:
-        for group_key, dataset_scores in cluster_task_groups.items():
-            all_models = set()
-            for model_scores in dataset_scores.values():
+        for group_key, entry_scores in cluster_task_groups.items():
+            all_models: set = set()
+            for model_scores in entry_scores.values():
                 all_models.update(model_scores.keys())
 
             complete = {
-                ds: scores for ds, scores in dataset_scores.items()
+                label: scores for label, scores in entry_scores.items()
                 if set(scores.keys()) == all_models
             }
-            dropped = set(dataset_scores.keys()) - set(complete.keys())
+            dropped = set(entry_scores.keys()) - set(complete.keys())
             if dropped:
                 cluster_name, task = group_key
                 print(f"  Manual cluster '{cluster_name}' / {task}: "
-                      f"dropped {len(dropped)} incomplete dataset(s): {sorted(dropped)}")
+                      f"dropped {len(dropped)} incomplete entr(y/ies): {sorted(dropped)}")
             cluster_task_groups[group_key] = complete
 
     # Build tables: one DataFrame per cluster (models x tasks)
-    # Also track which datasets ended up in each column.
+    # Also track which entries ended up in each column.
     cluster_model_task: Dict[str, Dict[str, Dict[str, List[float]]]] = {}
-    cluster_task_datasets: Dict[str, Dict[str, set]] = {}
+    cluster_task_entries: Dict[str, Dict[str, set]] = {}
 
-    for (cluster_name, task), dataset_scores in cluster_task_groups.items():
-        for dataset, model_scores in dataset_scores.items():
-            cluster_task_datasets.setdefault(cluster_name, {}).setdefault(task, set()).add(dataset)
+    for (cluster_name, task), entry_scores in cluster_task_groups.items():
+        for label, model_scores in entry_scores.items():
+            cluster_task_entries.setdefault(cluster_name, {}).setdefault(task, set()).add(label)
             for model, score in model_scores.items():
                 cluster_model_task.setdefault(cluster_name, {})
                 cluster_model_task[cluster_name].setdefault(model, {})
@@ -690,9 +859,9 @@ def build_manual_cluster_tables(
         tables[cluster_name] = df
 
         col_ds = {}
-        for task in sorted(cluster_task_datasets.get(cluster_name, {})):
+        for task in sorted(cluster_task_entries.get(cluster_name, {})):
             col_name = f"{task} ({TASK_METRICS.get(task, 'score')})"
-            col_ds[col_name] = sorted(cluster_task_datasets[cluster_name][task])
+            col_ds[col_name] = sorted(cluster_task_entries[cluster_name][task])
         column_datasets[cluster_name] = col_ds
 
     return tables, column_datasets

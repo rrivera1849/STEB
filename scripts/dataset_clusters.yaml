@@ -3,6 +3,16 @@
 # Each cluster answers a question like "Which model is best at X?"
 # Datasets within a cluster are averaged (after any automatic redundancy
 # de-duplication) to produce a single cluster score per model.
+#
+# Entry forms supported under `datasets:`:
+#   - <dataset_name>            (plain string)
+#       Contributes the dataset's top-level metric for every task it supports.
+#   - {dataset: <name>, task: <task>, submetrics: [<s1>, <s2>, ...]}
+#       Contributes the *mean* of the listed submetrics' primary metric for
+#       the named task. `task` is required when `submetrics` is set.
+#       Useful for grouping per-label submetrics across datasets, e.g. an
+#       across-datasets "style_similarity" cluster pulling the formal and
+#       complex submetrics from STEL, SynthSTEL, and CoDS together.
 
 machine_text_detection:
   description: "Distinguishing human-written from machine-generated text"
