@@ -1,21 +1,33 @@
-import os
 import random
 from typing import Any, Dict, List, Tuple
 
 from datasets import load_dataset
 
 
-DIALECTS = ["aave", "chce", "collsge", "inde", "jame"]  # alphabetical, fixed order
-HF_SPLIT_NAMES = {                                       # HF uses original-case split names
+NLU_TASKS = [
+    "logic_bench_yn",
+    "logic_bench_mcq",
+    "svamp",
+    "mbpp",
+    "gsm8k",
+    "folio",
+    "boolq",
+    "copa",
+    "multirc",
+    "sst-2",
+    "wsc",
+]
+DIALECTS = ["aave", "chce", "collsge", "inde", "jame"]    # alphabetical
+ALL_LABELS = ["sae"] + DIALECTS                            # SAE original + 5 dialects
+HF_SPLIT_NAMES = {                                         # HF uses original-case split names
     "aave": "AAVE",
     "chce": "ChcE",
     "collsge": "CollSgE",
     "inde": "IndE",
     "jame": "JamE",
 }
-# Keep at least 150 aligned samples per dialect so benchmark settings that
-# require episode_size=3 and n_episodes_per_class=50 do not drop all labels.
-N_PER_DATASET = 150
+N_PER_TASK = 150            # max source-ids kept per NLU task; loader takes min(N, available)
+HF_OWNER = "abhaygupta1266"
 
 
 def _detect_columns(
@@ -41,33 +53,28 @@ def _detect_columns(
     return source_col, dialect_col
 
 
-def load_endive(
-    data_dir: str,
+def _load_one_nlu_task(
+    nlu_task: str,
 ) -> List[Dict[str, Any]]:
     """
-    Load one EnDive NLU-task dataset from Hugging Face.
+    Fetch one EnDive NLU task from Hugging Face and emit per-record entries.
 
-    Matches parallel rows across the 5 dialect splits via the SAE-source
-    column, takes 100 source-ids that exist in all 5 dialects, and emits 500
-    records (one per (source_id, dialect)) shaped for STEB's clustering and
-    all_to_all_pair_classification tasks.
-
-    The NLU task name is the basename of ``data_dir`` (e.g. ``data_dir`` ends
-    in ``"endive/svamp"`` → HF path ``"abhaygupta1266/svamp"``). The directory
-    itself does not need to exist on disk; HF's ``datasets`` library handles
-    its own caching.
+    Loads the 5 dialect splits from ``abhaygupta1266/<nlu_task>``, intersects
+    rows by SAE source text (so only sources translated into all 5 dialects
+    are kept), deterministically subsamples to at most ``N_PER_TASK``
+    source-ids, and emits 6 records per kept source-id: the SAE original
+    plus each of the 5 dialect translations.
 
     Args:
-        data_dir: Path whose basename names the EnDive NLU task.
+        nlu_task: HF dataset suffix (e.g. ``"svamp"``, ``"sst-2"``).
 
     Returns:
-        Up to 500 records (or fewer if the task has < 100 source-ids fully
-        aligned across all 5 dialects). Each record is
-        ``{"text": <dialect translation>, "label": <dialect>}``.
+        Up to ``N_PER_TASK * 6`` records, or fewer if the task has fewer
+        than ``N_PER_TASK`` fully-aligned source-ids. Each record is
+        ``{"text": str, "label": str}`` where label is one of
+        ``{"sae", "aave", "chce", "collsge", "inde", "jame"}``.
     """
-    nlu_task = os.path.basename(data_dir.rstrip("/"))
-    hf_path = f"abhaygupta1266/{nlu_task}"
-
+    hf_path = f"{HF_OWNER}/{nlu_task}"
     splits = {
         d: load_dataset(hf_path, split=HF_SPLIT_NAMES[d])
         for d in DIALECTS
@@ -90,15 +97,36 @@ def load_endive(
     )
 
     rng = random.Random(42)
-    if len(fully_aligned) > N_PER_DATASET:
-        fully_aligned = sorted(rng.sample(fully_aligned, N_PER_DATASET))
+    if len(fully_aligned) > N_PER_TASK:
+        fully_aligned = sorted(rng.sample(fully_aligned, N_PER_TASK))
 
     records: List[Dict[str, Any]] = []
     for src_text in fully_aligned:
         per_dialect = by_source[src_text]
+        records.append({"text": src_text, "label": "sae"})
         for dialect in DIALECTS:
-            records.append({
-                "text": per_dialect[dialect],
-                "label": dialect,
-            })
+            records.append({"text": per_dialect[dialect], "label": dialect})
+    return records
+
+
+def load_endive(
+    data_dir: str,
+) -> List[Dict[str, Any]]:
+    """
+    Load the merged EnDive dataset (11 NLU tasks, humaneval excluded).
+
+    Concatenates per-task records from all NLU tasks. Roughly 8,328 records
+    total across 6 labels (~1,388 per label), comfortably exceeding STEB's
+    benchmark-preset requirement of 150 samples per label at episode_size=3.
+
+    Args:
+        data_dir: Unused (HF datasets self-cache); kept for the STEB loader
+            calling convention.
+
+    Returns:
+        Flat list of records, each ``{"text": str, "label": str}``.
+    """
+    records: List[Dict[str, Any]] = []
+    for nlu_task in NLU_TASKS:
+        records.extend(_load_one_nlu_task(nlu_task))
     return records

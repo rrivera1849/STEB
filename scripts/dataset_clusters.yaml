@@ -115,3 +115,9 @@ style_probing:
     - probing_blog
     - probing_reddit
     - probing_stackexchange
+
+dialect:
+  description: "Recognising English dialect identity (SAE plus AAVE, ChcE, CollSgE, IndE, JamE)"
+  datasets:
+    - endive
+    - twitter_aave_sae
