@@ -10,11 +10,6 @@
   },
   "tasks": {
     "clustering": {},
-    "all_to_all_pair_classification": {},
-    "order_alignment": {
-      "record_handler": {
-        "custom_record_handler_function": "endive_order_alignment_handler"
-      }
-    }
+    "all_to_all_pair_classification": {}
   }
 }
