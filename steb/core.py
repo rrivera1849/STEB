@@ -513,7 +513,7 @@ def evaluate(
 
                     metrics = task.evaluate(*processed_data)
 
-                    # order_alignment emits per-label results under the internal key
+                    # AUTO_PER_LABEL_TASKS emit per-label results under the internal key
                     # "_per_label" -> promote to "submetrics"
                     internal_per_label = metrics.pop("_per_label", None)
                     auto_per_label = task_config.get(
@@ -526,10 +526,8 @@ def evaluate(
                     submetrics_config = task_config.get("submetrics", {})
                     if submetrics_config:
                         # Explicit submetric entries override auto per-label entries
-                        # on key collision (dict.update semantics). For tasks in
-                        # AUTO_PER_LABEL_TASKS the auto path already covers per-label
-                        # reporting, so an explicit `submetrics` block is unusual
-                        # and likely an oversight; surface it.
+                        # This shouldn't happen for AUTO_PER_LABEL_TASKS usually
+                        #   -> throw warning
                         if auto_per_label and current_task_name in AUTO_PER_LABEL_TASKS:
                             print(colored(
                                 f"  WARNING: dataset '{dataset_name}' task "
