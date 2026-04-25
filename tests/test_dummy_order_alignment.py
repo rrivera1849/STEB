@@ -46,3 +46,4 @@ def test_order_alignment_on_dummy_dataset_yields_high_accuracy():
     assert metrics["acc_mean"] == 1.0
     assert metrics["distractor_acc_mean"] == 1.0
 
+
