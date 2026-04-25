@@ -1,6 +1,6 @@
 import os
 import random
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from datasets import load_dataset
 
@@ -47,8 +47,8 @@ def load_endive(
 
     Matches parallel rows across the 5 dialect splits via the SAE-source
     column, takes 100 source-ids that exist in all 5 dialects, and emits 500
-    records (one per (source_id, dialect)) shaped for STEB's clustering /
-    pair-classification / order_alignment tasks.
+    records (one per (source_id, dialect)) shaped for STEB's clustering and
+    all_to_all_pair_classification tasks.
 
     The NLU task name is the basename of ``data_dir`` (e.g. ``data_dir`` ends
     in ``"endive/svamp"`` → HF path ``"abhaygupta1266/svamp"``). The directory
@@ -60,9 +60,8 @@ def load_endive(
 
     Returns:
         Up to 500 records (or fewer if the task has < 100 source-ids fully
-        aligned across all 5 dialects). The AAVE row of each source-id
-        carries an extra ``all_dialects`` field — the alphabetically-ordered
-        5-list used by ``endive_order_alignment_handler``.
+        aligned across all 5 dialects). Each record is
+        ``{"text": <dialect translation>, "label": <dialect>}``.
     """
     nlu_task = os.path.basename(data_dir.rstrip("/"))
     hf_path = f"abhaygupta1266/{nlu_task}"
@@ -93,45 +92,11 @@ def load_endive(
         fully_aligned = sorted(rng.sample(fully_aligned, N_PER_DATASET))
 
     records: List[Dict[str, Any]] = []
-    for sid, src_text in enumerate(fully_aligned):
+    for src_text in fully_aligned:
         per_dialect = by_source[src_text]
-        all_dialects_alpha = [per_dialect[d] for d in DIALECTS]
         for dialect in DIALECTS:
-            record: Dict[str, Any] = {
+            records.append({
                 "text": per_dialect[dialect],
                 "label": dialect,
-                "dialect": dialect,
-                "source_id": sid,
-            }
-            if dialect == "aave":
-                record["all_dialects"] = all_dialects_alpha
-            records.append(record)
+            })
     return records
-
-
-def endive_order_alignment_handler(
-    example: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
-    """
-    Per-task record handler for ``order_alignment``.
-
-    The base loader emits 5 records per source-id (one per dialect) so
-    clustering and pair-classification each see 500 individual-dialect
-    records. ``order_alignment`` instead needs ONE record per source-id
-    whose ``text`` is a 5-element list of all dialect translations.
-
-    This handler dedupes by keeping only the AAVE row of each source-id
-    (where the loader stashed the ``all_dialects`` 5-list bundle) and
-    reshapes that row into the order_alignment-ready record. The other 4
-    rows return None and are dropped.
-
-    Args:
-        example: One record from ``load_endive``.
-
-    Returns:
-        ``{"text": [aave, chce, collsge, inde, jame], "label": "dialect"}``
-        for AAVE rows; ``None`` otherwise.
-    """
-    if example.get("dialect") != "aave":
-        return None
-    return {"text": example["all_dialects"], "label": "dialect"}
