@@ -185,6 +185,15 @@ class TestOrderAlignmentIntegration:
             metrics = json.load(f)
         assert "acc_mean" in metrics
         assert "distractor_acc_mean" in metrics
+        # auto_submetric_per_label is set on dummy_order_alignment, so the
+        # serialized metrics must carry per-label entries under "submetrics"
+        # and must NOT carry the internal "_per_label" key (core.py strips it).
+        assert "_per_label" not in metrics
+        assert "submetrics" in metrics
+        assert metrics["submetrics"], "expected at least one per-label submetric"
+        sample_label, sample_scores = next(iter(metrics["submetrics"].items()))
+        assert "acc_mean" in sample_scores
+        assert "distractor_acc_mean" in sample_scores
 
 
 # ---------------------------------------------------------------------------

@@ -37,6 +37,11 @@ TASK_DEFAULTS = {
     "retrieval": {"episode_sizes": [1], "n_episodes_per_class": 1},
 }
 
+# Tasks for which auto_submetric_per_label defaults to true. A dataset can
+# still override per-task via "auto_submetric_per_label": false in its config.
+# Validation rejects the flag on tasks not in this set.
+AUTO_PER_LABEL_TASKS = {"order_alignment"}
+
 def get_supported_tasks() -> list[str]:
     """Returns the list of all supported task names."""
     return SUPPORTED_TASKS
@@ -508,13 +513,37 @@ def evaluate(
 
                     metrics = task.evaluate(*processed_data)
 
+                    # AUTO_PER_LABEL_TASKS emit per-label results under the internal key
+                    # "_per_label" -> promote to "submetrics"
+                    internal_per_label = metrics.pop("_per_label", None)
+                    auto_per_label = task_config.get(
+                        "auto_submetric_per_label",
+                        current_task_name in AUTO_PER_LABEL_TASKS,
+                    )
+                    submetrics_out: Dict[str, Any] = {}
+                    if auto_per_label and internal_per_label is not None:
+                        submetrics_out.update(internal_per_label)
                     submetrics_config = task_config.get("submetrics", {})
                     if submetrics_config:
-                        metrics["submetrics"] = _evaluate_submetrics(
+                        # Explicit submetric entries override auto per-label entries
+                        # This shouldn't happen for AUTO_PER_LABEL_TASKS usually
+                        #   -> throw warning
+                        if auto_per_label and current_task_name in AUTO_PER_LABEL_TASKS:
+                            print(colored(
+                                f"  WARNING: dataset '{dataset_name}' task "
+                                f"'{current_task_name}' has both auto per-label "
+                                f"submetrics and an explicit 'submetrics' block; "
+                                f"explicit entries will override auto entries on "
+                                f"any name collision.",
+                                "yellow",
+                            ))
+                        submetrics_out.update(_evaluate_submetrics(
                             submetrics_config,
                             processed_data,
                             task,
-                        )
+                        ))
+                    if submetrics_out:
+                        metrics["submetrics"] = submetrics_out
 
                     os.makedirs(scores_path, exist_ok=True)
                     with open(metrics_path, "w+") as ouf:
