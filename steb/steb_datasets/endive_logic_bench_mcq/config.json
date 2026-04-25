@@ -1,0 +1,15 @@
+{
+  "dataset_name": "endive_logic_bench_mcq",
+  "type": "custom",
+  "loader_module": "steb.loaders.endive",
+  "loader_function": "load_endive",
+  "data_dir": "endive/logic_bench_mcq",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}
