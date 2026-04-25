@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 
-def load_groenwold_aave_sae(
+def load_twitter_aave_sae_dataset(
     data_dir: str,
 ) -> List[Dict[str, Any]]:
     """
-    Load the Groenwold et al. 2020 AAVE/SAE parallel tweet corpus.
+    Load the AAVE/SAE parallel tweet corpus from Groenwold et al. (EMNLP 2020).
 
     Reads `aave_samples.txt` and `sae_samples.txt` from `data_dir`. Each line
     in one file is the parallel counterpart of the same-numbered line in the
