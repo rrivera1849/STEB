@@ -77,6 +77,16 @@ def validate_config(
                     for sub_name, label_list in task_config["submetrics"].items():
                         if not isinstance(label_list, list) or len(label_list) < 2:
                             errors.append(f"Task '{task_name}' submetric '{sub_name}' must be a list of at least 2 labels")
+            if "auto_submetric_per_label" in task_config:
+                if not isinstance(task_config["auto_submetric_per_label"], bool):
+                    errors.append(
+                        f"Task '{task_name}' auto_submetric_per_label must be a boolean"
+                    )
+                elif task_config["auto_submetric_per_label"] and task_name != "order_alignment":
+                    errors.append(
+                        f"Task '{task_name}' has auto_submetric_per_label=true, but this "
+                        f"flag is currently only supported for order_alignment"
+                    )
 
     # Type-specific validation
     if config.get("type") == "huggingface":

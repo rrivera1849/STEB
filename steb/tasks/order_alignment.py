@@ -1,4 +1,5 @@
 import itertools
+from collections import defaultdict
 from typing import Any, Dict, Hashable, List
 
 import numpy as np
@@ -98,8 +99,13 @@ class OrderAlignmentTask(Task):
         distractor_last_accuracies: List[float] = []
         distractor_first_accuracies: List[float] = []
 
+        # Per-label accumulators. Insertion order is preserved by defaultdict,
+        # which makes the emitted `_per_label` dict deterministic.
+        per_label_alignment_acc: Dict[Hashable, List[float]] = defaultdict(list)
+        per_label_distractor_acc: Dict[Hashable, List[float]] = defaultdict(list)
+
         # Iterate per label group
-        for _, idxs in label_to_indices.items():
+        for label, idxs in label_to_indices.items():
             if len(idxs) < 2:
                 continue
 
@@ -111,6 +117,7 @@ class OrderAlignmentTask(Task):
                 # --- Baseline (no distractor), full lists ---
                 base_scores = align_and_score(emb_i, emb_j)
                 alignment_accuracies.append(base_scores["accuracy"])
+                per_label_alignment_acc[label].append(base_scores["accuracy"])
 
                 # --- Distractor variants ---
                 # NOTE: distractor calculations are not symmetric
@@ -131,6 +138,7 @@ class OrderAlignmentTask(Task):
 
                 distr_last_scores = align_and_score(emb_i_ref_last, emb_j_distr_last)
                 distractor_last_accuracies.append(distr_last_scores["accuracy"])
+                per_label_distractor_acc[label].append(distr_last_scores["accuracy"])
 
                 # Distractor variant 2: Replace first (most-intense) position
                 emb_i_ref_first = emb_i[1:]             # i without its first (most-intense) item
@@ -139,11 +147,28 @@ class OrderAlignmentTask(Task):
 
                 distr_first_scores = align_and_score(emb_i_ref_first, emb_j_distr_first, offset=1)
                 distractor_first_accuracies.append(distr_first_scores["accuracy"])
+                per_label_distractor_acc[label].append(distr_first_scores["accuracy"])
 
         # Calculate mean of both distractor variants
         all_distractor_accs = distractor_last_accuracies + distractor_first_accuracies
 
+        # `_per_label` is an internal payload: core.py pops it before serialization
+        # and lifts the entries into metrics["submetrics"] when the dataset config
+        # opts in via auto_submetric_per_label. It never appears at the top level
+        # of metrics.json.
+        per_label_out: Dict[str, Dict[str, float]] = {
+            str(label): {
+                "acc_mean": float(np.mean(per_label_alignment_acc[label])),
+                "distractor_acc_mean": (
+                    float(np.mean(per_label_distractor_acc[label]))
+                    if per_label_distractor_acc[label] else 0.0
+                ),
+            }
+            for label in per_label_alignment_acc
+        }
+
         return {
             "acc_mean": float(np.mean(alignment_accuracies)) if alignment_accuracies else 0.0,
             "distractor_acc_mean": float(np.mean(all_distractor_accs)) if all_distractor_accs else 0.0,
+            "_per_label": per_label_out,
         }

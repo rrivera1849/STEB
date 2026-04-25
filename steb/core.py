@@ -508,13 +508,26 @@ def evaluate(
 
                     metrics = task.evaluate(*processed_data)
 
+                    # Tasks may emit per-label results under the internal key
+                    # "_per_label". When the config opts in via
+                    # auto_submetric_per_label, lift that payload into
+                    # metrics["submetrics"]; either way, strip it before
+                    # serialisation so it never appears at the top level.
+                    internal_per_label = metrics.pop("_per_label", None)
+                    auto_per_label = task_config.get("auto_submetric_per_label", False)
+
                     submetrics_config = task_config.get("submetrics", {})
+                    submetrics_out: Dict[str, Any] = {}
+                    if auto_per_label and internal_per_label is not None:
+                        submetrics_out.update(internal_per_label)
                     if submetrics_config:
-                        metrics["submetrics"] = _evaluate_submetrics(
+                        submetrics_out.update(_evaluate_submetrics(
                             submetrics_config,
                             processed_data,
                             task,
-                        )
+                        ))
+                    if submetrics_out:
+                        metrics["submetrics"] = submetrics_out
 
                     os.makedirs(scores_path, exist_ok=True)
                     with open(metrics_path, "w+") as ouf:
