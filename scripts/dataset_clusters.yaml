@@ -95,24 +95,20 @@ speaker_attribution:
     - fisher_speaker_attribution_ldc_harder
     - radiotalk
 
-formality_and_complexity:
-  description: "Capturing text formality level and reading complexity"
-  datasets:
-    - graded_formality
-    - OneStopEnglishCorpus
-
 genre:
   description: "Classifying texts by genre"
   datasets:
     - x_genre
     - masc_text_genre
 
-style_similarity:
+style:
   description: "Judging which of two texts is more stylistically similar to a reference"
   datasets:
     - STEL
     - SynthSTEL
     - corpus-of-diverse-styles
+    - graded_formality
+    - OneStopEnglishCorpus
 
 style_probing:
   description: "Probing embeddings for stylistic features"
