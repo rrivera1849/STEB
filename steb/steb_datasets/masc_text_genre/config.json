@@ -1,0 +1,14 @@
+{
+  "dataset_name": "masc_text_genre",
+  "type": "custom",
+  "data_dir": "MASC-3.0.0",
+  "loader_function": "load_masc_text_genre_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}
