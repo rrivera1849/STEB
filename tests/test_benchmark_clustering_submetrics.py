@@ -3,7 +3,7 @@ Tests for the flag-aware extensions to scripts/benchmark_clustering.py.
 
 Covers:
 - _parse_entry on plain and --submetrics entries; unknown flag rejection.
-- discover_submetric_scores walking the results tree.
+- discover_all_scores collecting top-level + per-submetric rows in one walk.
 - build_manual_cluster_tables: backward-compat regression for plain entries,
   end-to-end submetric averaging, mixed plain + submetric entries, multi-task
   contribution when the same submetric label appears under multiple tasks,
@@ -137,11 +137,11 @@ def test_load_manual_clusters_rejects_non_string_entries(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# discover_submetric_scores: separate walk for per-submetric scores
+# discover_all_scores: top-level + per-submetric pulled in one walk
 # ---------------------------------------------------------------------------
 
-def test_discover_submetric_scores_collects_per_submetric_rows(tmp_path: Path):
-    """Returns one entry per (dataset, task, ep, submetric, model) tuple."""
+def test_discover_all_scores_collects_top_level_and_submetrics(tmp_path: Path):
+    """One walk fills both rows (top-level) and sub_rows (per-submetric)."""
     results = tmp_path / "results"
     _write_metrics(results, "STEL", "model_a", "1_50", "order_alignment", {
         "distractor_acc_mean": 0.4,
@@ -151,8 +151,9 @@ def test_discover_submetric_scores_collects_per_submetric_rows(tmp_path: Path):
         },
     })
     with _patch_supported_datasets({"order_alignment": ["STEL"]}):
-        sub_rows = bc.discover_submetric_scores(str(results))
+        rows, sub_rows = bc.discover_all_scores(str(results))
 
+    assert rows[("STEL", "order_alignment", "1_50")] == {"model_a": 0.4}
     assert sub_rows[("STEL", "order_alignment", "1_50", "formal")] == {"model_a": 0.7}
     assert sub_rows[("STEL", "order_alignment", "1_50", "complex")] == {"model_a": 0.5}
 
