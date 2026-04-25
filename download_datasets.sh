@@ -557,6 +557,16 @@ else
     echo "Skipping twitter_aave_sae (already exists)"
 fi
 
+# MASC 3.0.0 (Manually Annotated Sub-Corpus) — text genre source
+if [ ! -d "MASC-3.0.0" ]; then
+    echo "Downloading MASC-3.0.0..."
+    wget --no-check-certificate https://www.anc.org/MASC/download/MASC-3.0.0.zip
+    unzip -q MASC-3.0.0.zip
+    rm MASC-3.0.0.zip
+else
+    echo "Skipping MASC-3.0.0 (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
