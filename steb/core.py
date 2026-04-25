@@ -523,10 +523,22 @@ def evaluate(
                     submetrics_out: Dict[str, Any] = {}
                     if auto_per_label and internal_per_label is not None:
                         submetrics_out.update(internal_per_label)
-                    # currently: config overrides auto flag, but this shouldn't really happen for AUTO_PER_LABEL_TASKS
-                    #   -> throw warning
                     submetrics_config = task_config.get("submetrics", {})
                     if submetrics_config:
+                        # Explicit submetric entries override auto per-label entries
+                        # on key collision (dict.update semantics). For tasks in
+                        # AUTO_PER_LABEL_TASKS the auto path already covers per-label
+                        # reporting, so an explicit `submetrics` block is unusual
+                        # and likely an oversight; surface it.
+                        if auto_per_label and current_task_name in AUTO_PER_LABEL_TASKS:
+                            print(colored(
+                                f"  WARNING: dataset '{dataset_name}' task "
+                                f"'{current_task_name}' has both auto per-label "
+                                f"submetrics and an explicit 'submetrics' block; "
+                                f"explicit entries will override auto entries on "
+                                f"any name collision.",
+                                "yellow",
+                            ))
                         submetrics_out.update(_evaluate_submetrics(
                             submetrics_config,
                             processed_data,
