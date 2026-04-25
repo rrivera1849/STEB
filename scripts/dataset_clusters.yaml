@@ -105,6 +105,7 @@ genre:
   description: "Classifying texts by genre"
   datasets:
     - x_genre
+    - masc_text_genre
 
 style_similarity:
   description: "Judging which of two texts is more stylistically similar to a reference"
