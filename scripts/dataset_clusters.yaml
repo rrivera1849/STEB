@@ -101,6 +101,11 @@ formality_and_complexity:
     - graded_formality
     - OneStopEnglishCorpus
 
+genre:
+  description: "Classifying texts by genre"
+  datasets:
+    - x_genre
+
 style_similarity:
   description: "Judging which of two texts is more stylistically similar to a reference"
   datasets:
