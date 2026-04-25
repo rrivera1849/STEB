@@ -8,8 +8,6 @@
   },
   "loader_function": "load_dummy_order_alignment_dataset",
   "tasks": {
-    "order_alignment": {
-      "auto_submetric_per_label": true
-    }
+    "order_alignment": {}
   }
 }

@@ -9,8 +9,6 @@
     "custom_record_handler_function": "stel_record_handler"
   },
   "tasks": {
-    "order_alignment": {
-      "auto_submetric_per_label": true
-    }
+    "order_alignment": {}
   }
 }

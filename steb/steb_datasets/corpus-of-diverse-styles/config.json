@@ -19,8 +19,7 @@
     "order_alignment": {
       "record_handler": {
         "custom_record_handler_function": "corpus_of_diverse_styles_record_handler"
-      },
-      "auto_submetric_per_label": true
+      }
     }
   }
 }
