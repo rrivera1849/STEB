@@ -35,7 +35,7 @@ murmurhash==1.0.13
 networkx==3.5
 numpy==2.3.2
 packaging==25.0
-pandas==2.3.2
+pandas[output-formatting,excel]==2.3.2
 preshed==3.0.10
 propcache==0.3.2
 pyarrow==21.0.0
@@ -78,5 +78,3 @@ xxhash==3.5.0
 yarl==1.20.1
 gdown==5.2.0
 matplotlib
-tabulate
-openpyxl
