@@ -3,6 +3,26 @@
 # Each cluster answers a question like "Which model is best at X?"
 # Datasets within a cluster are averaged (after any automatic redundancy
 # de-duplication) to produce a single cluster score per model.
+#
+# Each `datasets:` entry is a string of the form:
+#   <dataset_name> [--task <task>] [--submetrics <s1> <s2> ...]
+#
+# - Bare `<dataset_name>` (no flags): contributes the dataset's top-level
+#   metric for every task it supports. Existing behaviour, unchanged.
+# - `--task <task>`: restrict the contribution to one task's top-level metric.
+# - `--submetrics <s1> <s2> ...`: contribute the mean of the listed
+#   submetrics' primary metric. The task is inferred from the metrics tree
+#   if `--task` is omitted; an ambiguous match raises a clear error and
+#   asks for `--task` to disambiguate.
+#
+# Example (cross-dataset per-label grouping):
+#
+#   style_similarity:
+#     description: "Style similarity (multi-dimensional)"
+#     datasets:
+#       - STEL --submetrics formal complex
+#       - SynthSTEL --submetrics formal complex
+#       - corpus-of-diverse-styles --submetrics formal complex
 
 machine_text_detection:
   description: "Distinguishing human-written from machine-generated text"
