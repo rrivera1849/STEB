@@ -153,101 +153,25 @@ def test_load_manual_clusters_rejects_non_string_entries(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# _read_submetric_scores
+# discover_all_scores: top-level + submetric pulled in one walk
 # ---------------------------------------------------------------------------
 
-def test_read_submetric_scores_pulls_named_submetric_per_model(tmp_path: Path):
-    """Two models: each contributes their submetric's primary metric value."""
+def test_discover_all_scores_collects_top_level_and_submetrics(tmp_path: Path):
+    """One walk fills both ``rows`` (top-level) and ``sub_rows`` (per-submetric)."""
     results = tmp_path / "results"
-    metrics_a = {
-        "acc_mean": 0.5, "distractor_acc_mean": 0.4,
+    _write_metrics(results, "STEL", "model_a", "1_50", "order_alignment", {
+        "distractor_acc_mean": 0.4,
         "submetrics": {
-            "formal": {"acc_mean": 0.7, "distractor_acc_mean": 0.6},
-            "complex": {"acc_mean": 0.55, "distractor_acc_mean": 0.5},
+            "formal":  {"distractor_acc_mean": 0.7},
+            "complex": {"distractor_acc_mean": 0.5},
         },
-    }
-    metrics_b = {
-        "acc_mean": 0.5, "distractor_acc_mean": 0.4,
-        "submetrics": {
-            "formal": {"acc_mean": 0.3, "distractor_acc_mean": 0.25},
-            "complex": {"acc_mean": 0.45, "distractor_acc_mean": 0.4},
-        },
-    }
-    _write_metrics(results, "STEL", "model_a", "1_50", "order_alignment", metrics_a)
-    _write_metrics(results, "STEL", "model_b", "1_50", "order_alignment", metrics_b)
-
-    scores = bc._read_submetric_scores(
-        str(results), "STEL", "order_alignment", "formal",
-        primary_metric="acc_mean",
-        episode_params="1_50",
-    )
-    assert scores == {"model_a": 0.7, "model_b": 0.3}
-
-
-def test_read_submetric_scores_skips_models_without_the_submetric(tmp_path: Path):
-    """Models whose metrics.json lacks the submetric are silently skipped."""
-    results = tmp_path / "results"
-    _write_metrics(results, "STEL", "with", "1_50", "order_alignment", {
-        "acc_mean": 0.5, "submetrics": {"formal": {"acc_mean": 0.7}},
-    })
-    _write_metrics(results, "STEL", "without", "1_50", "order_alignment", {
-        "acc_mean": 0.5,  # no submetrics block
-    })
-    scores = bc._read_submetric_scores(
-        str(results), "STEL", "order_alignment", "formal",
-        primary_metric="acc_mean",
-        episode_params="1_50",
-    )
-    assert scores == {"with": 0.7}
-
-
-# ---------------------------------------------------------------------------
-# _infer_task
-# ---------------------------------------------------------------------------
-
-def test_infer_task_unique_match(tmp_path: Path):
-    """If only one task has the named submetric, that task is returned."""
-    results = tmp_path / "results"
-    _write_metrics(results, "STEL", "m", "1_50", "order_alignment", {
-        "acc_mean": 0.5,
-        "submetrics": {"formal": {"acc_mean": 0.5}, "complex": {"acc_mean": 0.5}},
-    })
-    with _patch_supported_datasets({
-        "order_alignment": ["STEL"],
-        "clustering": [],
-    }):
-        inferred = bc._infer_task(str(results), "STEL", ("formal",), episode_params="1_50")
-    assert inferred == "order_alignment"
-
-
-def test_infer_task_no_match_raises(tmp_path: Path):
-    results = tmp_path / "results"
-    _write_metrics(results, "STEL", "m", "1_50", "order_alignment", {
-        "acc_mean": 0.5,
-        "submetrics": {"different_label": {"acc_mean": 0.5}},
     })
     with _patch_supported_datasets({"order_alignment": ["STEL"]}):
-        with pytest.raises(ValueError, match="no task's metrics.json contains"):
-            bc._infer_task(str(results), "STEL", ("formal",), episode_params="1_50")
+        rows, sub_rows = bc.discover_all_scores(str(results))
 
-
-def test_infer_task_multiple_match_raises(tmp_path: Path):
-    """Same submetric label under two tasks → ambiguous, ask for --task."""
-    results = tmp_path / "results"
-    _write_metrics(results, "CoDS", "m", "1_50", "order_alignment", {
-        "acc_mean": 0.5,
-        "submetrics": {"shared_label": {"acc_mean": 0.5}},
-    })
-    _write_metrics(results, "CoDS", "m", "1_50", "clustering", {
-        "v_measure": 0.5,
-        "submetrics": {"shared_label": {"v_measure": 0.5}},
-    })
-    with _patch_supported_datasets({
-        "order_alignment": ["CoDS"],
-        "clustering": ["CoDS"],
-    }):
-        with pytest.raises(ValueError, match="Ambiguous task"):
-            bc._infer_task(str(results), "CoDS", ("shared_label",), episode_params="1_50")
+    assert rows[("STEL", "order_alignment", "1_50")] == {"model_a": 0.4}
+    assert sub_rows[("STEL", "order_alignment", "1_50", "formal")] == {"model_a": 0.7}
+    assert sub_rows[("STEL", "order_alignment", "1_50", "complex")] == {"model_a": 0.5}
 
 
 # ---------------------------------------------------------------------------
@@ -392,8 +316,8 @@ def test_build_tables_mixed_entries_rows_dont_collide(tmp_path: Path):
     assert df.loc["model_b", col] == pytest.approx(expected_b)
 
 
-def test_build_tables_submetric_inferred_task(tmp_path: Path):
-    """`--submetrics` without `--task` resolves to a unique task automatically."""
+def test_build_tables_submetric_no_task_picks_up_matching_task(tmp_path: Path):
+    """`--submetrics` without `--task`: contributes to whichever task carries the submetrics."""
     results = _setup_results(tmp_path)
     clusters = {
         "style_similarity": [
@@ -410,3 +334,52 @@ def test_build_tables_submetric_inferred_task(tmp_path: Path):
     col = "order_alignment (distractor_acc_mean)"
     df = tables["style_similarity"]
     assert df.loc["model_a", col] == pytest.approx((0.7 + 0.55) / 2)
+
+
+def test_build_tables_submetric_no_task_contributes_to_every_matching_task(tmp_path: Path):
+    """
+    With `--submetrics` and no `--task`, an entry contributes to *every* task
+    whose metrics.json carries the submetric. Same entry, two task columns.
+    """
+    results = tmp_path / "results"
+    # CoDS has the same submetric label under both order_alignment and clustering.
+    _write_metrics(results, "CoDS", "m", "1_50", "order_alignment", {
+        "distractor_acc_mean": 0.5,
+        "submetrics": {"shared": {"distractor_acc_mean": 0.8}},
+    })
+    _write_metrics(results, "CoDS", "m", "1_50", "clustering", {
+        "v_measure": 0.5,
+        "submetrics": {"shared": {"v_measure": 0.6}},
+    })
+    clusters = {
+        "shared_cluster": [
+            bc.ClusterEntry(dataset="CoDS", task=None, submetrics=("shared",)),
+        ],
+    }
+    supported = {"order_alignment": ["CoDS"], "clustering": ["CoDS"]}
+    with _patch_supported_datasets(supported):
+        tables, column_datasets = bc.build_manual_cluster_tables(
+            str(results), clusters, episode_params="1_50",
+        )
+    df = tables["shared_cluster"]
+    # Both task columns appear, each populated from the matching submetric.
+    assert df.loc["m", "order_alignment (distractor_acc_mean)"] == pytest.approx(0.8)
+    assert df.loc["m", "clustering (v_measure)"] == pytest.approx(0.6)
+
+
+def test_build_tables_submetric_with_no_match_raises(tmp_path: Path):
+    """A typo / unrun submetric raises a clear ValueError instead of silently dropping."""
+    results = tmp_path / "results"
+    _write_metrics(results, "STEL", "m", "1_50", "order_alignment", {
+        "distractor_acc_mean": 0.5, "submetrics": {"different": {"distractor_acc_mean": 0.5}},
+    })
+    clusters = {
+        "bad": [
+            bc.ClusterEntry(dataset="STEL", task=None, submetrics=("missing",)),
+        ],
+    }
+    with _patch_supported_datasets({"order_alignment": ["STEL"]}):
+        with pytest.raises(ValueError, match="no results found"):
+            bc.build_manual_cluster_tables(
+                str(results), clusters, episode_params="1_50",
+            )

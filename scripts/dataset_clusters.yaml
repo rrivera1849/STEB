@@ -11,9 +11,9 @@
 #   metric for every task it supports. Existing behaviour, unchanged.
 # - `--task <task>`: restrict the contribution to one task's top-level metric.
 # - `--submetrics <s1> <s2> ...`: contribute the mean of the listed
-#   submetrics' primary metric. The task is inferred from the metrics tree
-#   if `--task` is omitted; an ambiguous match raises a clear error and
-#   asks for `--task` to disambiguate.
+#   submetrics' primary metric. With `--task`, scoped to that one task.
+#   Without `--task`, contributes to every task whose metrics.json carries
+#   any of the named submetrics. Raises if none match (typo / unrun).
 #
 # Example (cross-dataset per-label grouping):
 #
