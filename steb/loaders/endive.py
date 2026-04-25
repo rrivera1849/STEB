@@ -13,9 +13,11 @@ HF_SPLIT_NAMES = {                                       # HF uses original-case
     "inde": "IndE",
     "jame": "JamE",
 }
-# Keep at least 150 aligned samples per dialect so benchmark settings that
-# require episode_size=3 and n_episodes_per_class=50 do not drop all labels.
-N_PER_DATASET = 150
+# Cap the number of source-ids kept per dataset. Loader returns
+# ``min(N_PER_DATASET, # fully-aligned source-ids)``, so smaller HF tasks
+# still load cleanly with whatever parallel coverage is available — they
+# just contribute fewer records.
+N_PER_DATASET = 100
 
 
 def _detect_columns(
