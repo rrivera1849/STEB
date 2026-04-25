@@ -37,6 +37,11 @@ TASK_DEFAULTS = {
     "retrieval": {"episode_sizes": [1], "n_episodes_per_class": 1},
 }
 
+# Tasks for which auto_submetric_per_label defaults to true. A dataset can
+# still override per-task via "auto_submetric_per_label": false in its config.
+# Validation rejects the flag on tasks not in this set.
+AUTO_PER_LABEL_TASKS = {"order_alignment"}
+
 def get_supported_tasks() -> list[str]:
     """Returns the list of all supported task names."""
     return SUPPORTED_TASKS
@@ -509,15 +514,15 @@ def evaluate(
                     metrics = task.evaluate(*processed_data)
 
                     # Tasks may emit per-label results under the internal key
-                    # "_per_label". order_alignment defaults to lifting that
-                    # payload into metrics["submetrics"]; other tasks default
-                    # to off (and validation rejects the flag on them anyway).
+                    # "_per_label". Tasks listed in AUTO_PER_LABEL_TASKS lift
+                    # that payload into metrics["submetrics"] by default; a
+                    # dataset config may override with an explicit flag.
                     # Either way, strip the internal key before serialisation
                     # so it never appears at the top level.
                     internal_per_label = metrics.pop("_per_label", None)
-                    auto_per_label_default = (current_task_name == "order_alignment")
                     auto_per_label = task_config.get(
-                        "auto_submetric_per_label", auto_per_label_default
+                        "auto_submetric_per_label",
+                        current_task_name in AUTO_PER_LABEL_TASKS,
                     )
 
                     submetrics_config = task_config.get("submetrics", {})

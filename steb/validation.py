@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple
 
 from termcolor import colored
 
-from .core import SUPPORTED_TASKS
+from .core import AUTO_PER_LABEL_TASKS, SUPPORTED_TASKS
 
 VALID_DATASET_TYPES = ("huggingface", "custom")
 
@@ -82,10 +82,10 @@ def validate_config(
                     errors.append(
                         f"Task '{task_name}' auto_submetric_per_label must be a boolean"
                     )
-                elif task_config["auto_submetric_per_label"] and task_name != "order_alignment":
+                elif task_config["auto_submetric_per_label"] and task_name not in AUTO_PER_LABEL_TASKS:
                     errors.append(
                         f"Task '{task_name}' has auto_submetric_per_label=true, but this "
-                        f"flag is currently only supported for order_alignment"
+                        f"flag is currently only supported for: {sorted(AUTO_PER_LABEL_TASKS)}"
                     )
 
     # Type-specific validation
