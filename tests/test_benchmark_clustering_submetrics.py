@@ -2,12 +2,12 @@
 Tests for the flag-aware extensions to scripts/benchmark_clustering.py.
 
 Covers:
-- _parse_entry on each form (plain, --task only, --submetrics only, both,
-  unknown flag).
-- _read_submetric_scores walking a results tree.
-- _infer_task picking a unique task and erroring on ambiguity / no match.
+- _parse_entry on plain and --submetrics entries; unknown flag rejection.
+- discover_submetric_scores walking the results tree.
 - build_manual_cluster_tables: backward-compat regression for plain entries,
-  end-to-end submetric averaging, mixed plain + flagged entries.
+  end-to-end submetric averaging, mixed plain + submetric entries, multi-task
+  contribution when the same submetric label appears under multiple tasks,
+  and the no-match-raises case.
 """
 import json
 import sys
@@ -68,37 +68,23 @@ def _patch_supported_datasets(supported: dict):
 # ---------------------------------------------------------------------------
 
 def test_parse_entry_plain():
-    """A bare dataset string is a plain entry — no task, no submetrics."""
+    """A bare dataset string is a plain entry — no submetrics."""
     entry = bc._parse_entry("STEL")
-    assert entry == bc.ClusterEntry(dataset="STEL", task=None, submetrics=None)
+    assert entry == bc.ClusterEntry(dataset="STEL", submetrics=None)
     assert entry.label == "STEL"
 
 
-def test_parse_entry_task_only():
-    entry = bc._parse_entry("STEL --task order_alignment")
-    assert entry.dataset == "STEL"
-    assert entry.task == "order_alignment"
-    assert entry.submetrics is None
-    assert entry.label == "STEL@order_alignment"
-
-
-def test_parse_entry_submetrics_only():
+def test_parse_entry_submetrics():
     entry = bc._parse_entry("STEL --submetrics formal complex")
     assert entry.dataset == "STEL"
-    assert entry.task is None
     assert entry.submetrics == ("formal", "complex")
-    # No task in the label since none was given.
-    assert "formal+complex" in entry.label
-
-
-def test_parse_entry_both_flags_in_either_order():
-    a = bc._parse_entry("STEL --task order_alignment --submetrics formal complex")
-    b = bc._parse_entry("STEL --submetrics formal complex --task order_alignment")
-    assert a == b
-    assert a.label == "STEL[formal+complex]@order_alignment"
+    assert entry.label == "STEL[formal+complex]"
 
 
 def test_parse_entry_unknown_flag_raises():
+    """`--task` is not (yet) supported; argparse rejects it."""
+    with pytest.raises(ValueError, match="Could not parse"):
+        bc._parse_entry("STEL --task order_alignment")
     with pytest.raises(ValueError, match="Could not parse"):
         bc._parse_entry("STEL --bogus value")
 
@@ -120,11 +106,11 @@ def test_load_manual_clusters_plain_strings_unchanged(tmp_path: Path):
     })
     out = bc.load_manual_clusters(str(clusters_path))
     assert [e.dataset for e in out["topic"]] == ["ds_a", "ds_b"]
-    assert all(e.task is None and e.submetrics is None for e in out["topic"])
+    assert all(e.submetrics is None for e in out["topic"])
 
 
 def test_load_manual_clusters_mixed_entries(tmp_path: Path):
-    """Plain and flagged strings can mix in one cluster."""
+    """Plain and submetric strings can mix in one cluster."""
     clusters_path = tmp_path / "clusters.yaml"
     _write_clusters_yaml(clusters_path, {
         "style_similarity": {
@@ -132,14 +118,12 @@ def test_load_manual_clusters_mixed_entries(tmp_path: Path):
             "datasets": [
                 "plain_dataset",
                 "STEL --submetrics formal complex",
-                "CoDS --task order_alignment",
             ],
         },
     })
-    plain, sub, scoped = bc.load_manual_clusters(str(clusters_path))["style_similarity"]
-    assert plain.dataset == "plain_dataset" and plain.task is None
+    plain, sub = bc.load_manual_clusters(str(clusters_path))["style_similarity"]
+    assert plain.dataset == "plain_dataset" and plain.submetrics is None
     assert sub.dataset == "STEL" and sub.submetrics == ("formal", "complex")
-    assert scoped.dataset == "CoDS" and scoped.task == "order_alignment"
 
 
 def test_load_manual_clusters_rejects_non_string_entries(tmp_path: Path):
@@ -153,11 +137,11 @@ def test_load_manual_clusters_rejects_non_string_entries(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# discover_all_scores: top-level + submetric pulled in one walk
+# discover_submetric_scores: separate walk for per-submetric scores
 # ---------------------------------------------------------------------------
 
-def test_discover_all_scores_collects_top_level_and_submetrics(tmp_path: Path):
-    """One walk fills both ``rows`` (top-level) and ``sub_rows`` (per-submetric)."""
+def test_discover_submetric_scores_collects_per_submetric_rows(tmp_path: Path):
+    """Returns one entry per (dataset, task, ep, submetric, model) tuple."""
     results = tmp_path / "results"
     _write_metrics(results, "STEL", "model_a", "1_50", "order_alignment", {
         "distractor_acc_mean": 0.4,
@@ -167,9 +151,8 @@ def test_discover_all_scores_collects_top_level_and_submetrics(tmp_path: Path):
         },
     })
     with _patch_supported_datasets({"order_alignment": ["STEL"]}):
-        rows, sub_rows = bc.discover_all_scores(str(results))
+        sub_rows = bc.discover_submetric_scores(str(results))
 
-    assert rows[("STEL", "order_alignment", "1_50")] == {"model_a": 0.4}
     assert sub_rows[("STEL", "order_alignment", "1_50", "formal")] == {"model_a": 0.7}
     assert sub_rows[("STEL", "order_alignment", "1_50", "complex")] == {"model_a": 0.5}
 
@@ -265,10 +248,7 @@ def test_build_tables_submetric_entry_averages_within_dataset(tmp_path: Path):
     results = _setup_results(tmp_path)
     clusters = {
         "style_similarity": [
-            bc.ClusterEntry(
-                dataset="STEL", task="order_alignment",
-                submetrics=("formal", "complex"),
-            ),
+            bc.ClusterEntry(dataset="STEL", submetrics=("formal", "complex")),
         ],
     }
     with _patch_supported_datasets(_supported_for_results()):
@@ -280,24 +260,19 @@ def test_build_tables_submetric_entry_averages_within_dataset(tmp_path: Path):
     # mean(0.7, 0.55) for model_a; mean(0.3, 0.15) for model_b
     assert df.loc["model_a", col] == pytest.approx((0.7 + 0.55) / 2)
     assert df.loc["model_b", col] == pytest.approx((0.3 + 0.15) / 2)
-    assert column_datasets["style_similarity"][col] == [
-        "STEL[formal+complex]@order_alignment",
-    ]
+    assert column_datasets["style_similarity"][col] == ["STEL[formal+complex]"]
 
 
 def test_build_tables_mixed_entries_rows_dont_collide(tmp_path: Path):
     """
     A plain STEL entry and a STEL submetric entry coexist in the same cluster.
-    Plain row uses the bare dataset name; flagged row uses the entry label.
+    Plain row uses the bare dataset name; submetric row uses the entry label.
     """
     results = _setup_results(tmp_path)
     clusters = {
         "mixed": [
             bc.ClusterEntry(dataset="STEL"),  # plain
-            bc.ClusterEntry(
-                dataset="STEL", task="order_alignment",
-                submetrics=("formal",),
-            ),
+            bc.ClusterEntry(dataset="STEL", submetrics=("formal",)),
         ],
     }
     with _patch_supported_datasets(_supported_for_results()):
@@ -307,8 +282,8 @@ def test_build_tables_mixed_entries_rows_dont_collide(tmp_path: Path):
     col = "order_alignment (distractor_acc_mean)"
     labels = column_datasets["mixed"][col]
     assert "STEL" in labels
-    assert "STEL[formal]@order_alignment" in labels
-    # Cluster cell is the mean of (plain row, flagged row) per model.
+    assert "STEL[formal]" in labels
+    # Cluster cell is the mean of (plain row, submetric row) per model.
     df = tables["mixed"]
     expected_a = (0.55 + 0.7) / 2  # plain top-level + formal-only
     expected_b = (0.30 + 0.3) / 2
@@ -316,15 +291,12 @@ def test_build_tables_mixed_entries_rows_dont_collide(tmp_path: Path):
     assert df.loc["model_b", col] == pytest.approx(expected_b)
 
 
-def test_build_tables_submetric_no_task_picks_up_matching_task(tmp_path: Path):
-    """`--submetrics` without `--task`: contributes to whichever task carries the submetrics."""
+def test_build_tables_submetric_picks_up_matching_task(tmp_path: Path):
+    """A submetric entry contributes to whichever task carries the submetrics."""
     results = _setup_results(tmp_path)
     clusters = {
         "style_similarity": [
-            bc.ClusterEntry(
-                dataset="STEL", task=None,
-                submetrics=("formal", "complex"),
-            ),
+            bc.ClusterEntry(dataset="STEL", submetrics=("formal", "complex")),
         ],
     }
     with _patch_supported_datasets(_supported_for_results()):
@@ -353,7 +325,7 @@ def test_build_tables_submetric_no_task_contributes_to_every_matching_task(tmp_p
     })
     clusters = {
         "shared_cluster": [
-            bc.ClusterEntry(dataset="CoDS", task=None, submetrics=("shared",)),
+            bc.ClusterEntry(dataset="CoDS", submetrics=("shared",)),
         ],
     }
     supported = {"order_alignment": ["CoDS"], "clustering": ["CoDS"]}
@@ -375,7 +347,7 @@ def test_build_tables_submetric_with_no_match_raises(tmp_path: Path):
     })
     clusters = {
         "bad": [
-            bc.ClusterEntry(dataset="STEL", task=None, submetrics=("missing",)),
+            bc.ClusterEntry(dataset="STEL", submetrics=("missing",)),
         ],
     }
     with _patch_supported_datasets({"order_alignment": ["STEL"]}):

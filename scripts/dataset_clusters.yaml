@@ -5,14 +5,12 @@
 # de-duplication) to produce a single cluster score per model.
 #
 # Each `datasets:` entry is a string of the form:
-#   <dataset_name> [--task <task>] [--submetrics <s1> <s2> ...]
+#   <dataset_name> [--submetrics <s1> <s2> ...]
 #
-# - Bare `<dataset_name>` (no flags): contributes the dataset's top-level
+# - Bare `<dataset_name>` (no flag): contributes the dataset's top-level
 #   metric for every task it supports. Existing behaviour, unchanged.
-# - `--task <task>`: restrict the contribution to one task's top-level metric.
 # - `--submetrics <s1> <s2> ...`: contribute the mean of the listed
-#   submetrics' primary metric. With `--task`, scoped to that one task.
-#   Without `--task`, contributes to every task whose metrics.json carries
+#   submetrics' primary metric, for every task whose metrics.json carries
 #   any of the named submetrics. Raises if none match (typo / unrun).
 #
 # Example (cross-dataset per-label grouping):
