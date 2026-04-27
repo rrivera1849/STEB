@@ -245,9 +245,9 @@ def build_manual_cluster_tables(
                 cluster_model_col.setdefault(cluster_name, {})
                 cluster_model_col[cluster_name].setdefault(model, {})
                 cluster_model_col[cluster_name][model].setdefault(col_id, []).append(score)
-                per_model_col_datasets.setdefault((cluster_name, col_id), {}) \
-                    .setdefault(model, set()).add(dataset)
 
+                model_datasets = per_model_col_datasets.setdefault((cluster_name, col_id), {})
+                model_datasets.setdefault(model, set()).add(dataset)
     cluster_col_datasets: Dict[str, Dict[Tuple[str, str], set]] = {}
     for (cluster_name, col_id), model_to_dsets in per_model_col_datasets.items():
         cluster_col_datasets.setdefault(cluster_name, {})[col_id] = \
