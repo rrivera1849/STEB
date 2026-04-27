@@ -750,7 +750,7 @@ def build_manual_cluster_tables(
     # datasets that not all models have results for.
     if complete_datasets:
         for group_key, dataset_scores in cluster_col_groups.items():
-            all_models: set = set()
+            all_models: set[str] = set()
             for model_scores in dataset_scores.values():
                 all_models.update(model_scores.keys())
 
