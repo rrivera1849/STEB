@@ -52,16 +52,19 @@ def _warn_missing_metric(
 def _resolve_metric_for_entry(
     task: str,
     entry: ClusterEntry,
-) -> Optional[str]:
+) -> str:
     """Pick which metric an entry contributes to a (task, metric) column.
 
     --oa_variant only matters for the order_alignment task; for all other
-    tasks the default TASK_METRICS metric is used. Returns None when the
-    task is unknown to TASK_METRICS (so the caller should skip).
+    tasks the default TASK_METRICS metric is used. Asserts that ``task``
+    is a key of ``TASK_METRICS`` — every task fed in here comes from
+    discovery, which only ever yields tasks that are in ``TASK_METRICS``.
     """
     if task == "order_alignment" and entry.oa_variant is not None:
         return OA_VARIANT_METRICS[entry.oa_variant]
-    return TASK_METRICS.get(task)
+    metric = TASK_METRICS.get(task)
+    assert metric is not None, f"Unknown task {task!r} (not in TASK_METRICS)"
+    return metric
 
 
 def discover_scores(
