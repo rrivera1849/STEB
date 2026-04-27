@@ -106,7 +106,7 @@ style:
   datasets:
     - STEL --oa_variant acc
     - SynthSTEL --oa_variant acc
-    - corpus-of-diverse-styles --oa_variant ac
+    - corpus-of-diverse-styles --oa_variant acc
     - graded_formality --oa_variant acc
     - OneStopEnglishCorpus --oa_variant acc
 
