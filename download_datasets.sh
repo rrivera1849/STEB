@@ -567,6 +567,22 @@ else
     echo "Skipping MASC-3.0.0 (already exists)"
 fi
 
+# Stanford politeness — Wikipedia talk-page requests (ConvoKit)
+if [ ! -d "wikipedia-politeness-corpus" ]; then
+    echo "Downloading wikipedia-politeness-corpus..."
+    python3 -c "from convokit import download; download('wikipedia-politeness-corpus', data_dir='.')"
+else
+    echo "Skipping wikipedia-politeness-corpus (already exists)"
+fi
+
+# Stanford politeness — Stack Exchange requests (ConvoKit)
+if [ ! -d "stack-exchange-politeness-corpus" ]; then
+    echo "Downloading stack-exchange-politeness-corpus..."
+    python3 -c "from convokit import download; download('stack-exchange-politeness-corpus', data_dir='.')"
+else
+    echo "Skipping stack-exchange-politeness-corpus (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing

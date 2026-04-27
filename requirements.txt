@@ -78,3 +78,4 @@ xxhash==3.5.0
 yarl==1.20.1
 gdown==5.2.0
 matplotlib
+convokit==4.1.0
