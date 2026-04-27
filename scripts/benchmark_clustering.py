@@ -624,7 +624,7 @@ def parse_cluster_entry(
 ) -> ClusterEntry:
     """Parse a cluster YAML dataset entry into a ClusterEntry.
 
-    Supports an optional --oa_variant VALUE suffix and an optional
+    Supports an optional --oa_variant VALUE flag and an optional
     --oa_only flag, in any order. --oa_variant selects which
     order_alignment metric to use for this entry (one of
     OA_VARIANT_METRICS); --oa_only restricts the entry to just the
@@ -636,39 +636,24 @@ def parse_cluster_entry(
     Returns:
         A ClusterEntry capturing the dataset name and any flags.
     """
-    tokens = entry.split()
-    if not tokens:
-        raise ValueError(f"Empty cluster entry: {entry!r}")
-
-    name = tokens[0]
+    name, *tokens = entry.split()
     oa_variant: Optional[str] = None
     oa_only = False
-
-    i = 1
-    while i < len(tokens):
-        tok = tokens[i]
-        if tok == "--oa_variant":
-            if i + 1 >= len(tokens):
-                raise ValueError(
-                    f"--oa_variant requires a value in entry '{entry}'."
-                )
-            value = tokens[i + 1]
-            if value not in OA_VARIANT_METRICS:
-                raise ValueError(
-                    f"Unknown --oa_variant '{value}' in entry '{entry}'. "
-                    f"Expected one of: {sorted(OA_VARIANT_METRICS)}."
-                )
-            oa_variant = value
-            i += 2
-        elif tok == "--oa_only":
+    it = iter(tokens)
+    for tok in it:
+        if tok == "--oa_only":
             oa_only = True
-            i += 1
+        elif tok == "--oa_variant":
+            oa_variant = next(it, None)
+            if oa_variant not in OA_VARIANT_METRICS:
+                raise ValueError(
+                    f"Invalid cluster entry '{entry}': --oa_variant expected "
+                    f"one of {sorted(OA_VARIANT_METRICS)}, got {oa_variant!r}."
+                )
         else:
             raise ValueError(
-                f"Unknown token '{tok}' in entry '{entry}'. "
-                f"Expected '--oa_variant VALUE' or '--oa_only'."
+                f"Invalid cluster entry '{entry}': unexpected token {tok!r}."
             )
-
     return ClusterEntry(name=name, oa_variant=oa_variant, oa_only=oa_only)
 
 
