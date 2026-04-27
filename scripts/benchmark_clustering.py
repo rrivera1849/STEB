@@ -677,6 +677,138 @@ def load_manual_clusters(
     return clusters
 
 
+def _resolve_metric_for_entry(
+    task: str,
+    entry: ClusterEntry,
+) -> Optional[str]:
+    """Pick which metric an entry contributes to a (task, metric) column.
+
+    --oa_variant only matters for the order_alignment task; for all other
+    tasks the default TASK_METRICS metric is used. Returns None when the
+    task is unknown to TASK_METRICS (so the caller should skip).
+    """
+    if task == "order_alignment" and entry.oa_variant is not None:
+        return OA_VARIANT_METRICS[entry.oa_variant]
+    return TASK_METRICS.get(task)
+
+
+def _collect_cluster_table_scores(
+    all_scores: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]],
+    dataset_to_entries: Dict[str, List[Tuple[str, ClusterEntry]]],
+    episode_params: Optional[str],
+) -> Tuple[
+    Dict[Tuple[str, str, str, str], Dict[str, float]],
+    set,
+]:
+    """Walk discovered runs and bucket scores by (cluster, task, metric, dataset).
+
+    Honours each entry's --oa_only and --oa_variant flags. Emits a deduped
+    stderr warning whenever a run is dropped because its metrics.json
+    lacks the resolved metric. Returns the per-dataset score buckets plus
+    the set of (cluster, dataset) pairs where an --oa_only entry actually
+    contributed data.
+    """
+    per_dataset: Dict[Tuple[str, str, str, str], Dict[str, float]] = {}
+    warned_missing: set = set()
+    oa_only_contributed: set = set()
+
+    for (dataset, task, ep_config), model_metrics in all_scores.items():
+        if episode_params and ep_config != episode_params:
+            continue
+        if dataset not in dataset_to_entries:
+            continue
+
+        for cluster_name, entry in dataset_to_entries[dataset]:
+            if entry.oa_only and task != "order_alignment":
+                continue
+
+            metric_key = _resolve_metric_for_entry(task, entry)
+            if metric_key is None:
+                continue
+
+            scores: Dict[str, float] = {}
+            for model, metrics in model_metrics.items():
+                value = metrics.get(metric_key)
+                if value is None:
+                    _warn_missing_metric(dataset, task, metric_key, warned_missing)
+                    continue
+                scores[model] = value
+
+            if not scores:
+                continue
+
+            if entry.oa_only:
+                oa_only_contributed.add((cluster_name, dataset))
+
+            key = (cluster_name, task, metric_key, dataset)
+            per_dataset.setdefault(key, {}).update(scores)
+
+    return per_dataset, oa_only_contributed
+
+
+def _filter_incomplete_datasets(
+    cluster_col_groups: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]],
+) -> None:
+    """Mutate cluster_col_groups in place, dropping datasets that don't have all models."""
+    for group_key, dataset_scores in cluster_col_groups.items():
+        all_models: set[str] = set()
+        for model_scores in dataset_scores.values():
+            all_models.update(model_scores.keys())
+
+        complete = {
+            ds: scores for ds, scores in dataset_scores.items()
+            if set(scores.keys()) == all_models
+        }
+        dropped = set(dataset_scores.keys()) - set(complete.keys())
+        if dropped:
+            cluster_name, task, metric_key = group_key
+            print(f"  Manual cluster '{cluster_name}' / {task} ({metric_key}): "
+                  f"dropped {len(dropped)} incomplete dataset(s): {sorted(dropped)}")
+        cluster_col_groups[group_key] = complete
+
+
+def _dataframes_from_groups(
+    cluster_col_groups: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]],
+) -> Tuple[Dict[str, pd.DataFrame], Dict[str, Dict[str, List[str]]]]:
+    """Turn the (cluster, task, metric) groups into one DataFrame per cluster.
+
+    Returns the per-cluster tables plus the per-cluster mapping from
+    column header to the list of contributing datasets.
+    """
+    cluster_model_col: Dict[str, Dict[str, Dict[Tuple[str, str], List[float]]]] = {}
+    cluster_col_datasets: Dict[str, Dict[Tuple[str, str], set]] = {}
+
+    for (cluster_name, task, metric_key), dataset_scores in cluster_col_groups.items():
+        col_id = (task, metric_key)
+        for dataset, model_scores in dataset_scores.items():
+            cluster_col_datasets.setdefault(cluster_name, {}).setdefault(col_id, set()).add(dataset)
+            for model, score in model_scores.items():
+                cluster_model_col.setdefault(cluster_name, {})
+                cluster_model_col[cluster_name].setdefault(model, {})
+                cluster_model_col[cluster_name][model].setdefault(col_id, []).append(score)
+
+    tables: Dict[str, pd.DataFrame] = {}
+    column_datasets: Dict[str, Dict[str, List[str]]] = {}
+    for cluster_name, model_data in sorted(cluster_model_col.items()):
+        records = {}
+        for model, col_scores in sorted(model_data.items()):
+            records[model] = {
+                f"{task} ({metric_key})": np.mean(scores)
+                for (task, metric_key), scores in sorted(col_scores.items())
+            }
+        df = pd.DataFrame(records).T
+        df.index.name = "model"
+        tables[cluster_name] = df
+
+        col_ds = {}
+        for col_id in sorted(cluster_col_datasets.get(cluster_name, {})):
+            task, metric_key = col_id
+            col_ds[f"{task} ({metric_key})"] = sorted(cluster_col_datasets[cluster_name][col_id])
+        column_datasets[cluster_name] = col_ds
+
+    return tables, column_datasets
+
+
 def build_manual_cluster_tables(
     results_dir: str,
     clusters: Dict[str, List[ClusterEntry]],
@@ -727,48 +859,9 @@ def build_manual_cluster_tables(
         for entry in entries:
             dataset_to_entries.setdefault(entry.name, []).append((cluster_name, entry))
 
-    # Collect per-dataset scores keyed by (cluster, task, metric, dataset).
-    # A dataset may appear multiple times across episode configs; later
-    # writes override earlier ones for the same model (matches prior code).
-    per_dataset: Dict[Tuple[str, str, str, str], Dict[str, float]] = {}
-    warned_missing: set = set()
-    oa_only_contributed: set = set()  # (cluster_name, dataset_name) tuples
-
-    for (dataset, task, ep_config), model_metrics in all_scores.items():
-        if episode_params and ep_config != episode_params:
-            continue
-        if dataset not in dataset_to_entries:
-            continue
-
-        for cluster_name, entry in dataset_to_entries[dataset]:
-            if entry.oa_only and task != "order_alignment":
-                continue
-
-            # Resolve the metric for this column. --oa_variant only matters
-            # for the order_alignment task; other tasks always use TASK_METRICS.
-            if task == "order_alignment" and entry.oa_variant is not None:
-                metric_key = OA_VARIANT_METRICS[entry.oa_variant]
-            else:
-                metric_key = TASK_METRICS.get(task)
-                if metric_key is None:
-                    continue
-
-            scores: Dict[str, float] = {}
-            for model, metrics in model_metrics.items():
-                value = metrics.get(metric_key)
-                if value is None:
-                    _warn_missing_metric(dataset, task, metric_key, warned_missing)
-                    continue
-                scores[model] = value
-
-            if not scores:
-                continue
-
-            if entry.oa_only:
-                oa_only_contributed.add((cluster_name, dataset))
-
-            key = (cluster_name, task, metric_key, dataset)
-            per_dataset.setdefault(key, {}).update(scores)
+    per_dataset, oa_only_contributed = _collect_cluster_table_scores(
+        all_scores, dataset_to_entries, episode_params,
+    )
 
     # Warn for --oa_only entries that produced no order_alignment data
     # (e.g. dataset has no results dir, or doesn't declare order_alignment).
@@ -788,59 +881,10 @@ def build_manual_cluster_tables(
         cluster_col_groups.setdefault(group_key, {})
         cluster_col_groups[group_key][dataset] = model_scores
 
-    # Apply complete_datasets filter: within each (cluster, column), drop
-    # datasets that not all models have results for.
     if complete_datasets:
-        for group_key, dataset_scores in cluster_col_groups.items():
-            all_models: set[str] = set()
-            for model_scores in dataset_scores.values():
-                all_models.update(model_scores.keys())
+        _filter_incomplete_datasets(cluster_col_groups)
 
-            complete = {
-                ds: scores for ds, scores in dataset_scores.items()
-                if set(scores.keys()) == all_models
-            }
-            dropped = set(dataset_scores.keys()) - set(complete.keys())
-            if dropped:
-                cluster_name, task, metric_key = group_key
-                print(f"  Manual cluster '{cluster_name}' / {task} ({metric_key}): "
-                      f"dropped {len(dropped)} incomplete dataset(s): {sorted(dropped)}")
-            cluster_col_groups[group_key] = complete
-
-    # Build tables: one DataFrame per cluster, rows = models, columns keyed by (task, metric).
-    cluster_model_col: Dict[str, Dict[str, Dict[Tuple[str, str], List[float]]]] = {}
-    cluster_col_datasets: Dict[str, Dict[Tuple[str, str], set]] = {}
-
-    for (cluster_name, task, metric_key), dataset_scores in cluster_col_groups.items():
-        col_id = (task, metric_key)
-        for dataset, model_scores in dataset_scores.items():
-            cluster_col_datasets.setdefault(cluster_name, {}).setdefault(col_id, set()).add(dataset)
-            for model, score in model_scores.items():
-                cluster_model_col.setdefault(cluster_name, {})
-                cluster_model_col[cluster_name].setdefault(model, {})
-                cluster_model_col[cluster_name][model].setdefault(col_id, []).append(score)
-
-    tables: Dict[str, pd.DataFrame] = {}
-    column_datasets: Dict[str, Dict[str, List[str]]] = {}
-    for cluster_name, model_data in sorted(cluster_model_col.items()):
-        records = {}
-        for model, col_scores in sorted(model_data.items()):
-            records[model] = {
-                f"{task} ({metric_key})": np.mean(scores)
-                for (task, metric_key), scores in sorted(col_scores.items())
-            }
-        df = pd.DataFrame(records).T
-        df.index.name = "model"
-        tables[cluster_name] = df
-
-        col_ds = {}
-        for col_id in sorted(cluster_col_datasets.get(cluster_name, {})):
-            task, metric_key = col_id
-            col_name = f"{task} ({metric_key})"
-            col_ds[col_name] = sorted(cluster_col_datasets[cluster_name][col_id])
-        column_datasets[cluster_name] = col_ds
-
-    return tables, column_datasets
+    return _dataframes_from_groups(cluster_col_groups)
 
 
 def print_manual_cluster_tables(
@@ -876,6 +920,147 @@ def print_manual_cluster_tables(
         with open(table_path, "w") as f:
             f.write(df.to_markdown() + "\n")
         print(f"Saved: {table_path}")
+
+
+def _highlight_best_two(
+    ws,
+    cells: List[Tuple[int, int]],
+    bold_font,
+    underline_font,
+) -> None:
+    """Bold the cell with the largest numeric value, underline the second.
+
+    Args:
+        ws: An openpyxl worksheet.
+        cells: List of (row, col) coordinates to consider. Non-numeric
+            cells are ignored. No-op if fewer than 2 numeric values.
+        bold_font, underline_font: Pre-built openpyxl Font objects.
+    """
+    vals: List[Tuple[float, int, int]] = []
+    for row, col in cells:
+        v = ws.cell(row=row, column=col).value
+        if isinstance(v, (int, float)):
+            vals.append((v, row, col))
+    if len(vals) < 2:
+        return
+    vals.sort(key=lambda x: x[0], reverse=True)
+    ws.cell(row=vals[0][1], column=vals[0][2]).font = bold_font
+    ws.cell(row=vals[1][1], column=vals[1][2]).font = underline_font
+
+
+def _build_scores_records(
+    rows: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]],
+) -> List[Dict[str, object]]:
+    """Flatten discovered runs into per-row records for the 'scores' sheet.
+
+    One record per (dataset, task, episode_config); each model's primary
+    metric is added as a column. Emits a deduped warning when a run is
+    missing the expected metric.
+    """
+    records: List[Dict[str, object]] = []
+    warned_missing: set = set()
+    for (dataset, task, episode_config), model_metrics in sorted(rows.items()):
+        primary_metric = TASK_METRICS[task]
+        record: Dict[str, object] = {
+            "dataset": dataset,
+            "task": task,
+            "episode_config": episode_config,
+            "primary_metric": primary_metric,
+        }
+        for model, metrics in model_metrics.items():
+            value = metrics.get(primary_metric)
+            if value is None:
+                _warn_missing_metric(dataset, task, primary_metric, warned_missing)
+                continue
+            record[model] = value
+        records.append(record)
+    return records
+
+
+def _write_scores_sheet(
+    writer,
+    scores_df: pd.DataFrame,
+    n_meta_cols: int,
+    n_model_cols: int,
+    bold_font,
+    underline_font,
+) -> None:
+    """Write the 'scores' sheet and bold/underline the best two per row."""
+    scores_df.to_excel(writer, sheet_name="scores", index=False)
+    ws = writer.sheets["scores"]
+    model_col_start = n_meta_cols + 1  # 1-indexed, after meta columns
+    model_col_end = model_col_start + n_model_cols - 1
+    for row_idx in range(2, len(scores_df) + 2):  # skip header
+        cells = [(row_idx, c) for c in range(model_col_start, model_col_end + 1)]
+        _highlight_best_two(ws, cells, bold_font, underline_font)
+
+
+def _write_summary_sheet(
+    writer,
+    task_scores: Dict[str, pd.Series],
+    task_metrics: Dict[str, str],
+    bold_font,
+    underline_font,
+) -> None:
+    """Write the 'summary' sheet (one row per model, one col per task) and
+    bold/underline the best two cells per column."""
+    columns = {
+        f"{task} ({task_metrics[task]})": scores
+        for task, scores in task_scores.items()
+    }
+    summary_df = pd.DataFrame(columns)
+    summary_df.index.name = "model"
+    summary_df.to_excel(writer, sheet_name="summary")
+
+    ws = writer.sheets["summary"]
+    for col_idx in range(2, len(summary_df.columns) + 2):  # skip index col
+        cells = [(r, col_idx) for r in range(2, len(summary_df) + 2)]
+        _highlight_best_two(ws, cells, bold_font, underline_font)
+
+
+def _write_manual_cluster_sheet(
+    writer,
+    cluster_name: str,
+    mc_df: pd.DataFrame,
+    col_ds: Dict[str, List[str]],
+    bold_font,
+    underline_font,
+    italic_font,
+) -> None:
+    """Write one mc_{cluster} sheet: dataset list above, then the table,
+    with the best two cells per column bolded/underlined."""
+    sheet_name = f"mc_{cluster_name}"[:31]  # Excel 31-char limit
+
+    # Leave rows above the data for the per-column dataset list, plus a blank.
+    max_datasets = max((len(ds) for ds in col_ds.values()), default=0)
+    data_start_row = max_datasets + 2 if max_datasets > 0 else 0
+    mc_df.to_excel(writer, sheet_name=sheet_name, startrow=data_start_row)
+
+    ws = writer.sheets[sheet_name]
+
+    if col_ds:
+        ws.cell(row=1, column=1, value="Datasets:").font = italic_font
+        for col_idx, col_name in enumerate(mc_df.columns, start=2):
+            for ds_idx, ds_name in enumerate(col_ds.get(col_name, [])):
+                cell = ws.cell(row=1 + ds_idx, column=col_idx, value=ds_name)
+                cell.font = italic_font
+
+    header_row = data_start_row + 1
+    for col_idx in range(2, len(mc_df.columns) + 2):
+        cells = [(r, col_idx) for r in range(header_row + 1, header_row + len(mc_df) + 1)]
+        _highlight_best_two(ws, cells, bold_font, underline_font)
+
+
+def _autosize_workbook_columns(workbook) -> None:
+    """Set every column's width to fit its widest cell value."""
+    for ws in workbook.worksheets:
+        for col in ws.columns:
+            max_len = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                if cell.value is not None:
+                    max_len = max(max_len, len(str(cell.value)))
+            ws.column_dimensions[col_letter].width = max_len + 2
 
 
 def export_excel(
@@ -916,128 +1101,40 @@ def export_excel(
         print("No scores found. Nothing to export.")
         return
 
-    records = []
-    warned_missing: set = set()
-    for (dataset, task, episode_config), model_metrics in sorted(rows.items()):
-        primary_metric = TASK_METRICS[task]
-        record: Dict[str, object] = {
-            "dataset": dataset,
-            "task": task,
-            "episode_config": episode_config,
-            "primary_metric": primary_metric,
-        }
-        for model, metrics in model_metrics.items():
-            value = metrics.get(primary_metric)
-            if value is None:
-                _warn_missing_metric(dataset, task, primary_metric, warned_missing)
-                continue
-            record[model] = value
-        records.append(record)
-
+    records = _build_scores_records(rows)
     scores_df = pd.DataFrame(records)
 
-    # Ensure metadata columns come first, then models sorted alphabetically
+    # Ensure metadata columns come first, then models sorted alphabetically.
     meta_cols = ["dataset", "task", "episode_config", "primary_metric"]
     model_cols = sorted(c for c in scores_df.columns if c not in meta_cols)
     scores_df = scores_df[meta_cols + model_cols]
 
     from openpyxl.styles import Font
-
     bold_font = Font(bold=True)
     underline_font = Font(underline="single")
+    italic_font = Font(italic=True)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        scores_df.to_excel(writer, sheet_name="scores", index=False)
-
-        # Bold best, underline second best per row (across model columns)
-        ws_scores = writer.sheets["scores"]
-        model_col_start = len(meta_cols) + 1  # 1-indexed, after meta columns
-        model_col_end = model_col_start + len(model_cols) - 1
-        for row_idx in range(2, len(scores_df) + 2):  # skip header
-            vals = []
-            for col_idx in range(model_col_start, model_col_end + 1):
-                cell = ws_scores.cell(row=row_idx, column=col_idx)
-                if isinstance(cell.value, (int, float)):
-                    vals.append((cell.value, col_idx))
-            if len(vals) < 2:
-                continue
-            vals.sort(key=lambda x: x[0], reverse=True)
-            ws_scores.cell(row=row_idx, column=vals[0][1]).font = bold_font
-            ws_scores.cell(row=row_idx, column=vals[1][1]).font = underline_font
+        _write_scores_sheet(
+            writer, scores_df, len(meta_cols), len(model_cols),
+            bold_font, underline_font,
+        )
 
         if task_scores and task_metrics:
-            columns = {
-                f"{task} ({task_metrics[task]})": scores
-                for task, scores in task_scores.items()
-            }
-            summary_df = pd.DataFrame(columns)
-            summary_df.index.name = "model"
-            summary_df.to_excel(writer, sheet_name="summary")
-
-            # Bold best, underline second best per column (across models)
-            ws_summary = writer.sheets["summary"]
-            for col_idx in range(2, len(summary_df.columns) + 2):  # skip index col
-                vals = []
-                for row_idx in range(2, len(summary_df) + 2):  # skip header
-                    cell = ws_summary.cell(row=row_idx, column=col_idx)
-                    if isinstance(cell.value, (int, float)):
-                        vals.append((cell.value, row_idx))
-                if len(vals) < 2:
-                    continue
-                vals.sort(key=lambda x: x[0], reverse=True)
-                ws_summary.cell(row=vals[0][1], column=col_idx).font = bold_font
-                ws_summary.cell(row=vals[1][1], column=col_idx).font = underline_font
+            _write_summary_sheet(
+                writer, task_scores, task_metrics, bold_font, underline_font,
+            )
 
         if manual_cluster_tables:
             col_ds_all = manual_cluster_datasets or {}
             for cluster_name, mc_df in sorted(manual_cluster_tables.items()):
-                sheet_name = f"mc_{cluster_name}"[:31]  # Excel 31-char limit
-                col_ds = col_ds_all.get(cluster_name, {})
-
-                # Find max number of datasets across columns for row offset
-                max_datasets = max(
-                    (len(ds) for ds in col_ds.values()),
-                    default=0,
+                _write_manual_cluster_sheet(
+                    writer, cluster_name, mc_df,
+                    col_ds_all.get(cluster_name, {}),
+                    bold_font, underline_font, italic_font,
                 )
-                # Leave rows for: "Datasets:" label + one row per dataset + blank row
-                data_start_row = max_datasets + 2 if max_datasets > 0 else 0
-                mc_df.to_excel(writer, sheet_name=sheet_name, startrow=data_start_row)
 
-                ws = writer.sheets[sheet_name]
-
-                # Write dataset lists above the data
-                if col_ds:
-                    italic_font = Font(italic=True)
-                    ws.cell(row=1, column=1, value="Datasets:").font = italic_font
-                    for col_idx, col_name in enumerate(mc_df.columns, start=2):
-                        datasets = col_ds.get(col_name, [])
-                        for ds_idx, ds_name in enumerate(datasets):
-                            cell = ws.cell(row=1 + ds_idx, column=col_idx, value=ds_name)
-                            cell.font = italic_font
-
-                # Bold best, underline second best per column
-                header_row = data_start_row + 1
-                for col_idx in range(2, len(mc_df.columns) + 2):
-                    vals = []
-                    for row_idx in range(header_row + 1, header_row + len(mc_df) + 1):
-                        cell = ws.cell(row=row_idx, column=col_idx)
-                        if isinstance(cell.value, (int, float)):
-                            vals.append((cell.value, row_idx))
-                    if len(vals) < 2:
-                        continue
-                    vals.sort(key=lambda x: x[0], reverse=True)
-                    ws.cell(row=vals[0][1], column=col_idx).font = bold_font
-                    ws.cell(row=vals[1][1], column=col_idx).font = underline_font
-
-        # Auto-resize columns for all sheets
-        for ws in writer.book.worksheets:
-            for col in ws.columns:
-                max_len = 0
-                col_letter = col[0].column_letter
-                for cell in col:
-                    if cell.value is not None:
-                        max_len = max(max_len, len(str(cell.value)))
-                ws.column_dimensions[col_letter].width = max_len + 2
+        _autosize_workbook_columns(writer.book)
 
     n_sheets = 1
     if task_scores:
