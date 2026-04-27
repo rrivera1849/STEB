@@ -1,7 +1,7 @@
 {
   "dataset_name": "facebook/asset",
   "type": "huggingface",
-  "comment": "ASSET (Alva-Manchego et al., ACL 2020, doi:10.18653/v1/2020.acl-main.424). GitHub: https://github.com/facebookresearch/asset. HuggingFace mirror facebook/asset. Same English Wikipedia originals as TurkCorpus with 10 higher-quality references per sentence; we sample one reference per original (seeded by a stable hash of the original sentence) to form a length-2 simple->complex ordered pair.",
+  "comment": "ASSET (Alva-Manchego et al., ACL 2020, doi:10.18653/v1/2020.acl-main.424). GitHub: https://github.com/facebookresearch/asset. HuggingFace mirror facebook/asset.",
   "record_handler": {
     "text_getter": "text",
     "label_getter": "label",
