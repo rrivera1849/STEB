@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -38,13 +39,29 @@ TASK_METRICS: Dict[str, str] = {
 
 # Recognised --oa_variant values for cluster YAML entries.
 # Each maps the variant name to the metric used for the order_alignment task
-# when that variant is selected. Entries with an oa_variant are restricted to
-# the order_alignment task only (other tasks the dataset declares are dropped
-# for that cluster entry).
+# when that variant is selected. --oa_variant only controls the metric; use
+# --oa_only to additionally restrict an entry to the order_alignment task.
 OA_VARIANT_METRICS: Dict[str, str] = {
     "distractor": "distractor_acc_mean",
     "acc": "acc_mean",
 }
+
+
+@dataclass(frozen=True)
+class ClusterEntry:
+    """A parsed cluster YAML entry.
+
+    Attributes:
+        name: The dataset name.
+        oa_variant: Which order_alignment metric to use for this entry —
+            None (use TASK_METRICS default), "distractor", or "acc".
+        oa_only: If True, only the order_alignment task contributes to the
+            cluster table for this entry; other tasks the dataset declares
+            are dropped.
+    """
+    name: str
+    oa_variant: Optional[str] = None
+    oa_only: bool = False
 
 # Datasets where the label is primarily semantic (topic, sentiment, content)
 # rather than stylistic. Excluded from analysis by default.
@@ -604,51 +621,72 @@ def _warn_missing_metric(
 
 def parse_cluster_entry(
     entry: str,
-) -> Tuple[str, Optional[str]]:
-    """Parse a cluster YAML dataset entry into (dataset_name, oa_variant).
+) -> ClusterEntry:
+    """Parse a cluster YAML dataset entry into a ClusterEntry.
 
-    Supports the syntax 'DATASET_NAME --oa_variant VARIANT_NAME', where
-    VARIANT_NAME is a key of OA_VARIANT_METRICS (currently 'distractor' or
-    'acc'). Returns (dataset_name, None) if no oa_variant suffix is present.
+    Supports an optional --oa_variant VALUE suffix and an optional
+    --oa_only flag, in any order. --oa_variant selects which
+    order_alignment metric to use for this entry (one of
+    OA_VARIANT_METRICS); --oa_only restricts the entry to just the
+    order_alignment task. Either may appear without the other.
 
     Args:
         entry: A raw entry string from the cluster YAML.
 
     Returns:
-        A tuple of (dataset_name, oa_variant_or_None).
+        A ClusterEntry capturing the dataset name and any flags.
     """
-    parts = entry.split()
-    if len(parts) == 1:
-        return parts[0], None
-    if len(parts) == 3 and parts[1] == "--oa_variant":
-        if parts[2] not in OA_VARIANT_METRICS:
+    tokens = entry.split()
+    if not tokens:
+        raise ValueError(f"Empty cluster entry: {entry!r}")
+
+    name = tokens[0]
+    oa_variant: Optional[str] = None
+    oa_only = False
+
+    i = 1
+    while i < len(tokens):
+        tok = tokens[i]
+        if tok == "--oa_variant":
+            if i + 1 >= len(tokens):
+                raise ValueError(
+                    f"--oa_variant requires a value in entry '{entry}'."
+                )
+            value = tokens[i + 1]
+            if value not in OA_VARIANT_METRICS:
+                raise ValueError(
+                    f"Unknown --oa_variant '{value}' in entry '{entry}'. "
+                    f"Expected one of: {sorted(OA_VARIANT_METRICS)}."
+                )
+            oa_variant = value
+            i += 2
+        elif tok == "--oa_only":
+            oa_only = True
+            i += 1
+        else:
             raise ValueError(
-                f"Unknown --oa_variant '{parts[2]}' in entry '{entry}'. "
-                f"Expected one of: {sorted(OA_VARIANT_METRICS)}."
+                f"Unknown token '{tok}' in entry '{entry}'. "
+                f"Expected '--oa_variant VALUE' or '--oa_only'."
             )
-        return parts[0], parts[2]
-    raise ValueError(
-        f"Invalid cluster entry '{entry}'. "
-        f"Expected 'NAME' or 'NAME --oa_variant VARIANT'."
-    )
+
+    return ClusterEntry(name=name, oa_variant=oa_variant, oa_only=oa_only)
 
 
 def load_manual_clusters(
     clusters_path: str,
-) -> Dict[str, List[Tuple[str, Optional[str]]]]:
+) -> Dict[str, List[ClusterEntry]]:
     """Load manual dataset clusters from a YAML file.
 
     Args:
         clusters_path: Path to the YAML file with cluster definitions.
 
     Returns:
-        A dict mapping cluster name to a list of (dataset_name, oa_variant)
-        tuples, where oa_variant is None for plain entries.
+        A dict mapping cluster name to a list of ClusterEntry records.
     """
     with open(clusters_path) as f:
         raw = yaml.safe_load(f)
 
-    clusters: Dict[str, List[Tuple[str, Optional[str]]]] = {}
+    clusters: Dict[str, List[ClusterEntry]] = {}
     for name, config in raw.items():
         clusters[name] = [parse_cluster_entry(entry) for entry in config["datasets"]]
     return clusters
@@ -656,7 +694,7 @@ def load_manual_clusters(
 
 def build_manual_cluster_tables(
     results_dir: str,
-    clusters: Dict[str, List[Tuple[str, Optional[str]]]],
+    clusters: Dict[str, List[ClusterEntry]],
     episode_params: Optional[str],
     include_excluded: bool = False,
     complete_datasets: bool = False,
@@ -669,15 +707,17 @@ def build_manual_cluster_tables(
     column key. Each cell is the average metric across datasets in that
     cluster that contribute to the column.
 
-    Plain dataset entries contribute to every task they declare, using the
-    TASK_METRICS metric. Entries with --oa_variant contribute only to the
-    order_alignment task, with the metric resolved via OA_VARIANT_METRICS.
+    Per-entry flags decouple two concerns:
+      - --oa_variant only changes which order_alignment metric is used
+        (via OA_VARIANT_METRICS); the entry still contributes to all
+        tasks the dataset declares.
+      - --oa_only restricts an entry to the order_alignment task; other
+        tasks the dataset declares are dropped for that entry.
 
     Args:
         results_dir: Path to the root results directory.
-        clusters: Mapping from cluster name to a list of
-            (dataset_name, oa_variant) tuples (oa_variant is None for plain
-            entries).
+        clusters: Mapping from cluster name to a list of ClusterEntry
+            records.
         episode_params: Episode params filter (e.g. '1_50').
         include_excluded: If True, include semantic and non-English datasets.
         complete_datasets: If True, within each (cluster, column) group, drop
@@ -694,51 +734,67 @@ def build_manual_cluster_tables(
     if not all_scores:
         return {}, {}
 
-    # Invert clusters: dataset -> (cluster_name, oa_variant). Last write wins
-    # if a dataset is listed in multiple clusters (matches prior behaviour).
-    dataset_to_cluster_entry: Dict[str, Tuple[str, Optional[str]]] = {}
+    # Invert clusters: dataset -> list of (cluster_name, entry). A dataset
+    # may legitimately appear in more than one cluster (e.g. once plain in
+    # 'style', once with --oa_only in 'style_vs_content').
+    dataset_to_entries: Dict[str, List[Tuple[str, ClusterEntry]]] = {}
     for cluster_name, entries in clusters.items():
-        for ds_name, oa_variant in entries:
-            dataset_to_cluster_entry[ds_name] = (cluster_name, oa_variant)
+        for entry in entries:
+            dataset_to_entries.setdefault(entry.name, []).append((cluster_name, entry))
 
     # Collect per-dataset scores keyed by (cluster, task, metric, dataset).
     # A dataset may appear multiple times across episode configs; later
     # writes override earlier ones for the same model (matches prior code).
     per_dataset: Dict[Tuple[str, str, str, str], Dict[str, float]] = {}
     warned_missing: set = set()
+    oa_only_contributed: set = set()  # (cluster_name, dataset_name) tuples
 
     for (dataset, task, ep_config), model_metrics in all_scores.items():
         if episode_params and ep_config != episode_params:
             continue
-        if dataset not in dataset_to_cluster_entry:
+        if dataset not in dataset_to_entries:
             continue
 
-        cluster_name, oa_variant = dataset_to_cluster_entry[dataset]
-
-        # Resolve which (task, metric) column this entry contributes to.
-        # --oa_variant restricts the entry to order_alignment only.
-        if oa_variant is not None:
-            if task != "order_alignment":
-                continue
-            metric_key = OA_VARIANT_METRICS[oa_variant]
-        else:
-            metric_key = TASK_METRICS.get(task)
-            if metric_key is None:
+        for cluster_name, entry in dataset_to_entries[dataset]:
+            if entry.oa_only and task != "order_alignment":
                 continue
 
-        scores: Dict[str, float] = {}
-        for model, metrics in model_metrics.items():
-            value = metrics.get(metric_key)
-            if value is None:
-                _warn_missing_metric(dataset, task, metric_key, warned_missing)
+            # Resolve the metric for this column. --oa_variant only matters
+            # for the order_alignment task; other tasks always use TASK_METRICS.
+            if task == "order_alignment" and entry.oa_variant is not None:
+                metric_key = OA_VARIANT_METRICS[entry.oa_variant]
+            else:
+                metric_key = TASK_METRICS.get(task)
+                if metric_key is None:
+                    continue
+
+            scores: Dict[str, float] = {}
+            for model, metrics in model_metrics.items():
+                value = metrics.get(metric_key)
+                if value is None:
+                    _warn_missing_metric(dataset, task, metric_key, warned_missing)
+                    continue
+                scores[model] = value
+
+            if not scores:
                 continue
-            scores[model] = value
 
-        if not scores:
-            continue
+            if entry.oa_only:
+                oa_only_contributed.add((cluster_name, dataset))
 
-        key = (cluster_name, task, metric_key, dataset)
-        per_dataset.setdefault(key, {}).update(scores)
+            key = (cluster_name, task, metric_key, dataset)
+            per_dataset.setdefault(key, {}).update(scores)
+
+    # Warn for --oa_only entries that produced no order_alignment data
+    # (e.g. dataset has no results dir, or doesn't declare order_alignment).
+    for cluster_name, entries in clusters.items():
+        for entry in entries:
+            if entry.oa_only and (cluster_name, entry.name) not in oa_only_contributed:
+                print(
+                    f"  WARNING: cluster '{cluster_name}' entry "
+                    f"'{entry.name} --oa_only' produced no order_alignment results.",
+                    file=sys.stderr,
+                )
 
     # Group by (cluster, task, metric) to find all models and datasets per column.
     cluster_col_groups: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]] = {}
