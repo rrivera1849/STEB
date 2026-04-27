@@ -560,7 +560,8 @@ fi
 # Xu et al. 2012 parallel Shakespeare (COLING 2012)
 if [ ! -d "parallel_shakespeare" ]; then
     echo "Downloading parallel_shakespeare..."
-    git clone --depth 1 https://github.com/cocoxu/Shakespeare.git parallel_shakespeare_tmp
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/cocoxu/Shakespeare.git parallel_shakespeare_tmp
+    git -C parallel_shakespeare_tmp sparse-checkout set data/align/plays/merged
     mkdir -p parallel_shakespeare
     cp parallel_shakespeare_tmp/data/align/plays/merged/*.snt.aligned parallel_shakespeare/
     rm -rf parallel_shakespeare_tmp
