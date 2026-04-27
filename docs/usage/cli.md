@@ -31,6 +31,8 @@ steb --preset fast "rrivera1849/LUAR-MUD"
 | `--batch-size` | Batch size for embedding (default: 32) |
 | `--output-folder` | Folder to save results to |
 | `--force-reload` | Force reload datasets |
+| `--force-rerun` | Re-run all tasks even if metrics already exist |
+| `--force-rerun-oa` | Re-run the order_alignment task only |
 | `--progress-bar` | Show a progress bar |
 | `--seed` | Random seed (default: 42) |
 
