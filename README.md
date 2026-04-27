@@ -24,7 +24,7 @@ Some datasets need to be downloaded before use. The `download_datasets.sh` scrip
 
 The script skips datasets that have already been downloaded. Use `--purge` to force a clean re-download.
 
-> **Note:** `download_datasets.sh` invokes Python tools (`gdown`, `convokit`, etc.) declared in `requirements.txt`, so run it with the project's environment active (i.e. after `pip install -r requirements.txt` in the venv you intend to use). Otherwise these helpers won't be importable and the script will fail.
+> **Note:** `download_datasets.sh` invokes Python tools (`gdown`, etc.) declared in `requirements.txt`, so run it with the project's environment active (i.e. after `pip install -r requirements.txt` in the venv you intend to use). Otherwise these helpers won't be importable and the script will fail.
 
 ## Configuration
 

@@ -20,7 +20,8 @@ def load_politeness_dataset(
     Args:
         data_dir: Path to the unpacked ConvoKit corpus directory
             (e.g. ``raw_datasets/wikipedia-politeness-corpus``), as
-            produced by ``convokit.download(...)``.
+            produced by the curl/unzip blocks in
+            ``download_datasets.sh``.
 
     Returns:
         A list of records ``{"text": str, "label": int}`` with labels in
