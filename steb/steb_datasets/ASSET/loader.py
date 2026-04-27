@@ -11,10 +11,7 @@ def asset_record_handler(
 
     Builds one length-2 order-alignment record per HF row by pairing one of
     the 10 crowdsourced simplifications with the original Wikipedia
-    sentence. The simplification is sampled with a `random.Random` seeded
-    from a stable SHA-256 digest of the original sentence, so the same pair
-    is produced on every run (Python's built-in `hash` is randomised per
-    process and cannot be used here). Positions are ordered
+    sentence. Positions are ordered
     simple -> complex, so position 0 is the simpler reference and
     position 1 is the original.
 
