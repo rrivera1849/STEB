@@ -1,7 +1,7 @@
 """Read scores from the results directory."""
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -81,7 +81,7 @@ def discover_scores(
 def discover_all_scores(
     results_dir: str,
     include_excluded: bool = False,
-) -> Dict[tuple, Dict[str, float]]:
+) -> List[Dict[str, object]]:
     """Scan the results directory and collect all scores across tasks.
 
     Respects EXCLUDED_DATASETS, EXCLUDED_MODELS, and NON_ENGLISH_DATASETS
@@ -98,7 +98,7 @@ def discover_all_scores(
     """
     results_path = Path(results_dir)
     if not results_path.exists():
-        return {}
+        return []
 
     # Build a map of dataset -> set of tasks it supports
     dataset_tasks: Dict[str, set] = {}
