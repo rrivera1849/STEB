@@ -155,6 +155,13 @@ def build_manual_cluster_tables(
     # deterministic instead of mixing every ep_config on disk.
     benchmark_defaults = None if episode_params else _benchmark_default_ep_configs()
 
+    if episode_params:
+        print(f"Manual clusters: using --episode-params {episode_params!r} for every task.")
+    else:
+        print("Manual clusters: --episode-params not set; using benchmark preset defaults per task:")
+        for task, ep_config in sorted(benchmark_defaults.items()):
+            print(f"  {task}: {ep_config}")
+
     # Walk discovered runs, honour each entry's --oa_only and --oa_variant
     # flags, and bucket scores by (cluster, task, metric, dataset).
     scores_by_cluster_task_metric: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]] = {}
