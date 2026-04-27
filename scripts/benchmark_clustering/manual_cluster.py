@@ -82,130 +82,6 @@ def load_manual_clusters(
     return clusters
 
 
-def _aggregate_scores_per_column(
-    all_scores: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]],
-    dataset_to_entries: Dict[str, List[Tuple[str, ClusterEntry]]],
-    episode_params: Optional[str],
-) -> Tuple[
-    Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]],
-    set,
-]:
-    """Walk discovered runs and bucket scores by (cluster, task, metric).
-
-    Honours each entry's --oa_only and --oa_variant flags. Emits a deduped
-    stderr warning whenever a run is dropped because its metrics.json
-    lacks the resolved metric. Returns the per-column score buckets plus
-    the set of (cluster, dataset) pairs where an --oa_only entry actually
-    contributed data (used by the caller to warn on silent --oa_only
-    entries).
-    """
-    scores_by_column: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]] = {}
-    warned_missing: set = set()
-    oa_only_with_data: set = set()
-
-    for (dataset, task, ep_config), model_metrics in all_scores.items():
-        if episode_params and ep_config != episode_params:
-            continue
-        if dataset not in dataset_to_entries:
-            continue
-
-        for cluster_name, entry in dataset_to_entries[dataset]:
-            if entry.oa_only and task != "order_alignment":
-                continue
-
-            metric_key = _resolve_metric_for_entry(task, entry)
-            if metric_key is None:
-                continue
-
-            scores: Dict[str, float] = {}
-            for model, metrics in model_metrics.items():
-                value = metrics.get(metric_key)
-                if value is None:
-                    _warn_missing_metric(dataset, task, metric_key, warned_missing)
-                    continue
-                scores[model] = value
-
-            if not scores:
-                continue
-
-            if entry.oa_only:
-                oa_only_with_data.add((cluster_name, dataset))
-
-            column_key = (cluster_name, task, metric_key)
-            scores_by_column.setdefault(column_key, {}).setdefault(dataset, {}).update(scores)
-
-    return scores_by_column, oa_only_with_data
-
-
-def _drop_incomplete_datasets(
-    scores_by_column: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]],
-) -> None:
-    """Mutate scores_by_column in place, dropping datasets that don't have all models.
-
-    Within each (cluster, task, metric) column, computes the union of
-    models across all datasets and drops any dataset whose model set is
-    a strict subset of that union.
-    """
-    for column_key, dataset_scores in scores_by_column.items():
-        all_models: set[str] = set()
-        for model_scores in dataset_scores.values():
-            all_models.update(model_scores.keys())
-
-        complete = {
-            ds: scores for ds, scores in dataset_scores.items()
-            if set(scores.keys()) == all_models
-        }
-        dropped = set(dataset_scores.keys()) - set(complete.keys())
-        if dropped:
-            cluster_name, task, metric_key = column_key
-            print(f"  Manual cluster '{cluster_name}' / {task} ({metric_key}): "
-                  f"dropped {len(dropped)} incomplete dataset(s): {sorted(dropped)}")
-        scores_by_column[column_key] = complete
-
-
-def _build_cluster_dataframes(
-    scores_by_column: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]],
-) -> Tuple[Dict[str, pd.DataFrame], Dict[str, Dict[str, List[str]]]]:
-    """Turn the per-column scores into one DataFrame per cluster.
-
-    Returns the per-cluster tables (rows = models, columns = "task (metric)"
-    headers) plus the per-cluster mapping from column header to the list
-    of contributing datasets.
-    """
-    cluster_model_col: Dict[str, Dict[str, Dict[Tuple[str, str], List[float]]]] = {}
-    cluster_col_datasets: Dict[str, Dict[Tuple[str, str], set]] = {}
-
-    for (cluster_name, task, metric_key), dataset_scores in scores_by_column.items():
-        col_id = (task, metric_key)
-        for dataset, model_scores in dataset_scores.items():
-            cluster_col_datasets.setdefault(cluster_name, {}).setdefault(col_id, set()).add(dataset)
-            for model, score in model_scores.items():
-                cluster_model_col.setdefault(cluster_name, {})
-                cluster_model_col[cluster_name].setdefault(model, {})
-                cluster_model_col[cluster_name][model].setdefault(col_id, []).append(score)
-
-    tables: Dict[str, pd.DataFrame] = {}
-    column_datasets: Dict[str, Dict[str, List[str]]] = {}
-    for cluster_name, model_data in sorted(cluster_model_col.items()):
-        records = {}
-        for model, col_scores in sorted(model_data.items()):
-            records[model] = {
-                f"{task} ({metric_key})": np.mean(scores)
-                for (task, metric_key), scores in sorted(col_scores.items())
-            }
-        df = pd.DataFrame(records).T
-        df.index.name = "model"
-        tables[cluster_name] = df
-
-        col_ds = {}
-        for col_id in sorted(cluster_col_datasets.get(cluster_name, {})):
-            task, metric_key = col_id
-            col_ds[f"{task} ({metric_key})"] = sorted(cluster_col_datasets[cluster_name][col_id])
-        column_datasets[cluster_name] = col_ds
-
-    return tables, column_datasets
-
-
 def build_manual_cluster_tables(
     results_dir: str,
     clusters: Dict[str, List[ClusterEntry]],
@@ -249,9 +125,42 @@ def build_manual_cluster_tables(
         for entry in entries:
             dataset_to_entries.setdefault(entry.name, []).append((cluster_name, entry))
 
-    scores_by_column, oa_only_with_data = _aggregate_scores_per_column(
-        all_scores, dataset_to_entries, episode_params,
-    )
+    # Walk discovered runs, honour each entry's --oa_only and --oa_variant
+    # flags, and bucket scores by (cluster, task, metric, dataset).
+    scores_by_column: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]] = {}
+    warned_missing: set = set()
+    oa_only_with_data: set = set()
+
+    for (dataset, task, ep_config), model_metrics in all_scores.items():
+        if episode_params and ep_config != episode_params:
+            continue
+        if dataset not in dataset_to_entries:
+            continue
+
+        for cluster_name, entry in dataset_to_entries[dataset]:
+            if entry.oa_only and task != "order_alignment":
+                continue
+
+            metric_key = _resolve_metric_for_entry(task, entry)
+            if metric_key is None:
+                continue
+
+            scores: Dict[str, float] = {}
+            for model, metrics in model_metrics.items():
+                value = metrics.get(metric_key)
+                if value is None:
+                    _warn_missing_metric(dataset, task, metric_key, warned_missing)
+                    continue
+                scores[model] = value
+
+            if not scores:
+                continue
+
+            if entry.oa_only:
+                oa_only_with_data.add((cluster_name, dataset))
+
+            column_key = (cluster_name, task, metric_key)
+            scores_by_column.setdefault(column_key, {}).setdefault(dataset, {}).update(scores)
 
     # Warn for --oa_only entries that produced no order_alignment data
     # (e.g. dataset has no results dir, or doesn't declare order_alignment).
@@ -264,10 +173,59 @@ def build_manual_cluster_tables(
                     file=sys.stderr,
                 )
 
+    # Apply complete_datasets filter: within each (cluster, column), drop
+    # datasets that not all models have results for.
     if complete_datasets:
-        _drop_incomplete_datasets(scores_by_column)
+        for column_key, dataset_scores in scores_by_column.items():
+            all_models: set[str] = set()
+            for model_scores in dataset_scores.values():
+                all_models.update(model_scores.keys())
 
-    return _build_cluster_dataframes(scores_by_column)
+            complete = {
+                ds: scores for ds, scores in dataset_scores.items()
+                if set(scores.keys()) == all_models
+            }
+            dropped = set(dataset_scores.keys()) - set(complete.keys())
+            if dropped:
+                cluster_name, task, metric_key = column_key
+                print(f"  Manual cluster '{cluster_name}' / {task} ({metric_key}): "
+                      f"dropped {len(dropped)} incomplete dataset(s): {sorted(dropped)}")
+            scores_by_column[column_key] = complete
+
+    # Build tables: one DataFrame per cluster, rows = models, columns
+    # keyed by (task, metric). Also track which datasets ended up in each column.
+    cluster_model_col: Dict[str, Dict[str, Dict[Tuple[str, str], List[float]]]] = {}
+    cluster_col_datasets: Dict[str, Dict[Tuple[str, str], set]] = {}
+
+    for (cluster_name, task, metric_key), dataset_scores in scores_by_column.items():
+        col_id = (task, metric_key)
+        for dataset, model_scores in dataset_scores.items():
+            cluster_col_datasets.setdefault(cluster_name, {}).setdefault(col_id, set()).add(dataset)
+            for model, score in model_scores.items():
+                cluster_model_col.setdefault(cluster_name, {})
+                cluster_model_col[cluster_name].setdefault(model, {})
+                cluster_model_col[cluster_name][model].setdefault(col_id, []).append(score)
+
+    tables: Dict[str, pd.DataFrame] = {}
+    column_datasets: Dict[str, Dict[str, List[str]]] = {}
+    for cluster_name, model_data in sorted(cluster_model_col.items()):
+        records = {}
+        for model, col_scores in sorted(model_data.items()):
+            records[model] = {
+                f"{task} ({metric_key})": np.mean(scores)
+                for (task, metric_key), scores in sorted(col_scores.items())
+            }
+        df = pd.DataFrame(records).T
+        df.index.name = "model"
+        tables[cluster_name] = df
+
+        col_ds = {}
+        for col_id in sorted(cluster_col_datasets.get(cluster_name, {})):
+            task, metric_key = col_id
+            col_ds[f"{task} ({metric_key})"] = sorted(cluster_col_datasets[cluster_name][col_id])
+        column_datasets[cluster_name] = col_ds
+
+    return tables, column_datasets
 
 
 def print_manual_cluster_tables(
