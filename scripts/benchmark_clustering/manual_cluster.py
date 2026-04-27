@@ -143,8 +143,6 @@ def build_manual_cluster_tables(
                 continue
 
             metric_key = _resolve_metric_for_entry(task, entry)
-            if metric_key is None:
-                continue
 
             scores: Dict[str, float] = {}
             for model, metrics in model_metrics.items():
