@@ -1,6 +1,6 @@
 """Configuration constants for benchmark_clustering."""
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Literal, Optional
 
 
 # Maps task name -> primary metric
@@ -36,7 +36,7 @@ class ClusterEntry:
             are dropped.
     """
     name: str
-    oa_variant: Optional[str] = None
+    oa_variant: Optional[Literal["distractor", "acc"]] = None
     oa_only: bool = False
 
 # Datasets where the label is primarily semantic (topic, sentiment, content)

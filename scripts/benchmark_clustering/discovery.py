@@ -64,84 +64,6 @@ def _resolve_metric_for_entry(
     return TASK_METRICS.get(task)
 
 
-def discover_all_scores(
-    results_dir: str,
-    include_excluded: bool = False,
-) -> Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]]:
-    """Scan the results directory and collect top-level metrics across tasks.
-
-    Respects EXCLUDED_DATASETS, EXCLUDED_MODELS, and NON_ENGLISH_DATASETS
-    filtering. Collects every (dataset, task, episode_config, model)
-    combination found, returning the top-level scalar metrics from each
-    run's metrics.json so callers can pick whichever metric they need
-    (e.g. acc_mean vs distractor_acc_mean for order_alignment). Nested
-    values (e.g. _per_label, submetrics) are dropped to keep memory low.
-
-    This is the only function that walks the filesystem; other consumers
-    (e.g. ``discover_scores`` for the auto-cluster path) build on top of
-    it.
-
-    Args:
-        results_dir: Path to the root results directory.
-        include_excluded: If True, include semantic and non-English datasets.
-
-    Returns:
-        A dict mapping (dataset, task, episode_config) to a dict mapping
-        model name to that run's flat (scalar-only) metrics dict.
-    """
-    results_path = Path(results_dir)
-    if not results_path.exists():
-        return {}
-
-    # Build a map of dataset -> set of tasks it supports
-    dataset_tasks: Dict[str, set] = {}
-    for task_name in TASK_METRICS:
-        for ds in get_supported_datasets(task_name):
-            dataset_tasks.setdefault(ds, set()).add(task_name)
-
-    # Collect: (dataset, task, episode_config) -> {model: metrics_dict}
-    rows: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {}
-
-    for dataset_dir in sorted(results_path.iterdir()):
-        if not dataset_dir.is_dir():
-            continue
-
-        dataset_name = dataset_dir.name
-        if dataset_name not in dataset_tasks:
-            continue
-        if not include_excluded and dataset_name in EXCLUDED_DATASETS:
-            continue
-
-        for model_dir in sorted(dataset_dir.iterdir()):
-            if not model_dir.is_dir():
-                continue
-            if model_dir.name in EXCLUDED_MODELS:
-                continue
-
-            for ep_dir in sorted(model_dir.iterdir()):
-                if not ep_dir.is_dir():
-                    continue
-
-                for task_name in dataset_tasks[dataset_name]:
-                    metrics_file = ep_dir / task_name / "metrics.json"
-                    if not metrics_file.exists():
-                        continue
-
-                    with open(metrics_file) as f:
-                        metrics = json.load(f)
-
-                    # Strip nested values (e.g. _per_label, submetrics) — only
-                    # top-level scalar metrics are needed by current consumers.
-                    top_level_metrics = {
-                        k: v for k, v in metrics.items() if not isinstance(v, dict)
-                    }
-
-                    key = (dataset_name, task_name, ep_dir.name)
-                    rows.setdefault(key, {})[model_dir.name] = top_level_metrics
-
-    return rows
-
-
 def discover_scores(
     results_dir: str,
     task_name: str,
@@ -208,3 +130,77 @@ def discover_scores(
         return pd.DataFrame()
 
     return pd.DataFrame(scores).T.rename_axis("model")
+
+
+def discover_all_scores(
+    results_dir: str,
+    include_excluded: bool = False,
+) -> Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]]:
+    """Scan the results directory and collect top-level metrics across tasks.
+
+    Respects EXCLUDED_DATASETS, EXCLUDED_MODELS, and NON_ENGLISH_DATASETS
+    filtering. Collects every (dataset, task, episode_config, model)
+    combination found, returning the top-level scalar metrics from each
+    run's metrics.json so callers can pick whichever metric they need
+    (e.g. acc_mean vs distractor_acc_mean for order_alignment). Nested
+    values (e.g. _per_label, submetrics) are dropped to keep memory low.
+
+    Args:
+        results_dir: Path to the root results directory.
+        include_excluded: If True, include semantic and non-English datasets.
+
+    Returns:
+        A dict mapping (dataset, task, episode_config) to a dict mapping
+        model name to that run's flat (scalar-only) metrics dict.
+    """
+    results_path = Path(results_dir)
+    if not results_path.exists():
+        return {}
+
+    # Build a map of dataset -> set of tasks it supports
+    dataset_tasks: Dict[str, set] = {}
+    for task_name in TASK_METRICS:
+        for ds in get_supported_datasets(task_name):
+            dataset_tasks.setdefault(ds, set()).add(task_name)
+
+    # Collect: (dataset, task, episode_config) -> {model: metrics_dict}
+    rows: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {}
+
+    for dataset_dir in sorted(results_path.iterdir()):
+        if not dataset_dir.is_dir():
+            continue
+
+        dataset_name = dataset_dir.name
+        if dataset_name not in dataset_tasks:
+            continue
+        if not include_excluded and dataset_name in EXCLUDED_DATASETS:
+            continue
+
+        for model_dir in sorted(dataset_dir.iterdir()):
+            if not model_dir.is_dir():
+                continue
+            if model_dir.name in EXCLUDED_MODELS:
+                continue
+
+            for ep_dir in sorted(model_dir.iterdir()):
+                if not ep_dir.is_dir():
+                    continue
+
+                for task_name in dataset_tasks[dataset_name]:
+                    metrics_file = ep_dir / task_name / "metrics.json"
+                    if not metrics_file.exists():
+                        continue
+
+                    with open(metrics_file) as f:
+                        metrics = json.load(f)
+
+                    # Strip nested values (e.g. _per_label, submetrics) — only
+                    # top-level scalar metrics are needed by current consumers.
+                    top_level_metrics = {
+                        k: v for k, v in metrics.items() if not isinstance(v, dict)
+                    }
+
+                    key = (dataset_name, task_name, ep_dir.name)
+                    rows.setdefault(key, {})[model_dir.name] = top_level_metrics
+
+    return rows
