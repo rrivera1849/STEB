@@ -148,7 +148,7 @@ class OrderAlignmentTask(Task):
                 distractor_first_accuracies.append(distr_first_scores["accuracy"])
                 per_label_distractor_accs.setdefault(label, []).append(distr_first_scores["accuracy"])
 
-        # Calculate mean of both distractor variants
+        # Calculate mean of both distractor variants, so appendix lists to each other and calc. mean over all
         all_distractor_accs = distractor_last_accuracies + distractor_first_accuracies
 
         per_label = {
