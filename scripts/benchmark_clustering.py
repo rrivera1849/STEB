@@ -157,77 +157,19 @@ def _warn_missing_metric(
     )
 
 
-# ============================================================
-# Discovery: read metrics.json from the results directory
-# ============================================================
+def _resolve_metric_for_entry(
+    task: str,
+    entry: ClusterEntry,
+) -> Optional[str]:
+    """Pick which metric an entry contributes to a (task, metric) column.
 
-
-def discover_scores(
-    results_dir: str,
-    task_name: str,
-    primary_metric: str,
-    episode_params: Optional[str],
-    include_excluded: bool = False,
-) -> pd.DataFrame:
-    """Scan the results directory and build a models x datasets score matrix.
-
-    Args:
-        results_dir: Path to the root results directory.
-        task_name: The CLI task name (e.g. 'clustering').
-        primary_metric: The metric to extract from metrics.json.
-        episode_params: Episode params filter like '1_50'. If None, picks the
-            first episode params found per dataset-model pair.
-        include_excluded: If True, include semantic and non-English datasets.
-
-    Returns:
-        A DataFrame with models as rows and datasets as columns.
+    --oa_variant only matters for the order_alignment task; for all other
+    tasks the default TASK_METRICS metric is used. Returns None when the
+    task is unknown to TASK_METRICS (so the caller should skip).
     """
-    supported_datasets = set(get_supported_datasets(task_name))
-    scores: Dict[str, Dict[str, float]] = {}
-    results_path = Path(results_dir)
-
-    if not results_path.exists():
-        return pd.DataFrame()
-
-    for dataset_dir in sorted(results_path.iterdir()):
-        if not dataset_dir.is_dir():
-            continue
-
-        dataset_name = dataset_dir.name
-        if dataset_name not in supported_datasets:
-            continue
-        if not include_excluded and dataset_name in EXCLUDED_DATASETS:
-            continue
-
-        for model_dir in sorted(dataset_dir.iterdir()):
-            if not model_dir.is_dir():
-                continue
-            if model_dir.name in EXCLUDED_MODELS:
-                continue
-
-            for ep_dir in sorted(model_dir.iterdir()):
-                if not ep_dir.is_dir():
-                    continue
-                if episode_params and ep_dir.name != episode_params:
-                    continue
-
-                metrics_file = ep_dir / task_name / "metrics.json"
-                if not metrics_file.exists():
-                    continue
-
-                with open(metrics_file) as f:
-                    metrics = json.load(f)
-
-                if primary_metric not in metrics:
-                    continue
-
-                scores.setdefault(model_dir.name, {})[dataset_name] = metrics[primary_metric]
-                break  # Take first matching episode params
-
-    if not scores:
-        return pd.DataFrame()
-
-    return pd.DataFrame(scores).T.rename_axis("model")
+    if task == "order_alignment" and entry.oa_variant is not None:
+        return OA_VARIANT_METRICS[entry.oa_variant]
+    return TASK_METRICS.get(task)
 
 
 def discover_all_scores(
@@ -242,6 +184,10 @@ def discover_all_scores(
     run's metrics.json so callers can pick whichever metric they need
     (e.g. acc_mean vs distractor_acc_mean for order_alignment). Nested
     values (e.g. _per_label, submetrics) are dropped to keep memory low.
+
+    This is the only function that walks the filesystem; other consumers
+    (e.g. ``discover_scores`` for the auto-cluster path) build on top of
+    it.
 
     Args:
         results_dir: Path to the root results directory.
@@ -302,6 +248,54 @@ def discover_all_scores(
                     rows.setdefault(key, {})[model_dir.name] = top_level_metrics
 
     return rows
+
+
+def discover_scores(
+    results_dir: str,
+    task_name: str,
+    primary_metric: str,
+    episode_params: Optional[str],
+    include_excluded: bool = False,
+) -> pd.DataFrame:
+    """Build a models × datasets DataFrame for one task and one metric.
+
+    Thin wrapper around ``discover_all_scores`` that filters to the given
+    task, picks the first matching episode_params per (dataset, model),
+    and pivots into a DataFrame.
+
+    Args:
+        results_dir: Path to the root results directory.
+        task_name: The CLI task name (e.g. 'clustering').
+        primary_metric: The metric to extract from each metrics dict.
+        episode_params: Episode params filter like '1_50'. If None, picks
+            the first episode params found per dataset-model pair (in
+            sorted order).
+        include_excluded: If True, include semantic and non-English datasets.
+
+    Returns:
+        A DataFrame with models as rows and datasets as columns.
+    """
+    all_scores = discover_all_scores(results_dir, include_excluded)
+
+    scores: Dict[str, Dict[str, float]] = {}
+    # Iterate sorted so the "first ep_config wins per (model, dataset)"
+    # rule mirrors the previous sorted-iterdir traversal.
+    for (dataset, task, ep_config), model_metrics in sorted(all_scores.items()):
+        if task != task_name:
+            continue
+        if episode_params and ep_config != episode_params:
+            continue
+        for model, metrics in model_metrics.items():
+            if dataset in scores.get(model, {}):
+                continue  # earlier ep_config already filled this (model, dataset)
+            value = metrics.get(primary_metric)
+            if value is not None:
+                scores.setdefault(model, {})[dataset] = value
+
+    if not scores:
+        return pd.DataFrame()
+
+    return pd.DataFrame(scores).T.rename_axis("model")
 
 
 # ============================================================
@@ -704,21 +698,6 @@ def load_manual_clusters(
 # ============================================================
 # Manual cluster table building (--manual-clusters)
 # ============================================================
-
-
-def _resolve_metric_for_entry(
-    task: str,
-    entry: ClusterEntry,
-) -> Optional[str]:
-    """Pick which metric an entry contributes to a (task, metric) column.
-
-    --oa_variant only matters for the order_alignment task; for all other
-    tasks the default TASK_METRICS metric is used. Returns None when the
-    task is unknown to TASK_METRICS (so the caller should skip).
-    """
-    if task == "order_alignment" and entry.oa_variant is not None:
-        return OA_VARIANT_METRICS[entry.oa_variant]
-    return TASK_METRICS.get(task)
 
 
 def _collect_cluster_table_scores(
