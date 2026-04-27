@@ -151,7 +151,11 @@ def main() -> None:
     manual_cluster_tables: Optional[Dict[str, pd.DataFrame]] = None
     manual_cluster_datasets: Optional[Dict[str, Dict[str, List[str]]]] = None
     if args.manual_clusters:
-        clusters = load_manual_clusters(args.manual_clusters)
+        try:
+            clusters = load_manual_clusters(args.manual_clusters)
+        except ValueError as e:
+            print(f"error loading {args.manual_clusters}: {e}", file=sys.stderr)
+            sys.exit(2)
         manual_cluster_tables, manual_cluster_datasets = build_manual_cluster_tables(
             args.results_dir,
             clusters,

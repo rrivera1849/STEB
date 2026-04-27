@@ -3,8 +3,8 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from .config import TASK_METRICS
-from .discovery import discover_all_scores
+from .config import OA_VARIANT_METRICS, TASK_METRICS
+from .discovery import _warn_missing_metric, discover_all_scores
 
 
 def export_excel(
@@ -45,15 +45,30 @@ def export_excel(
         return
 
     records = []
-    for (dataset, task, episode_config), model_scores in sorted(rows.items()):
-        record: Dict[str, object] = {
-            "dataset": dataset,
-            "task": task,
-            "episode_config": episode_config,
-            "primary_metric": TASK_METRICS[task],
-        }
-        record.update(model_scores)
-        records.append(record)
+    warned_missing: set = set()
+    for (dataset, task, episode_config), model_metrics in sorted(rows.items()):
+        # For order_alignment, emit one row per recognised variant metric so
+        # readers can see both acc_mean and distractor_acc_mean side by side.
+        # For all other tasks, emit a single row with TASK_METRICS' default.
+        if task == "order_alignment":
+            metric_keys = sorted(set(OA_VARIANT_METRICS.values()))
+        else:
+            metric_keys = [TASK_METRICS[task]]
+
+        for primary_metric in metric_keys:
+            record: Dict[str, object] = {
+                "dataset": dataset,
+                "task": task,
+                "episode_config": episode_config,
+                "primary_metric": primary_metric,
+            }
+            for model, metrics in model_metrics.items():
+                value = metrics.get(primary_metric)
+                if value is None:
+                    _warn_missing_metric(dataset, task, primary_metric, warned_missing)
+                    continue
+                record[model] = value
+            records.append(record)
 
     scores_df = pd.DataFrame(records)
 
