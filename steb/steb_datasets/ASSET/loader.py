@@ -35,9 +35,9 @@ def asset_record_handler(
     if not isinstance(simplifications, list) or not simplifications:
         return None
 
-    seed = int.from_bytes(hashlib.sha256(original.encode("utf-8")).digest()[:8], "big")
-    rng = random.Random(seed)
-    sampled = rng.choice(simplifications)
+    seed = int(hashlib.sha256(original.encode("utf-8")).hexdigest(), 16)
+    idx = seed % len(simplifications)
+    sampled = simplifications[idx]
 
     if not isinstance(sampled, str) or not sampled.strip():
         return None
