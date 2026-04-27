@@ -27,6 +27,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from steb.core import get_supported_datasets
 from steb.utils import RESULTS_DIR
 
+# ============================================================
+# Configuration
+# ============================================================
+
 # Maps task name -> primary metric
 TASK_METRICS: Dict[str, str] = {
     "clustering": "v_measure",
@@ -124,6 +128,40 @@ EXCLUDED_MODELS.add("tfidfngrams")
 LOW_CONFIDENCE_THRESHOLD = 10
 
 
+# ============================================================
+# Shared utilities
+# ============================================================
+
+
+def _warn_missing_metric(
+    dataset: str,
+    task: str,
+    metric: str,
+    seen: set,
+) -> None:
+    """Print a deduped warning to stderr when a metric is missing for a run.
+
+    Each (dataset, task, metric) combination is warned about at most once
+    per call site (deduped via the caller-provided ``seen`` set), so model
+    counts are not part of the dedupe key — a single warning per data
+    triple is enough to alert the user.
+    """
+    key = (dataset, task, metric)
+    if key in seen:
+        return
+    seen.add(key)
+    print(
+        f"  WARNING: ignoring runs for dataset '{dataset}' / task '{task}' "
+        f"that are missing the '{metric}' metric.",
+        file=sys.stderr,
+    )
+
+
+# ============================================================
+# Discovery: read metrics.json from the results directory
+# ============================================================
+
+
 def discover_scores(
     results_dir: str,
     task_name: str,
@@ -190,6 +228,85 @@ def discover_scores(
         return pd.DataFrame()
 
     return pd.DataFrame(scores).T.rename_axis("model")
+
+
+def discover_all_scores(
+    results_dir: str,
+    include_excluded: bool = False,
+) -> Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]]:
+    """Scan the results directory and collect top-level metrics across tasks.
+
+    Respects EXCLUDED_DATASETS, EXCLUDED_MODELS, and NON_ENGLISH_DATASETS
+    filtering. Collects every (dataset, task, episode_config, model)
+    combination found, returning the top-level scalar metrics from each
+    run's metrics.json so callers can pick whichever metric they need
+    (e.g. acc_mean vs distractor_acc_mean for order_alignment). Nested
+    values (e.g. _per_label, submetrics) are dropped to keep memory low.
+
+    Args:
+        results_dir: Path to the root results directory.
+        include_excluded: If True, include semantic and non-English datasets.
+
+    Returns:
+        A dict mapping (dataset, task, episode_config) to a dict mapping
+        model name to that run's flat (scalar-only) metrics dict.
+    """
+    results_path = Path(results_dir)
+    if not results_path.exists():
+        return {}
+
+    # Build a map of dataset -> set of tasks it supports
+    dataset_tasks: Dict[str, set] = {}
+    for task_name in TASK_METRICS:
+        for ds in get_supported_datasets(task_name):
+            dataset_tasks.setdefault(ds, set()).add(task_name)
+
+    # Collect: (dataset, task, episode_config) -> {model: metrics_dict}
+    rows: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {}
+
+    for dataset_dir in sorted(results_path.iterdir()):
+        if not dataset_dir.is_dir():
+            continue
+
+        dataset_name = dataset_dir.name
+        if dataset_name not in dataset_tasks:
+            continue
+        if not include_excluded and dataset_name in EXCLUDED_DATASETS:
+            continue
+
+        for model_dir in sorted(dataset_dir.iterdir()):
+            if not model_dir.is_dir():
+                continue
+            if model_dir.name in EXCLUDED_MODELS:
+                continue
+
+            for ep_dir in sorted(model_dir.iterdir()):
+                if not ep_dir.is_dir():
+                    continue
+
+                for task_name in dataset_tasks[dataset_name]:
+                    metrics_file = ep_dir / task_name / "metrics.json"
+                    if not metrics_file.exists():
+                        continue
+
+                    with open(metrics_file) as f:
+                        metrics = json.load(f)
+
+                    # Strip nested values (e.g. _per_label, submetrics) — only
+                    # top-level scalar metrics are needed by current consumers.
+                    top_level_metrics = {
+                        k: v for k, v in metrics.items() if not isinstance(v, dict)
+                    }
+
+                    key = (dataset_name, task_name, ep_dir.name)
+                    rows.setdefault(key, {})[model_dir.name] = top_level_metrics
+
+    return rows
+
+
+# ============================================================
+# Auto-cluster analysis (--task / --all-tasks)
+# ============================================================
 
 
 def compute_correlation_matrix(
@@ -521,102 +638,9 @@ def print_summary_table(
     print(f"Saved summary table: {table_path}")
 
 
-def discover_all_scores(
-    results_dir: str,
-    include_excluded: bool = False,
-) -> Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]]:
-    """Scan the results directory and collect top-level metrics across tasks.
-
-    Respects EXCLUDED_DATASETS, EXCLUDED_MODELS, and NON_ENGLISH_DATASETS
-    filtering. Collects every (dataset, task, episode_config, model)
-    combination found, returning the top-level scalar metrics from each
-    run's metrics.json so callers can pick whichever metric they need
-    (e.g. acc_mean vs distractor_acc_mean for order_alignment). Nested
-    values (e.g. _per_label, submetrics) are dropped to keep memory low.
-
-    Args:
-        results_dir: Path to the root results directory.
-        include_excluded: If True, include semantic and non-English datasets.
-
-    Returns:
-        A dict mapping (dataset, task, episode_config) to a dict mapping
-        model name to that run's flat (scalar-only) metrics dict.
-    """
-    results_path = Path(results_dir)
-    if not results_path.exists():
-        return {}
-
-    # Build a map of dataset -> set of tasks it supports
-    dataset_tasks: Dict[str, set] = {}
-    for task_name in TASK_METRICS:
-        for ds in get_supported_datasets(task_name):
-            dataset_tasks.setdefault(ds, set()).add(task_name)
-
-    # Collect: (dataset, task, episode_config) -> {model: metrics_dict}
-    rows: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {}
-
-    for dataset_dir in sorted(results_path.iterdir()):
-        if not dataset_dir.is_dir():
-            continue
-
-        dataset_name = dataset_dir.name
-        if dataset_name not in dataset_tasks:
-            continue
-        if not include_excluded and dataset_name in EXCLUDED_DATASETS:
-            continue
-
-        for model_dir in sorted(dataset_dir.iterdir()):
-            if not model_dir.is_dir():
-                continue
-            if model_dir.name in EXCLUDED_MODELS:
-                continue
-
-            for ep_dir in sorted(model_dir.iterdir()):
-                if not ep_dir.is_dir():
-                    continue
-
-                for task_name in dataset_tasks[dataset_name]:
-                    metrics_file = ep_dir / task_name / "metrics.json"
-                    if not metrics_file.exists():
-                        continue
-
-                    with open(metrics_file) as f:
-                        metrics = json.load(f)
-
-                    # Strip nested values (e.g. _per_label, submetrics) — only
-                    # top-level scalar metrics are needed by current consumers.
-                    top_level_metrics = {
-                        k: v for k, v in metrics.items() if not isinstance(v, dict)
-                    }
-
-                    key = (dataset_name, task_name, ep_dir.name)
-                    rows.setdefault(key, {})[model_dir.name] = top_level_metrics
-
-    return rows
-
-
-def _warn_missing_metric(
-    dataset: str,
-    task: str,
-    metric: str,
-    seen: set,
-) -> None:
-    """Print a deduped warning to stderr when a metric is missing for a run.
-
-    Each (dataset, task, metric) combination is warned about at most once
-    per call site (deduped via the caller-provided ``seen`` set), so model
-    counts are not part of the dedupe key — a single warning per data
-    triple is enough to alert the user.
-    """
-    key = (dataset, task, metric)
-    if key in seen:
-        return
-    seen.add(key)
-    print(
-        f"  WARNING: ignoring runs for dataset '{dataset}' / task '{task}' "
-        f"that are missing the '{metric}' metric.",
-        file=sys.stderr,
-    )
+# ============================================================
+# Manual cluster YAML parsing
+# ============================================================
 
 
 def parse_cluster_entry(
@@ -675,6 +699,11 @@ def load_manual_clusters(
     for name, config in raw.items():
         clusters[name] = [parse_cluster_entry(entry) for entry in config["datasets"]]
     return clusters
+
+
+# ============================================================
+# Manual cluster table building (--manual-clusters)
+# ============================================================
 
 
 def _resolve_metric_for_entry(
@@ -922,6 +951,11 @@ def print_manual_cluster_tables(
         print(f"Saved: {table_path}")
 
 
+# ============================================================
+# Excel export (--export-excel)
+# ============================================================
+
+
 def _highlight_best_two(
     ws,
     cells: List[Tuple[int, int]],
@@ -1142,6 +1176,11 @@ def export_excel(
     if manual_cluster_tables:
         n_sheets += len(manual_cluster_tables)
     print(f"Exported {len(scores_df)} rows × {len(model_cols)} models ({n_sheets} sheets) to {output_path}")
+
+
+# ============================================================
+# CLI
+# ============================================================
 
 
 def parse_args() -> argparse.Namespace:
