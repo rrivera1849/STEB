@@ -103,8 +103,9 @@ def build_manual_cluster_tables(
             records.
         episode_params: Episode params filter (e.g. '1_50').
         include_excluded: If True, include semantic and non-English datasets.
-        complete_datasets: If True, within each (cluster, column) group,
-            drop datasets that not all models have results for.
+        complete_datasets: If True, within each cluster column (a
+            ``task (metric)`` slot), drop datasets that not all models
+            have results for.
 
     Returns:
         A tuple of:
@@ -173,8 +174,9 @@ def build_manual_cluster_tables(
                     file=sys.stderr,
                 )
 
-    # Apply complete_datasets filter: within each (cluster, column), drop
-    # datasets that not all models have results for.
+    # Apply complete_datasets filter: within each cluster column (a
+    # `task (metric)` slot), drop datasets that not all models have
+    # results for.
     if complete_datasets:
         for column_key, dataset_scores in scores_by_column.items():
             all_models: set[str] = set()
