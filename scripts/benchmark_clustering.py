@@ -507,14 +507,15 @@ def print_summary_table(
 def discover_all_scores(
     results_dir: str,
     include_excluded: bool = False,
-) -> Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]]:
-    """Scan the results directory and collect all metrics dicts across tasks.
+) -> Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]]:
+    """Scan the results directory and collect top-level metrics across tasks.
 
     Respects EXCLUDED_DATASETS, EXCLUDED_MODELS, and NON_ENGLISH_DATASETS
     filtering. Collects every (dataset, task, episode_config, model)
-    combination found, returning the full metrics.json dict per model so
-    callers can pick whichever metric they need (e.g. acc_mean vs
-    distractor_acc_mean for order_alignment).
+    combination found, returning the top-level scalar metrics from each
+    run's metrics.json so callers can pick whichever metric they need
+    (e.g. acc_mean vs distractor_acc_mean for order_alignment). Nested
+    values (e.g. _per_label, submetrics) are dropped to keep memory low.
 
     Args:
         results_dir: Path to the root results directory.
@@ -522,7 +523,7 @@ def discover_all_scores(
 
     Returns:
         A dict mapping (dataset, task, episode_config) to a dict mapping
-        model name to that run's full metrics dict.
+        model name to that run's flat (scalar-only) metrics dict.
     """
     results_path = Path(results_dir)
     if not results_path.exists():
@@ -565,10 +566,40 @@ def discover_all_scores(
                     with open(metrics_file) as f:
                         metrics = json.load(f)
 
+                    # Strip nested values (e.g. _per_label, submetrics) — only
+                    # top-level scalar metrics are needed by current consumers.
+                    top_level_metrics = {
+                        k: v for k, v in metrics.items() if not isinstance(v, dict)
+                    }
+
                     key = (dataset_name, task_name, ep_dir.name)
-                    rows.setdefault(key, {})[model_dir.name] = metrics
+                    rows.setdefault(key, {})[model_dir.name] = top_level_metrics
 
     return rows
+
+
+def _warn_missing_metric(
+    dataset: str,
+    task: str,
+    metric: str,
+    seen: set,
+) -> None:
+    """Print a deduped warning to stderr when a metric is missing for a run.
+
+    Each (dataset, task, metric) combination is warned about at most once
+    per call site (deduped via the caller-provided ``seen`` set), so model
+    counts are not part of the dedupe key — a single warning per data
+    triple is enough to alert the user.
+    """
+    key = (dataset, task, metric)
+    if key in seen:
+        return
+    seen.add(key)
+    print(
+        f"  WARNING: ignoring runs for dataset '{dataset}' / task '{task}' "
+        f"that are missing the '{metric}' metric.",
+        file=sys.stderr,
+    )
 
 
 def parse_cluster_entry(
@@ -673,6 +704,7 @@ def build_manual_cluster_tables(
     # A dataset may appear multiple times across episode configs; later
     # writes override earlier ones for the same model (matches prior code).
     per_dataset: Dict[Tuple[str, str, str, str], Dict[str, float]] = {}
+    warned_missing: set = set()
 
     for (dataset, task, ep_config), model_metrics in all_scores.items():
         if episode_params and ep_config != episode_params:
@@ -697,6 +729,7 @@ def build_manual_cluster_tables(
         for model, metrics in model_metrics.items():
             value = metrics.get(metric_key)
             if value is None:
+                _warn_missing_metric(dataset, task, metric_key, warned_missing)
                 continue
             scores[model] = value
 
@@ -840,6 +873,7 @@ def export_excel(
         return
 
     records = []
+    warned_missing: set = set()
     for (dataset, task, episode_config), model_metrics in sorted(rows.items()):
         primary_metric = TASK_METRICS[task]
         record: Dict[str, object] = {
@@ -850,8 +884,10 @@ def export_excel(
         }
         for model, metrics in model_metrics.items():
             value = metrics.get(primary_metric)
-            if value is not None:
-                record[model] = value
+            if value is None:
+                _warn_missing_metric(dataset, task, primary_metric, warned_missing)
+                continue
+            record[model] = value
         records.append(record)
 
     scores_df = pd.DataFrame(records)
@@ -1090,7 +1126,11 @@ def main() -> None:
     manual_cluster_tables: Optional[Dict[str, pd.DataFrame]] = None
     manual_cluster_datasets: Optional[Dict[str, Dict[str, List[str]]]] = None
     if args.manual_clusters:
-        clusters = load_manual_clusters(args.manual_clusters)
+        try:
+            clusters = load_manual_clusters(args.manual_clusters)
+        except ValueError as e:
+            print(f"error loading {args.manual_clusters}: {e}", file=sys.stderr)
+            sys.exit(2)
         manual_cluster_tables, manual_cluster_datasets = build_manual_cluster_tables(
             args.results_dir,
             clusters,
