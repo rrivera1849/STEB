@@ -105,6 +105,15 @@ style:
   description: "Judging which of two texts is more stylistically similar to a reference"
   datasets:
     - STEL
+    - SynthSTEL
+    - corpus-of-diverse-styles
+    - graded_formality
+    - OneStopEnglishCorpus
+
+style_vs_content:
+  description: "Judging which of two texts is more stylistically similar to a reference"
+  datasets:
+    - STEL --oa_variant distractor
     - SynthSTEL --oa_variant distractor
     - corpus-of-diverse-styles --oa_variant distractor
     - graded_formality --oa_variant distractor
