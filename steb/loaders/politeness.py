@@ -24,8 +24,8 @@ def load_politeness_dataset(
             ``download_datasets.sh``.
 
     Returns:
-        A list of records ``{"text": str, "label": int}`` with labels in
-        ``{-1, 0, 1}``.
+        A list of records ``{"text": str, "label": str}`` with labels in
+        ``{impolite, neutral, polite}``.
     """
     utterances_path = os.path.join(data_dir, "utterances.jsonl")
     if not os.path.isfile(utterances_path):
@@ -44,12 +44,19 @@ def load_politeness_dataset(
                 continue
 
             binary = utterance.get("meta", {}).get("Binary")
-            if not isinstance(binary, (int, float)) or isinstance(binary, bool):
+            if not isinstance(binary, int):
                 continue
-            label = int(binary)
-            if label not in (-1, 0, 1):
+            if binary not in (-1, 0, 1):
                 continue
+            label = {
+                0: "neutral",
+                1: "polite",
+                -1: "impolite",
+            }[binary]
 
             records.append({"text": text, "label": label})
+
+        if len(records) == 0:
+            raise ValueError(f"No valid records found in: {utterances_path}")
 
     return records
