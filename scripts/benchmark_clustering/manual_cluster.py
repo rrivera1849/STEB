@@ -230,18 +230,28 @@ def build_manual_cluster_tables(
             scores_by_cluster_task_metric[key] = complete
 
     # Build tables: one DataFrame per cluster, rows = models, columns
-    # keyed by (task, metric). Also track which datasets ended up in each column.
+    # keyed by (task, metric). Also track which datasets ended up in each
+    # column. The printed corpus list is the *intersection* across the
+    # models that actually contribute to a column, so the listed datasets
+    # match what every rendered row averaged over (a dataset only one
+    # model has would otherwise look like it was used for everyone).
     cluster_model_col: Dict[str, Dict[str, Dict[Tuple[str, str], List[float]]]] = {}
-    cluster_col_datasets: Dict[str, Dict[Tuple[str, str], set]] = {}
+    per_model_col_datasets: Dict[Tuple[str, Tuple[str, str]], Dict[str, set]] = {}
 
     for (cluster_name, task, metric_key), dataset_scores in scores_by_cluster_task_metric.items():
         col_id = (task, metric_key)
         for dataset, model_scores in dataset_scores.items():
-            cluster_col_datasets.setdefault(cluster_name, {}).setdefault(col_id, set()).add(dataset)
             for model, score in model_scores.items():
                 cluster_model_col.setdefault(cluster_name, {})
                 cluster_model_col[cluster_name].setdefault(model, {})
                 cluster_model_col[cluster_name][model].setdefault(col_id, []).append(score)
+                per_model_col_datasets.setdefault((cluster_name, col_id), {}) \
+                    .setdefault(model, set()).add(dataset)
+
+    cluster_col_datasets: Dict[str, Dict[Tuple[str, str], set]] = {}
+    for (cluster_name, col_id), model_to_dsets in per_model_col_datasets.items():
+        cluster_col_datasets.setdefault(cluster_name, {})[col_id] = \
+            set.intersection(*model_to_dsets.values())
 
     tables: Dict[str, pd.DataFrame] = {}
     column_datasets: Dict[str, Dict[str, List[str]]] = {}
