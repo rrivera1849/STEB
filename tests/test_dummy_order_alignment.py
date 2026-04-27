@@ -47,3 +47,31 @@ def test_order_alignment_on_dummy_dataset_yields_high_accuracy():
     assert metrics["distractor_acc_mean"] == 1.0
 
 
+def test_per_label_has_entry_for_every_label_on_dummy_dataset():
+    records = load_dummy_order_alignment_dataset(_path="unused")
+    assert len(records) >= 2
+
+    seq_len = len(records[0]["text"])
+    num_lists = len(records)
+    # One-hot per-position embeddings: position p -> e_p, identical across
+    # text lists, so alignment is trivially perfect for every label group.
+    embeddings = np.zeros((num_lists, seq_len, seq_len), dtype=float)
+    for i in range(num_lists):
+        for pos in range(seq_len):
+            embeddings[i, pos, pos] = 1.0
+
+    labels = [rec["label"] for rec in records]
+
+    metrics = OrderAlignmentTask().evaluate(embeddings, labels)
+
+    assert "_per_label" in metrics
+    per_label = metrics["_per_label"]
+    expected_keys = {str(label) for label in set(labels)}
+    assert set(per_label.keys()) == expected_keys
+    for label_key, label_metrics in per_label.items():
+        assert label_metrics["acc_mean"] == 1.0, (
+            f"Per-label acc_mean for '{label_key}' should be 1.0 with one-hot embeddings"
+        )
+        assert label_metrics["distractor_acc_mean"] == 1.0, (
+            f"Per-label distractor_acc_mean for '{label_key}' should be 1.0 with one-hot embeddings"
+        )
