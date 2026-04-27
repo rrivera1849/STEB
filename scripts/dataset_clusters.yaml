@@ -109,6 +109,8 @@ style:
     - corpus-of-diverse-styles --oa_variant acc
     - graded_formality --oa_variant acc
     - OneStopEnglishCorpus --oa_variant acc
+    - wikipedia_politeness
+    - stackexchange_politeness
 
 style_vs_content:
   description: "Judging which of two texts is more stylistically similar to a reference"
