@@ -19,12 +19,32 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from steb.presets import get_benchmark_config
+
 from .config import ClusterEntry, OA_VARIANT_METRICS, TASK_METRICS
 from .discovery import (
     _resolve_metric_for_entry,
     _warn_missing_metric,
     discover_all_scores,
 )
+
+
+def _benchmark_default_ep_configs() -> Dict[str, str]:
+    """Return ``{task: canonical_ep_config_string}`` for the benchmark preset.
+
+    The episode-config string is ``"{episode_size}_{n_episodes_per_class}"``,
+    matching the directory layout produced by ``steb run``. When a task
+    has multiple episode_sizes in the preset, the first one is taken.
+    Used by ``build_manual_cluster_tables`` to pick a deterministic
+    ep_config per task when ``--episode-params`` isn't passed.
+    """
+    defaults: Dict[str, str] = {}
+    config = get_benchmark_config()
+    for item in config["config"]["tasks"]:
+        ep_size = item["episode_sizes"][0]
+        n_eps = item["n_episodes_per_class"]
+        defaults[item["task"]] = f"{ep_size}_{n_eps}"
+    return defaults
 
 
 def parse_cluster_entry(
@@ -101,7 +121,11 @@ def build_manual_cluster_tables(
         results_dir: Path to the root results directory.
         clusters: Mapping from cluster name to a list of ClusterEntry
             records.
-        episode_params: Episode params filter (e.g. '1_50').
+        episode_params: Episode params filter (e.g. '1_50'). If None, the
+            per-task canonical ep_config from the benchmark preset is used
+            for each task (so manual cluster tables stay deterministic
+            instead of silently mixing every ep_config that exists on
+            disk).
         include_excluded: If True, include semantic and non-English datasets.
         complete_datasets: If True, within each cluster column (a
             ``task (metric)`` slot), drop datasets that not all models
@@ -126,13 +150,21 @@ def build_manual_cluster_tables(
         for entry in entries:
             dataset_to_entries.setdefault(entry.name, []).append((cluster_name, entry))
 
+    # When the user didn't pass --episode-params, fall back to the
+    # benchmark preset's canonical ep_config per task so the table stays
+    # deterministic instead of mixing every ep_config on disk.
+    benchmark_defaults = None if episode_params else _benchmark_default_ep_configs()
+
     # Walk discovered runs, honour each entry's --oa_only and --oa_variant
     # flags, and bucket scores by (cluster, task, metric, dataset).
     scores_by_cluster_task_metric: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]] = {}
     warned_missing: set = set()
 
     for (dataset, task, ep_config), model_metrics in all_scores.items():
-        if episode_params and ep_config != episode_params:
+        if episode_params:
+            if ep_config != episode_params:
+                continue
+        elif benchmark_defaults.get(task) != ep_config:
             continue
         if dataset not in dataset_to_entries:
             continue
