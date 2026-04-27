@@ -104,11 +104,11 @@ genre:
 style:
   description: "Judging which of two texts is more stylistically similar to a reference"
   datasets:
-    - STEL
-    - SynthSTEL
-    - corpus-of-diverse-styles
-    - graded_formality
-    - OneStopEnglishCorpus
+    - STEL --oa_variant acc
+    - SynthSTEL --oa_variant acc
+    - corpus-of-diverse-styles --oa_variant ac
+    - graded_formality --oa_variant acc
+    - OneStopEnglishCorpus --oa_variant acc
 
 style_vs_content:
   description: "Judging which of two texts is more stylistically similar to a reference"
