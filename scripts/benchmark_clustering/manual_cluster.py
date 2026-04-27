@@ -130,7 +130,6 @@ def build_manual_cluster_tables(
     # flags, and bucket scores by (cluster, task, metric, dataset).
     scores_by_cluster_task_metric: Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]] = {}
     warned_missing: set = set()
-    oa_only_with_data: set = set()
 
     for (dataset, task, ep_config), model_metrics in all_scores.items():
         if episode_params and ep_config != episode_params:
@@ -155,20 +154,19 @@ def build_manual_cluster_tables(
             if not scores:
                 continue
 
-            if entry.oa_only:
-                oa_only_with_data.add((cluster_name, dataset))
-
             key = (cluster_name, task, metric_key)
             scores_by_cluster_task_metric.setdefault(key, {}).setdefault(dataset, {}).update(scores)
 
-    # Warn for --oa_only entries that produced no order_alignment data
-    # (e.g. dataset has no results dir, or doesn't declare order_alignment).
+    # Warn for any cluster entry whose dataset never produced a results
+    # row (typo in the YAML, missing results dir, or filtered out by
+    # --episode-params).
+    existing_datasets = {dataset for (dataset, _, _) in all_scores}
     for cluster_name, entries in clusters.items():
         for entry in entries:
-            if entry.oa_only and (cluster_name, entry.name) not in oa_only_with_data:
+            if entry.name not in existing_datasets:
                 print(
                     f"  WARNING: cluster '{cluster_name}' entry "
-                    f"'{entry.name} --oa_only' produced no order_alignment results.",
+                    f"'{entry.name}': no results found.",
                     file=sys.stderr,
                 )
 
