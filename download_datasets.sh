@@ -567,6 +567,31 @@ else
     echo "Skipping MASC-3.0.0 (already exists)"
 fi
 
+# Stanford politeness corpora (Wikipedia + Stack Exchange).
+# Zip URLs taken from convokit's official download config:
+#   https://github.com/CornellNLP/ConvoKit/blob/master/download_config.json
+# (Same URLs convokit.download() resolves at runtime; using curl avoids
+#  pulling the full convokit package as a dependency.)
+if [ ! -d "wikipedia-politeness-corpus" ]; then
+    echo "Downloading wikipedia-politeness-corpus..."
+    curl -L -o wikipedia-politeness-corpus.zip \
+        https://zissou.infosci.cornell.edu/convokit/datasets/wikipedia-politeness-corpus/wikipedia-politeness-corpus.zip
+    unzip -q wikipedia-politeness-corpus.zip
+    rm wikipedia-politeness-corpus.zip
+else
+    echo "Skipping wikipedia-politeness-corpus (already exists)"
+fi
+
+if [ ! -d "stack-exchange-politeness-corpus" ]; then
+    echo "Downloading stack-exchange-politeness-corpus..."
+    curl -L -o stack-exchange-politeness-corpus.zip \
+        https://zissou.infosci.cornell.edu/convokit/datasets/stack-exchange-politeness-corpus/stack-exchange-politeness-corpus.zip
+    unzip -q stack-exchange-politeness-corpus.zip
+    rm stack-exchange-politeness-corpus.zip
+else
+    echo "Skipping stack-exchange-politeness-corpus (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
