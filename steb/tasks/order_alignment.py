@@ -1,5 +1,5 @@
 import itertools
-from typing import Any, Dict, Hashable, List
+from typing import Any, Dict, Hashable, List, Union
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -70,7 +70,7 @@ class OrderAlignmentTask(Task):
         self,
         embeddings: np.ndarray,
         labels: List[Any],
-    ) -> Dict[str, float]:
+    ) -> Dict[str, Union[float, Dict[str, float]]]:
         """
         Args:
             embeddings: The embeddings to evaluate.
@@ -83,6 +83,8 @@ class OrderAlignmentTask(Task):
             A dictionary containing:
                 - acc_mean: Mean alignment accuracy across all pairs of text lists with the same label.
                 - distractor_acc_mean: Mean alignment accuracy under the distractor setting (combining the distractor variants).
+                - _per_label: Mapping from label (as string) to its own
+                    {acc_mean, distractor_acc_mean} computed only over within-label pair comparisons.
         """
         # Ensure ndarray
         if not isinstance(embeddings, np.ndarray):
@@ -98,8 +100,11 @@ class OrderAlignmentTask(Task):
         distractor_last_accuracies: List[float] = []
         distractor_first_accuracies: List[float] = []
 
+        per_label_alignment_accs: Dict[Hashable, List[float]] = {}
+        per_label_distractor_accs: Dict[Hashable, List[float]] = {}
+
         # Iterate per label group
-        for _, idxs in label_to_indices.items():
+        for label, idxs in label_to_indices.items():
             if len(idxs) < 2:
                 continue
 
@@ -111,6 +116,7 @@ class OrderAlignmentTask(Task):
                 # --- Baseline (no distractor), full lists ---
                 base_scores = align_and_score(emb_i, emb_j)
                 alignment_accuracies.append(base_scores["accuracy"])
+                per_label_alignment_accs.setdefault(label, []).append(base_scores["accuracy"])
 
                 # --- Distractor variants ---
                 # NOTE: distractor calculations are not symmetric
@@ -131,6 +137,7 @@ class OrderAlignmentTask(Task):
 
                 distr_last_scores = align_and_score(emb_i_ref_last, emb_j_distr_last)
                 distractor_last_accuracies.append(distr_last_scores["accuracy"])
+                per_label_distractor_accs.setdefault(label, []).append(distr_last_scores["accuracy"])
 
                 # Distractor variant 2: Replace first (most-intense) position
                 emb_i_ref_first = emb_i[1:]             # i without its first (most-intense) item
@@ -139,11 +146,23 @@ class OrderAlignmentTask(Task):
 
                 distr_first_scores = align_and_score(emb_i_ref_first, emb_j_distr_first, offset=1)
                 distractor_first_accuracies.append(distr_first_scores["accuracy"])
+                per_label_distractor_accs.setdefault(label, []).append(distr_first_scores["accuracy"])
 
-        # Calculate mean of both distractor variants
+        # Calculate mean of both distractor variants, so appendix lists to each other and calc. mean over all
         all_distractor_accs = distractor_last_accuracies + distractor_first_accuracies
+
+        per_label = {
+            str(label): {
+                "acc_mean": float(np.mean(per_label_alignment_accs[label]))
+                            if per_label_alignment_accs.get(label) else 0.0,
+                "distractor_acc_mean": float(np.mean(per_label_distractor_accs[label]))
+                                       if per_label_distractor_accs.get(label) else 0.0,
+            }
+            for label in per_label_alignment_accs
+        }
 
         return {
             "acc_mean": float(np.mean(alignment_accuracies)) if alignment_accuracies else 0.0,
             "distractor_acc_mean": float(np.mean(all_distractor_accs)) if all_distractor_accs else 0.0,
+            "_per_label": per_label,
         }
