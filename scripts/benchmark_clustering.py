@@ -685,7 +685,8 @@ def build_manual_cluster_tables(
 
     Returns:
         A tuple of:
-          - A dict mapping cluster name to a DataFrame (models x columns).
+          - A dict mapping cluster name to a DataFrame whose rows are
+            models and whose columns are keyed by (task, metric).
           - A dict mapping cluster name to a dict of column name to
             list of dataset names included in that column.
     """
@@ -765,7 +766,7 @@ def build_manual_cluster_tables(
                       f"dropped {len(dropped)} incomplete dataset(s): {sorted(dropped)}")
             cluster_col_groups[group_key] = complete
 
-    # Build tables: one DataFrame per cluster (models x columns).
+    # Build tables: one DataFrame per cluster, rows = models, columns keyed by (task, metric).
     cluster_model_col: Dict[str, Dict[str, Dict[Tuple[str, str], List[float]]]] = {}
     cluster_col_datasets: Dict[str, Dict[Tuple[str, str], set]] = {}
 
@@ -809,7 +810,8 @@ def print_manual_cluster_tables(
     """Print manual cluster tables to stdout and save as markdown.
 
     Args:
-        tables: Mapping from cluster name to DataFrame (models x tasks).
+        tables: Mapping from cluster name to DataFrame whose rows are
+            models and whose columns are keyed by (task, metric).
         column_datasets: Mapping from cluster name to dict of column name
             to list of dataset names included in that column.
         output_dir: Directory to save markdown files.
@@ -862,8 +864,9 @@ def export_excel(
         task_scores: Mapping from task name to per-model aggregated scores.
             If provided, written as the "summary" sheet.
         task_metrics: Mapping from task name to metric name (for column headers).
-        manual_cluster_tables: Mapping from cluster name to DataFrame of manual
-            cluster averages (models x tasks).
+        manual_cluster_tables: Mapping from cluster name to DataFrame of
+            manual cluster averages, rows = models, columns keyed by
+            (task, metric).
         manual_cluster_datasets: Mapping from cluster name to dict of column
             name to list of dataset names included in that column.
     """
