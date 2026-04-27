@@ -1,5 +1,6 @@
 """Configuration constants for benchmark_clustering."""
-from typing import Dict
+from dataclasses import dataclass
+from typing import Dict, Literal, Optional
 
 
 # Maps task name -> primary metric
@@ -11,6 +12,32 @@ TASK_METRICS: Dict[str, str] = {
     "retrieval": "mrr",
     "probing": "average",
 }
+
+# Recognised --oa_variant values for cluster YAML entries.
+# Each maps the variant name to the metric used for the order_alignment task
+# when that variant is selected. --oa_variant only controls the metric; use
+# --oa_only to additionally restrict an entry to the order_alignment task.
+OA_VARIANT_METRICS: Dict[str, str] = {
+    "distractor": "distractor_acc_mean",
+    "acc": "acc_mean",
+}
+
+
+@dataclass(frozen=True)
+class ClusterEntry:
+    """A parsed cluster YAML entry.
+
+    Attributes:
+        name: The dataset name.
+        oa_variant: Which order_alignment metric to use for this entry —
+            None (use TASK_METRICS default), "distractor", or "acc".
+        oa_only: If True, only the order_alignment task contributes to the
+            cluster table for this entry; other tasks the dataset declares
+            are dropped.
+    """
+    name: str
+    oa_variant: Optional[Literal["distractor", "acc"]] = None
+    oa_only: bool = False
 
 # Datasets where the label is primarily semantic (topic, sentiment, content)
 # rather than stylistic. Excluded from analysis by default.

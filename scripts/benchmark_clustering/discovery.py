@@ -1,13 +1,70 @@
-"""Read scores from the results directory."""
+"""Read scores from the results directory.
+
+`discover_scores` produces a per-task models × datasets matrix used by
+the auto-cluster path. `discover_all_scores` produces a flat dump of
+top-level scalar metrics keyed by (dataset, task, episode_config) used
+by the manual-cluster and Excel-export paths. Two small consumer
+helpers (`_warn_missing_metric`, `_resolve_metric_for_entry`) live
+here too because they're shared between those downstream paths.
+"""
 import json
+import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 
 from steb.core import get_supported_datasets
 
-from .config import EXCLUDED_DATASETS, EXCLUDED_MODELS, TASK_METRICS
+from .config import (
+    ClusterEntry,
+    EXCLUDED_DATASETS,
+    EXCLUDED_MODELS,
+    OA_VARIANT_METRICS,
+    TASK_METRICS,
+)
+
+
+def _warn_missing_metric(
+    dataset: str,
+    task: str,
+    metric: str,
+    seen: set,
+) -> None:
+    """Print a deduped warning to stderr when a metric is missing for a run.
+
+    Each (dataset, task, metric) combination is warned about at most once
+    per call site (deduped via the caller-provided ``seen`` set), so model
+    counts are not part of the dedupe key — a single warning per data
+    triple is enough to alert the user.
+    """
+    key = (dataset, task, metric)
+    if key in seen:
+        return
+    seen.add(key)
+    print(
+        f"  WARNING: ignoring runs for dataset '{dataset}' / task '{task}' "
+        f"that are missing the '{metric}' metric.",
+        file=sys.stderr,
+    )
+
+
+def _resolve_metric_for_entry(
+    task: str,
+    entry: ClusterEntry,
+) -> str:
+    """Pick which metric an entry contributes to a (task, metric) column.
+
+    --oa_variant only matters for the order_alignment task; for all other
+    tasks the default TASK_METRICS metric is used. Asserts that ``task``
+    is a key of ``TASK_METRICS`` — every task fed in here comes from
+    discovery, which only ever yields tasks that are in ``TASK_METRICS``.
+    """
+    if task == "order_alignment" and entry.oa_variant is not None:
+        return OA_VARIANT_METRICS[entry.oa_variant]
+    metric = TASK_METRICS.get(task)
+    assert metric is not None, f"Unknown task {task!r} (not in TASK_METRICS)"
+    return metric
 
 
 def discover_scores(
@@ -81,24 +138,27 @@ def discover_scores(
 def discover_all_scores(
     results_dir: str,
     include_excluded: bool = False,
-) -> List[Dict[str, object]]:
-    """Scan the results directory and collect all scores across tasks.
+) -> Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]]:
+    """Scan the results directory and collect top-level metrics across tasks.
 
     Respects EXCLUDED_DATASETS, EXCLUDED_MODELS, and NON_ENGLISH_DATASETS
-    filtering. Collects every (dataset, task, episode_config, model, metric)
-    combination found.
+    filtering. Collects every (dataset, task, episode_config, model)
+    combination found, returning the top-level scalar metrics from each
+    run's metrics.json so callers can pick whichever metric they need
+    (e.g. acc_mean vs distractor_acc_mean for order_alignment). Nested
+    values (e.g. _per_label, submetrics) are dropped to keep memory low.
 
     Args:
         results_dir: Path to the root results directory.
         include_excluded: If True, include semantic and non-English datasets.
 
     Returns:
-        A list of row dicts with keys: dataset, task, episode_config,
-        primary_metric, and one key per model.
+        A dict mapping (dataset, task, episode_config) to a dict mapping
+        model name to that run's flat (scalar-only) metrics dict.
     """
     results_path = Path(results_dir)
     if not results_path.exists():
-        return []
+        return {}
 
     # Build a map of dataset -> set of tasks it supports
     dataset_tasks: Dict[str, set] = {}
@@ -106,8 +166,8 @@ def discover_all_scores(
         for ds in get_supported_datasets(task_name):
             dataset_tasks.setdefault(ds, set()).add(task_name)
 
-    # Collect: (dataset, task, episode_config) -> {model: score}
-    rows: Dict[tuple, Dict[str, float]] = {}
+    # Collect: (dataset, task, episode_config) -> {model: metrics_dict}
+    rows: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {}
 
     for dataset_dir in sorted(results_path.iterdir()):
         if not dataset_dir.is_dir():
@@ -130,7 +190,6 @@ def discover_all_scores(
                     continue
 
                 for task_name in dataset_tasks[dataset_name]:
-                    metric_key = TASK_METRICS[task_name]
                     metrics_file = ep_dir / task_name / "metrics.json"
                     if not metrics_file.exists():
                         continue
@@ -138,10 +197,13 @@ def discover_all_scores(
                     with open(metrics_file) as f:
                         metrics = json.load(f)
 
-                    if metric_key not in metrics:
-                        continue
+                    # Strip nested values (e.g. _per_label, submetrics) — only
+                    # top-level scalar metrics are needed by current consumers.
+                    top_level_metrics = {
+                        k: v for k, v in metrics.items() if not isinstance(v, dict)
+                    }
 
                     key = (dataset_name, task_name, ep_dir.name)
-                    rows.setdefault(key, {})[model_dir.name] = metrics[metric_key]
+                    rows.setdefault(key, {})[model_dir.name] = top_level_metrics
 
     return rows
