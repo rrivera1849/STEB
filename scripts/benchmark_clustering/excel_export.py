@@ -62,13 +62,16 @@ def export_excel(
                 "episode_config": episode_config,
                 "primary_metric": primary_metric,
             }
+            any_value = False
             for model, metrics in model_metrics.items():
                 value = metrics.get(primary_metric)
                 if value is None:
                     _warn_missing_metric(dataset, task, primary_metric, warned_missing)
                     continue
                 record[model] = value
-            records.append(record)
+                any_value = True
+            if any_value:
+                records.append(record)
 
     scores_df = pd.DataFrame(records)
 
