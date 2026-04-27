@@ -1,5 +1,5 @@
 import itertools
-from typing import Any, Dict, Hashable, List
+from typing import Any, Dict, Hashable, List, Union
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -70,7 +70,7 @@ class OrderAlignmentTask(Task):
         self,
         embeddings: np.ndarray,
         labels: List[Any],
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, Union[float, Dict[str, float]]]:
         """
         Args:
             embeddings: The embeddings to evaluate.
