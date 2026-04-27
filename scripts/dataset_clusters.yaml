@@ -104,11 +104,20 @@ genre:
 style:
   description: "Judging which of two texts is more stylistically similar to a reference"
   datasets:
-    - STEL
-    - SynthSTEL
-    - corpus-of-diverse-styles
-    - graded_formality
-    - OneStopEnglishCorpus
+    - STEL --oa_variant acc
+    - SynthSTEL --oa_variant acc
+    - corpus-of-diverse-styles --oa_variant acc
+    - graded_formality --oa_variant acc
+    - OneStopEnglishCorpus --oa_variant acc
+
+style_vs_content:
+  description: "Judging which of two texts is more stylistically similar to a reference"
+  datasets:
+    - STEL --oa_variant distractor --oa_only
+    - SynthSTEL --oa_variant distractor --oa_only
+    - corpus-of-diverse-styles --oa_variant distractor --oa_only
+    - graded_formality --oa_variant distractor --oa_only
+    - OneStopEnglishCorpus --oa_variant distractor --oa_only
 
 feature_probing:
   description: "Probing embeddings for stylistic features"
