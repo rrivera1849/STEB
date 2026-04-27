@@ -53,7 +53,6 @@ Always separate imports by type and alphabetically, first standard library impor
   - If a loader is shared by multiple datasets (e.g. PAN, Fisher) -> `steb/loaders/`
   - If a loader is specific to one dataset -> `steb/steb_datasets/<name>/loader.py`
 - Every new dataset should have at least one task in its `tasks` field.
-- Every `config.json` must include a top-level `comment` field that links to the academic publication (DOI or paper URL) and to the dataset source (GitHub, HuggingFace, or other canonical URL).
 - For custom datasets, add the download step to `download_datasets.sh`.
 
 ## Pull Requests
