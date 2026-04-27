@@ -18,6 +18,7 @@ def add_common_arguments(parser):
     parser.add_argument("--output-folder", default=RESULTS_DIR, help="Folder to save the results to.")
     parser.add_argument("--force-reload", default=False, action="store_true", help="Whether to force reload the datasets.")
     parser.add_argument("--force-rerun", default=False, action="store_true", help="Re-run evaluations even if metrics file already exists.")
+    parser.add_argument("--force-rerun-oa", default=False, action="store_true", help="Re-run the order_alignment task only.")
     parser.add_argument("--progress-bar", default=False, action="store_true", help="Show a progress bar.")
     parser.add_argument("--seed", type=int, default=42, help="The random seed to use.")
 
@@ -200,6 +201,7 @@ def main():
                 output_folder=args.output_folder,
                 force_reload=args.force_reload,
                 force_rerun=args.force_rerun,
+                force_rerun_oa=args.force_rerun_oa,
                 progress_bar=args.progress_bar,
                 seed=args.seed,
                 run_name=args.preset,
@@ -291,6 +293,7 @@ def main():
         output_folder=args.output_folder,
         force_reload=args.force_reload,
         force_rerun=args.force_rerun,
+        force_rerun_oa=args.force_rerun_oa,
         progress_bar=args.progress_bar,
         seed=args.seed,
         run_name=args.task,
