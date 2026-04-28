@@ -376,8 +376,12 @@ def evaluate(
 
             seq_len = len(text_list[0])
             if episode_size == -1:
-                # Group all sequences into a single large episode
-                episodes_by_label[label] = [[[sublist for lst in text_list for sublist in lst]]]
+                if current_task_name == "pre_defined_pair_classification":
+                    # Keep each text list as its own episode so pairs remain separate
+                    episodes_by_label[label] = [[lst] for lst in text_list]
+                else:
+                    # Group all sequences into a single large episode
+                    episodes_by_label[label] = [[[sublist for lst in text_list for sublist in lst]]]
             else:
                 # Group sequences into episodes, organize by position
                 episodes_by_label[label] = [
