@@ -26,7 +26,11 @@ def add_common_arguments(parser):
 def add_iteration_arguments(parser):
     """Adds iteration arguments (episode sizes, n per class) to the parser."""
     parser.add_argument("-e", "--episode-sizes", type=int, nargs="+", help="Number of atomic units to form writing sample.")
-    parser.add_argument("--n-episodes-per-class", type=int, default=50, help="Number of examples per class.")
+    parser.add_argument(
+        "--n-episodes-per-class",
+        default=None,
+        help="Number of examples per class. Use 'auto' to adaptively preserve all classes (default when omitted: per-task default).",
+    )
 
 
 def run_validate():
@@ -281,7 +285,13 @@ def main():
     # Only pass episode args if the task supports them and they were provided.
     # Otherwise, evaluate() will use per-task defaults from TASK_DEFAULTS.
     episode_sizes = getattr(args, "episode_sizes", None) or None
-    n_episodes_per_class = getattr(args, "n_episodes_per_class", None)
+    raw_n_episodes = getattr(args, "n_episodes_per_class", None)
+    if raw_n_episodes is None:
+        n_episodes_per_class = None
+    elif raw_n_episodes == "auto":
+        n_episodes_per_class = "auto"
+    else:
+        n_episodes_per_class = int(raw_n_episodes)
 
     evaluate(
         model,

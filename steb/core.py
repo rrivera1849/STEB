@@ -29,9 +29,9 @@ SUPPORTED_TASKS = [
 ]
 
 TASK_DEFAULTS = {
-    "clustering": {"episode_sizes": [1], "n_episodes_per_class": 50},
-    "all_to_all_pair_classification": {"episode_sizes": [1], "n_episodes_per_class": 50},
-    "order_alignment": {"episode_sizes": [1], "n_episodes_per_class": 50},
+    "clustering": {"episode_sizes": [1], "n_episodes_per_class": "auto"},
+    "all_to_all_pair_classification": {"episode_sizes": [1], "n_episodes_per_class": "auto"},
+    "order_alignment": {"episode_sizes": [1], "n_episodes_per_class": "auto"},
     "pre_defined_pair_classification": {"episode_sizes": [1], "n_episodes_per_class": 2},
     "probing": {"episode_sizes": [1], "n_episodes_per_class": 1},
     "retrieval": {"episode_sizes": [1], "n_episodes_per_class": 1},
@@ -454,20 +454,22 @@ def evaluate(
                 if model_str == "":
                     model_str = os.path.basename(os.path.dirname(model.model_name_or_path))
                 dset_str = os.path.basename(dataset_name)
-                scores_path = os.path.join(
-                    output_folder, dset_str, model_str,
-                    f"{episode_size}_{resolved_n_episodes}", current_task_name,
-                )
-                metrics_path = os.path.join(scores_path, "metrics.json")
 
-                if (
-                    not force_rerun
-                    and not (force_rerun_oa and current_task_name == "order_alignment")
-                    and os.path.exists(metrics_path)
-                ):
-                    print(colored(f"    -> Skipping (results already exist)", "yellow"))
-                    successes.append((dataset_name, episode_size, current_task_name))
-                    continue
+                # When n_episodes is not "auto", we can check for existing results early
+                if resolved_n_episodes != "auto":
+                    scores_path = os.path.join(
+                        output_folder, dset_str, model_str,
+                        f"{episode_size}_{resolved_n_episodes}", current_task_name,
+                    )
+                    metrics_path = os.path.join(scores_path, "metrics.json")
+                    if (
+                        not force_rerun
+                        and not (force_rerun_oa and current_task_name == "order_alignment")
+                        and os.path.exists(metrics_path)
+                    ):
+                        print(colored(f"    -> Skipping (results already exist)", "yellow"))
+                        successes.append((dataset_name, episode_size, current_task_name))
+                        continue
 
                 try:
                     if "record_handler" in task_config:
@@ -482,26 +484,46 @@ def evaluate(
                         task_dataset = safe_load(task_loader, dataset_name, episode_size, current_task_name)
                         if task_dataset is None:
                             continue
+                        actual_n_episodes = task_loader.n_episodes_per_class
                         current_X, current_y = extract_features(
-                            task_dataset, episode_size, resolved_n_episodes, batch_size, show_progress=progress_bar,
+                            task_dataset, episode_size, actual_n_episodes, batch_size, show_progress=progress_bar,
                         )
                     else:
-                        cache_key = (episode_size, resolved_n_episodes)
+                        dset_loader = DatasetLoader(
+                            dataset_name=dataset_name,
+                            episode_size=episode_size,
+                            n_episodes_per_class=resolved_n_episodes,
+                            force_reload=force_reload,
+                            seed=seed,
+                        )
+                        dataset = safe_load(dset_loader, dataset_name, episode_size, current_task_name)
+                        if dataset is None:
+                            continue
+                        actual_n_episodes = dset_loader.n_episodes_per_class
+                        cache_key = (episode_size, actual_n_episodes)
                         if cache_key not in default_cache:
-                            dset_loader = DatasetLoader(
-                                dataset_name=dataset_name,
-                                episode_size=episode_size,
-                                n_episodes_per_class=resolved_n_episodes,
-                                force_reload=force_reload,
-                                seed=seed,
-                            )
-                            dataset = safe_load(dset_loader, dataset_name, episode_size, current_task_name)
-                            if dataset is None:
-                                continue
                             default_cache[cache_key] = extract_features(
-                                dataset, episode_size, resolved_n_episodes, batch_size, show_progress=progress_bar,
+                                dataset, episode_size, actual_n_episodes, batch_size, show_progress=progress_bar,
                             )
                         current_X, current_y = default_cache[cache_key]
+
+                    # Resolve scores_path now that actual_n_episodes is known
+                    scores_path = os.path.join(
+                        output_folder, dset_str, model_str,
+                        f"{episode_size}_{actual_n_episodes}", current_task_name,
+                    )
+                    metrics_path = os.path.join(scores_path, "metrics.json")
+
+                    # Check for existing results after resolving "auto"
+                    if (
+                        resolved_n_episodes == "auto"
+                        and not force_rerun
+                        and not (force_rerun_oa and current_task_name == "order_alignment")
+                        and os.path.exists(metrics_path)
+                    ):
+                        print(colored(f"    -> Skipping (results already exist)", "yellow"))
+                        successes.append((dataset_name, episode_size, current_task_name))
+                        continue
 
                     if "processor" in task_config:
                         processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
