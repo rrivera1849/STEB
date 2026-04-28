@@ -1,0 +1,18 @@
+{
+  "dataset_name": "facebook/asset",
+  "type": "huggingface",
+  "comment": "ASSET (Alva-Manchego et al., ACL 2020, doi:10.18653/v1/2020.acl-main.424). GitHub: https://github.com/facebookresearch/asset. HuggingFace mirror facebook/asset.",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label",
+    "custom_record_handler_function": "asset_record_handler"
+  },
+  "loader_kwargs": {
+    "path": "facebook/asset",
+    "name": "simplification",
+    "split": "validation+test"
+  },
+  "tasks": {
+    "order_alignment": {}
+  }
+}
