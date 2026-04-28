@@ -1,0 +1,13 @@
+{
+  "dataset_name": "twitter_aave_sae",
+  "type": "custom",
+  "data_dir": "twitter_aave_sae",
+  "loader_function": "load_twitter_aave_sae_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "order_alignment": {}
+  }
+}

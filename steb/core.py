@@ -286,6 +286,7 @@ def evaluate(
     batch_size: int = 32,
     force_reload: bool = False,
     force_rerun: bool = False,
+    force_rerun_oa: bool = False,
     progress_bar: bool = False,
     output_folder: str = RESULTS_DIR,
     seed: int = 42,
@@ -310,6 +311,9 @@ def evaluate(
         batch_size: The batch size for embedding.
         force_reload: Whether to force reload the datasets.
         force_rerun: Whether to re-run evaluations even if metrics already exist.
+        force_rerun_oa: Whether to re-run the order_alignment task only,
+            even if its metrics file already exists. Ignored when
+            ``force_rerun`` is also set.
         progress_bar: Whether to show a progress bar.
         output_folder: The folder to save the results to.
         seed: The random seed to use.
@@ -456,7 +460,11 @@ def evaluate(
                 )
                 metrics_path = os.path.join(scores_path, "metrics.json")
 
-                if not force_rerun and os.path.exists(metrics_path):
+                if (
+                    not force_rerun
+                    and not (force_rerun_oa and current_task_name == "order_alignment")
+                    and os.path.exists(metrics_path)
+                ):
                     print(colored(f"    -> Skipping (results already exist)", "yellow"))
                     successes.append((dataset_name, episode_size, current_task_name))
                     continue
