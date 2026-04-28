@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from termcolor import colored
-from tqdm import tqdm
 from transformers import AutoConfig, set_seed
 from transformers.models.auto.modeling_auto import (
     MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
@@ -277,6 +276,151 @@ def _evaluate_submetrics(
     return submetrics
 
 
+def _iter_task_configs(
+    datasets: List[str],
+    task_name: Optional[str] = None,
+    episode_sizes: Optional[List[int]] = None,
+    n_episodes_per_class: Optional[int] = None,
+):
+    """
+    Iterates over dataset/task/episode_size combinations, resolving defaults.
+
+    Yields:
+        Tuples of (dataset_name, current_task_name, task_config, episode_size,
+        resolved_n_episodes) for each valid combination.
+    """
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+
+    for dataset_name in datasets:
+        config_path = os.path.join(package_dir, "steb_datasets", dataset_name, "config.json")
+        with open(config_path) as f:
+            config = json.load(f)
+
+        tasks_to_run = [task_name] if task_name else list(config.get("tasks", {}).keys())
+
+        for current_task_name in tasks_to_run:
+            task_config = config.get("tasks", {}).get(current_task_name)
+            if task_config is None:
+                continue
+
+            task_defaults = TASK_DEFAULTS.get(current_task_name, {})
+            resolved_episode_sizes = (
+                episode_sizes
+                or task_config.get("episode_sizes")
+                or task_defaults.get("episode_sizes")
+            )
+            resolved_n_episodes = (
+                n_episodes_per_class
+                or task_config.get("n_episodes_per_class")
+                or task_defaults.get("n_episodes_per_class")
+            )
+
+            for episode_size in resolved_episode_sizes:
+                yield (dataset_name, current_task_name, task_config, episode_size, resolved_n_episodes)
+
+
+def preview(
+    datasets: List[str],
+    task_name: Optional[str] = None,
+    episode_sizes: Optional[List[int]] = None,
+    n_episodes_per_class: Optional[int] = None,
+    output_file: Optional[str] = None,
+    show_summary: bool = True,
+) -> List[Dict[str, Any]]:
+    """
+    Previews dataset statistics for a benchmark run without loading a model.
+
+    For each dataset/task/episode_size combination, reports class counts,
+    resolved n_episodes_per_class, and which classes would be dropped.
+
+    Args:
+        datasets: A list of dataset names to preview.
+        task_name: The task to preview. If None, previews all tasks.
+        episode_sizes: Episode sizes to preview. If None, uses per-task defaults.
+        n_episodes_per_class: Override for n_episodes_per_class. If None, uses per-task defaults.
+        output_file: Optional path to write the preview report to.
+        show_summary: Whether to print the summary block. Set to False when
+            the caller handles its own summary (e.g. preset mode).
+
+    Returns:
+        A list of result dicts, one per dataset/task/episode_size combination.
+    """
+    results = []
+    lines = []
+
+    for dataset_name, current_task_name, _, episode_size, resolved_n_episodes in _iter_task_configs(
+        datasets, task_name, episode_sizes, n_episodes_per_class,
+    ):
+        try:
+            loader = DatasetLoader(
+                dataset_name=dataset_name,
+                episode_size=episode_size,
+                n_episodes_per_class=resolved_n_episodes,
+                task_name=current_task_name,
+            )
+            stats = loader.preview()
+
+            result = {
+                "dataset": dataset_name,
+                "task": current_task_name,
+                **stats,
+            }
+            results.append(result)
+
+            dropped_count = stats["dropped_classes"]
+            status_str = "OK" if dropped_count == 0 else f"{dropped_count} dropped"
+            plain_line = (
+                f"  {dataset_name} | {current_task_name} | "
+                f"ep_size={episode_size} | "
+                f"n_episodes={stats['n_episodes_per_class']} | "
+                f"classes={stats['kept_classes']}/{stats['total_classes']} | "
+                f"min_count={stats['min_class_count']} | "
+                f"{status_str}"
+            )
+            color = "green" if dropped_count == 0 else "yellow"
+            print(colored(plain_line, color))
+            lines.append(plain_line)
+
+            if stats["dropped_labels"]:
+                for label, count in sorted(stats["dropped_labels"].items(), key=lambda x: x[1]):
+                    drop_line = f"    dropped '{label}': {count}/{stats['samples_per_class']} samples"
+                    print(colored(drop_line, "yellow"))
+                    lines.append(drop_line)
+
+        except Exception as e:
+            msg = f"  FAILED {dataset_name}/{current_task_name}: {type(e).__name__}: {e}"
+            print(colored(msg, "red"))
+            lines.append(msg)
+
+    # Summary
+    total_combos = len(results)
+    total_dropped = sum(r["dropped_classes"] for r in results)
+    total_kept = sum(r["kept_classes"] for r in results)
+    total_total = sum(r["total_classes"] for r in results)
+
+    if show_summary:
+        summary_lines = [
+            "",
+            "=" * 60,
+            "Preview Summary",
+            "=" * 60,
+            f"  Combinations: {total_combos}",
+            f"  Classes kept: {total_kept}/{total_total}",
+            f"  Classes dropped: {total_dropped}",
+            "=" * 60,
+        ]
+        for line in summary_lines:
+            print(colored(line, "cyan"))
+        lines.extend(summary_lines)
+
+    if output_file:
+        with open(output_file, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        print(colored(f"  Report saved to: {output_file}", "cyan"))
+
+    return results
+
+
 def evaluate(
     model,
     datasets: List[str],
@@ -408,160 +552,127 @@ def evaluate(
         X = [X_flat[i:i+num_positions] for i in range(0, len(X_flat), num_positions)]
         return X, y
 
-    package_dir = os.path.dirname(os.path.abspath(__file__))
+    # Cache default embeddings by (dataset, episode_size, n_episodes_per_class)
+    # so tasks sharing the same parameters reuse the same embeddings.
+    default_cache: Dict[Tuple[str, int, int], Tuple[Any, Any]] = {}
 
-    dataset_iterator = tqdm(datasets, desc="Evaluating Datasets", disable=not progress_bar)
-    for dataset_name in dataset_iterator:
-        config_path = os.path.join(package_dir, "steb_datasets", dataset_name, "config.json")
-        try:
-            with open(config_path) as f:
-                config = json.load(f)
-        except Exception as e:
-            error_msg = f"{type(e).__name__}: {e}"
-            print(colored(f"  FAILED to read config for {dataset_name}: {error_msg}", "red"))
-            traceback.print_exc()
-            failures.append((dataset_name, -1, "config_read", error_msg))
-            continue
+    for dataset_name, current_task_name, task_config, episode_size, resolved_n_episodes in _iter_task_configs(
+        datasets, task_name, episode_sizes, n_episodes_per_class,
+    ):
+        print(colored(f"--- Evaluating {dataset_name} | {current_task_name} (episode size: {episode_size}) ---", "cyan"))
 
-        tasks_to_run = [task_name] if task_name else list(config.get("tasks", {}).keys())
+        model_str = os.path.basename(model.model_name_or_path)
+        if model_str == "":
+            model_str = os.path.basename(os.path.dirname(model.model_name_or_path))
+        dset_str = os.path.basename(dataset_name)
 
-        # Cache default embeddings by (episode_size, n_episodes_per_class)
-        # so tasks sharing the same parameters reuse the same embeddings.
-        default_cache: Dict[Tuple[int, int], Tuple[Any, Any]] = {}
-
-        for current_task_name in tasks_to_run:
-            task_config = config.get("tasks", {}).get(current_task_name)
-            if task_config is None:
-                print(colored(f"Task '{current_task_name}' not supported by dataset '{dataset_name}'. Skipping.", "yellow"))
+        # When n_episodes is not "auto", we can check for existing results early
+        if resolved_n_episodes != "auto":
+            scores_path = os.path.join(
+                output_folder, dset_str, model_str,
+                f"{episode_size}_{resolved_n_episodes}", current_task_name,
+            )
+            metrics_path = os.path.join(scores_path, "metrics.json")
+            if (
+                not force_rerun
+                and not (force_rerun_oa and current_task_name == "order_alignment")
+                and os.path.exists(metrics_path)
+            ):
+                print(colored(f"    -> Skipping (results already exist)", "yellow"))
+                successes.append((dataset_name, episode_size, current_task_name))
                 continue
 
-            task_defaults = TASK_DEFAULTS.get(current_task_name, {})
-            resolved_episode_sizes = (
-                episode_sizes
-                or task_config.get("episode_sizes")
-                or task_defaults.get("episode_sizes")
-            )
-            resolved_n_episodes = (
-                n_episodes_per_class
-                or task_config.get("n_episodes_per_class")
-                or task_defaults.get("n_episodes_per_class")
-            )
-
-            for episode_size in resolved_episode_sizes:
-                print(colored(f"--- Evaluating {dataset_name} | {current_task_name} (episode size: {episode_size}) ---", "cyan"))
-
-                model_str = os.path.basename(model.model_name_or_path)
-                if model_str == "":
-                    model_str = os.path.basename(os.path.dirname(model.model_name_or_path))
-                dset_str = os.path.basename(dataset_name)
-
-                # When n_episodes is not "auto", we can check for existing results early
-                if resolved_n_episodes != "auto":
-                    scores_path = os.path.join(
-                        output_folder, dset_str, model_str,
-                        f"{episode_size}_{resolved_n_episodes}", current_task_name,
+        try:
+            if "record_handler" in task_config:
+                task_loader = DatasetLoader(
+                    dataset_name=dataset_name,
+                    episode_size=episode_size,
+                    n_episodes_per_class=resolved_n_episodes,
+                    force_reload=force_reload,
+                    seed=seed,
+                    task_name=current_task_name,
+                )
+                task_dataset = safe_load(task_loader, dataset_name, episode_size, current_task_name)
+                if task_dataset is None:
+                    continue
+                actual_n_episodes = task_loader.n_episodes_per_class
+                current_X, current_y = extract_features(
+                    task_dataset, episode_size, actual_n_episodes, batch_size, show_progress=progress_bar,
+                )
+            else:
+                dset_loader = DatasetLoader(
+                    dataset_name=dataset_name,
+                    episode_size=episode_size,
+                    n_episodes_per_class=resolved_n_episodes,
+                    force_reload=force_reload,
+                    seed=seed,
+                )
+                dataset = safe_load(dset_loader, dataset_name, episode_size, current_task_name)
+                if dataset is None:
+                    continue
+                actual_n_episodes = dset_loader.n_episodes_per_class
+                cache_key = (dataset_name, episode_size, actual_n_episodes)
+                if cache_key not in default_cache:
+                    default_cache[cache_key] = extract_features(
+                        dataset, episode_size, actual_n_episodes, batch_size, show_progress=progress_bar,
                     )
-                    metrics_path = os.path.join(scores_path, "metrics.json")
-                    if (
-                        not force_rerun
-                        and not (force_rerun_oa and current_task_name == "order_alignment")
-                        and os.path.exists(metrics_path)
-                    ):
-                        print(colored(f"    -> Skipping (results already exist)", "yellow"))
-                        successes.append((dataset_name, episode_size, current_task_name))
-                        continue
+                current_X, current_y = default_cache[cache_key]
 
-                try:
-                    if "record_handler" in task_config:
-                        task_loader = DatasetLoader(
-                            dataset_name=dataset_name,
-                            episode_size=episode_size,
-                            n_episodes_per_class=resolved_n_episodes,
-                            force_reload=force_reload,
-                            seed=seed,
-                            task_name=current_task_name,
-                        )
-                        task_dataset = safe_load(task_loader, dataset_name, episode_size, current_task_name)
-                        if task_dataset is None:
-                            continue
-                        actual_n_episodes = task_loader.n_episodes_per_class
-                        current_X, current_y = extract_features(
-                            task_dataset, episode_size, actual_n_episodes, batch_size, show_progress=progress_bar,
-                        )
-                    else:
-                        dset_loader = DatasetLoader(
-                            dataset_name=dataset_name,
-                            episode_size=episode_size,
-                            n_episodes_per_class=resolved_n_episodes,
-                            force_reload=force_reload,
-                            seed=seed,
-                        )
-                        dataset = safe_load(dset_loader, dataset_name, episode_size, current_task_name)
-                        if dataset is None:
-                            continue
-                        actual_n_episodes = dset_loader.n_episodes_per_class
-                        cache_key = (episode_size, actual_n_episodes)
-                        if cache_key not in default_cache:
-                            default_cache[cache_key] = extract_features(
-                                dataset, episode_size, actual_n_episodes, batch_size, show_progress=progress_bar,
-                            )
-                        current_X, current_y = default_cache[cache_key]
+            # Resolve scores_path now that actual_n_episodes is known
+            scores_path = os.path.join(
+                output_folder, dset_str, model_str,
+                f"{episode_size}_{actual_n_episodes}", current_task_name,
+            )
+            metrics_path = os.path.join(scores_path, "metrics.json")
 
-                    # Resolve scores_path now that actual_n_episodes is known
-                    scores_path = os.path.join(
-                        output_folder, dset_str, model_str,
-                        f"{episode_size}_{actual_n_episodes}", current_task_name,
-                    )
-                    metrics_path = os.path.join(scores_path, "metrics.json")
+            # Check for existing results after resolving "auto"
+            if (
+                resolved_n_episodes == "auto"
+                and not force_rerun
+                and not (force_rerun_oa and current_task_name == "order_alignment")
+                and os.path.exists(metrics_path)
+            ):
+                print(colored(f"    -> Skipping (results already exist)", "yellow"))
+                successes.append((dataset_name, episode_size, current_task_name))
+                continue
 
-                    # Check for existing results after resolving "auto"
-                    if (
-                        resolved_n_episodes == "auto"
-                        and not force_rerun
-                        and not (force_rerun_oa and current_task_name == "order_alignment")
-                        and os.path.exists(metrics_path)
-                    ):
-                        print(colored(f"    -> Skipping (results already exist)", "yellow"))
-                        successes.append((dataset_name, episode_size, current_task_name))
-                        continue
+            if "processor" in task_config:
+                processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
+                processor_class_name = f"{task_config['processor'].replace('_', ' ').title().replace(' ', '')}Processor"
+                processor_class = getattr(processor_module, processor_class_name)
+                processor = processor_class()
+            else:
+                processor = Processor()
 
-                    if "processor" in task_config:
-                        processor_module = importlib.import_module(f"steb.processors.{task_config['processor']}")
-                        processor_class_name = f"{task_config['processor'].replace('_', ' ').title().replace(' ', '')}Processor"
-                        processor_class = getattr(processor_module, processor_class_name)
-                        processor = processor_class()
-                    else:
-                        processor = Processor()
+            processed_data = processor.process(current_X, current_y)
 
-                    processed_data = processor.process(current_X, current_y)
+            task_module = importlib.import_module(f"steb.tasks.{current_task_name}")
+            task_class_name = f"{current_task_name.replace('_', ' ').title().replace(' ', '')}Task"
+            task_class = getattr(task_module, task_class_name)
+            task = task_class()
 
-                    task_module = importlib.import_module(f"steb.tasks.{current_task_name}")
-                    task_class_name = f"{current_task_name.replace('_', ' ').title().replace(' ', '')}Task"
-                    task_class = getattr(task_module, task_class_name)
-                    task = task_class()
+            metrics = task.evaluate(*processed_data)
 
-                    metrics = task.evaluate(*processed_data)
+            submetrics_config = task_config.get("submetrics", {})
+            if submetrics_config:
+                metrics["submetrics"] = _evaluate_submetrics(
+                    submetrics_config,
+                    processed_data,
+                    task,
+                )
 
-                    submetrics_config = task_config.get("submetrics", {})
-                    if submetrics_config:
-                        metrics["submetrics"] = _evaluate_submetrics(
-                            submetrics_config,
-                            processed_data,
-                            task,
-                        )
+            os.makedirs(scores_path, exist_ok=True)
+            with open(metrics_path, "w+") as ouf:
+                ouf.write(json.dumps(metrics))
 
-                    os.makedirs(scores_path, exist_ok=True)
-                    with open(metrics_path, "w+") as ouf:
-                        ouf.write(json.dumps(metrics))
+            print(colored(f"    -> Metrics: {metrics}", "green"))
+            successes.append((dataset_name, episode_size, current_task_name))
 
-                    print(colored(f"    -> Metrics: {metrics}", "green"))
-                    successes.append((dataset_name, episode_size, current_task_name))
-
-                except Exception as e:
-                    error_msg = f"{type(e).__name__}: {e}"
-                    print(colored(f"  FAILED {dataset_name}/{current_task_name}: {error_msg}", "red"))
-                    traceback.print_exc()
-                    failures.append((dataset_name, episode_size, current_task_name, error_msg))
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {e}"
+            print(colored(f"  FAILED {dataset_name}/{current_task_name}: {error_msg}", "red"))
+            traceback.print_exc()
+            failures.append((dataset_name, episode_size, current_task_name, error_msg))
 
     _print_evaluation_summary(successes, failures)
 
