@@ -113,6 +113,51 @@ class DatasetLoader:
         with open(config_path, "r") as f:
             return config_path, json.load(f)
 
+    def _load_source_and_handler(self):
+        """
+        Loads the raw dataset and builds the record handler.
+
+        Returns:
+            A tuple of (dataset_iter, handler) where dataset_iter is the raw
+            dataset iterable and handler is a partial-applied record_handler.
+        """
+        loader_module_name = self.config.get("loader_module", f"steb.steb_datasets.{self.dataset_name}.loader")
+
+        if self.config["type"] == "huggingface":
+            loader_kwargs = dict(self.config["loader_kwargs"])
+            loader_kwargs["cache_dir"] = CACHE_DIR
+            dataset_iter = load_dataset(**loader_kwargs)
+        elif self.config["type"] == "custom":
+            loader_module = importlib.import_module(loader_module_name)
+            loader_fn = getattr(loader_module, self.config["loader_function"])
+            dataset_iter = loader_fn(os.path.join(RAW_DATASETS_DIR, self.config["data_dir"]))
+        else:
+            raise ValueError(f"Unknown dataset type: {self.config['type']}")
+
+        effective_rh = self._get_effective_record_handler()
+        text_getter = effective_rh.get("text_getter")
+        label_getter = effective_rh.get("label_getter")
+
+        label_transform = None
+        if "label_getter_function" in effective_rh:
+            lm = importlib.import_module(loader_module_name)
+            label_transform = getattr(lm, effective_rh["label_getter_function"])
+
+        custom_record_handler = None
+        if "custom_record_handler_function" in effective_rh:
+            lm = importlib.import_module(loader_module_name)
+            custom_record_handler = getattr(lm, effective_rh["custom_record_handler_function"])
+
+        handler = partial(
+            record_handler,
+            text_getter=text_getter,
+            label_getter=label_getter,
+            label_transform=label_transform,
+            custom_record_handler=custom_record_handler,
+        )
+
+        return dataset_iter, handler
+
     def load(self):
         """
         Loads, processes, and returns the dataset.
@@ -130,42 +175,7 @@ class DatasetLoader:
                 with open(dataset_path, "r") as f:
                     return json.loads(f.read())
 
-        loader_module_name = self.config.get("loader_module", f"steb.steb_datasets.{self.dataset_name}.loader")
-
-        if self.config["type"] == "huggingface":
-            loader_kwargs = self.config["loader_kwargs"]
-            loader_kwargs["cache_dir"] = CACHE_DIR
-            dataset_iter = load_dataset(**loader_kwargs)
-        elif self.config["type"] == "custom":
-            loader_module = importlib.import_module(loader_module_name)
-            loader_fn = getattr(loader_module, self.config["loader_function"])
-            dataset_iter = loader_fn(os.path.join(RAW_DATASETS_DIR, self.config["data_dir"]))
-        else:
-            raise ValueError(f"Unknown dataset type: {self.config['type']}")
-
-        effective_rh = self._get_effective_record_handler()
-
-        text_getter = effective_rh.get("text_getter")
-        label_getter = effective_rh.get("label_getter")
-
-        label_transform = None
-        if "label_getter_function" in effective_rh:
-            loader_module = importlib.import_module(loader_module_name)
-            label_transform = getattr(loader_module, effective_rh["label_getter_function"])
-
-        custom_record_handler = None
-        if "custom_record_handler_function" in effective_rh:
-            loader_module = importlib.import_module(loader_module_name)
-            custom_record_handler = getattr(loader_module, effective_rh["custom_record_handler_function"])
-
-        handler = partial(
-            record_handler,
-            text_getter=text_getter,
-            label_getter=label_getter,
-            label_transform=label_transform,
-            custom_record_handler=custom_record_handler,
-        )
-
+        dataset_iter, handler = self._load_source_and_handler()
         label_counts = self._count_labels(dataset_iter, handler)
 
         # Resolve "auto" n_episodes_per_class from the label counts
@@ -260,6 +270,45 @@ class DatasetLoader:
         if self._has_task_specific_record_handler():
             base_str += f"_{self.task_name}"
         return os.path.join(PROCESSED_DATA_DIR, base_str + ".json")
+
+    def preview(self) -> Dict[str, Any]:
+        """
+        Returns dataset statistics without collecting data.
+
+        Loads the dataset source, counts labels, resolves "auto" n_episodes_per_class,
+        and reports which classes would be kept or dropped.
+
+        Returns:
+            A dict with keys: total_classes, kept_classes, dropped_classes,
+            dropped_labels, n_episodes_per_class, episode_size, min_class_count,
+            samples_per_class.
+        """
+        dataset_iter, handler = self._load_source_and_handler()
+        label_counts = self._count_labels(dataset_iter, handler)
+
+        if self.n_episodes_per_class == "auto":
+            resolved = self._resolve_auto_episodes(label_counts)
+        else:
+            resolved = self.n_episodes_per_class
+
+        if self.episode_size == -1:
+            N = 1
+        else:
+            N = self.episode_size * resolved
+
+        min_count = min(label_counts.values()) if label_counts else 0
+        dropped = {k: v for k, v in label_counts.items() if v < N}
+
+        return {
+            "total_classes": len(label_counts),
+            "kept_classes": len(label_counts) - len(dropped),
+            "dropped_classes": len(dropped),
+            "dropped_labels": dropped,
+            "n_episodes_per_class": resolved,
+            "episode_size": self.episode_size,
+            "min_class_count": min_count,
+            "samples_per_class": N,
+        }
 
     def _count_labels(
         self,
