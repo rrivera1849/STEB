@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List
 
-
+# constant defining expected CEECES XML folder and metadata file names
 SUBSETS = (
     ("CEECES1", "CEECES1-metadata.txt", "CEECES 1 - XML files by collection"),
     ("CEECES2", "CEECES2-metadata.txt", "CEECES 2 - XML files by collection"),
@@ -17,9 +17,7 @@ def _load_period_by_letter_id(
 ) -> Dict[str, str]:
     """
     Reads the tab-delimited CEECES metadata file and returns a mapping from
-    LetterID to Period (e.g. "1680-1699"). Rows with an empty Period are
-    skipped (the metadata files have a few trailing blank rows). The metadata
-    files Zenodo ships are CP1252-encoded with CRLF line terminators.
+    LetterID to Period (e.g. "1680-1699"). T
 
     Args:
         metadata_path: Path to a CEECESN-metadata.txt file.
@@ -43,10 +41,10 @@ def _extract_letter_text(
     tei_element: ET.Element,
 ) -> str:
     """
-    Extracts the running text of a single TEI letter element, joining its
+    Extracts the text of a single letter element, joining its
     paragraphs with blank lines. Inline editorial markup (notes, page breaks,
-    foreign-language spans, highlighting) is flattened to its visible text via
-    ElementTree's `itertext`; whitespace within each paragraph is collapsed.
+    foreign-language spans, highlighting) are removed, leaving only its
+    visible text.
 
     Args:
         tei_element: A `<TEI>` element representing one letter.
@@ -56,15 +54,17 @@ def _extract_letter_text(
         non-empty paragraphs.
     """
     text_el = tei_element.find("text")
-    if text_el is None:
-        return ""
     paragraphs: List[str] = []
-    for p in text_el.findall("p"):
-        joined = "".join(p.itertext())
-        cleaned = re.sub(r"\s+", " ", joined).strip()
-        if cleaned:
-            paragraphs.append(cleaned)
-    return "\n\n".join(paragraphs)
+    if text_el is not None:
+        for p in text_el.findall("p"):
+            joined = "".join(p.itertext())
+            cleaned = re.sub(r"\s+", " ", joined).strip()
+            if cleaned:
+                paragraphs.append(cleaned)
+    result = "\n\n".join(paragraphs)
+    if result == "":
+        raise ValueError("Letter has no non-empty paragraphs")
+    return result
 
 
 def load_ceeces_dataset(
@@ -72,16 +72,12 @@ def load_ceeces_dataset(
 ) -> List[Dict[str, Any]]:
     """
     Loads the CEECES (Corpus of Early English Correspondence Extension Sampler)
-    dataset for historical period prediction. Combines CEECES 1 and CEECES 2
-    (the public 18th-century releases of the CEEC-400 project from the
-    University of Helsinki) into one dataset, with one record per letter.
+    part 1 and part 2.
 
     Each TEI XML file under each subset's "XML files by collection" directory
-    holds many `<TEI xml:id="LETTER_ID">` letters; the period label for a
+    holds `<TEI xml:id="LETTER_ID">` letters; the period label for a
     given letter is read from the matching row in the subset's tab-delimited
-    metadata file (`Period` column). Letters without a metadata period are
-    dropped; periods themselves are passed through verbatim so STEB's
-    downstream filtering decides which periods have enough records to keep.
+    metadata file.
 
     Args:
         data_dir: Path to the raw dataset directory containing `CEECES1/` and
@@ -108,20 +104,18 @@ def load_ceeces_dataset(
         period_by_id = _load_period_by_letter_id(metadata_path)
         for xml_path in sorted(xml_dir.glob("*.xml")):
             tree = ET.parse(xml_path)
-            for tei in tree.getroot().iter("TEI"):
-                # `xml:id` in Clark notation — ElementTree expands the
-                # built-in `xml:` prefix to its full namespace URI.
+            for tei in tree.getroot().iter("TEI"): # several letters per file, saved by author name
                 letter_id = tei.attrib.get(
                     "{http://www.w3.org/XML/1998/namespace}id"
                 )
                 if not letter_id:
-                    continue
+                    raise ValueError(f"Letter missing xml:id attribute: {xml_path}")
                 period = period_by_id.get(letter_id)
                 if not period:
-                    continue
+                    raise ValueError(f"Letter ID {letter_id} not found in metadata: {metadata_path}")
                 text = _extract_letter_text(tei)
                 if not text:
-                    continue
+                    raise ValueError(f"Letter {letter_id} has no text: {xml_path}")
                 records.append({"text": text, "label": period})
 
     return records
