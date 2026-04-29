@@ -68,6 +68,14 @@ def ceeces_records():
 # Tests: dataset-level properties
 # ---------------------------------------------------------------------------
 
+def test_labels_are_known_periods(ceeces_records):
+    """All emitted labels are values that appear in the CEECES metadata."""
+    labels = {rec["label"] for rec in ceeces_records}
+    assert labels, "Expected at least one label in CEECES records"
+    assert labels.issubset(EXPECTED_PERIODS), (
+        f"Unexpected period labels: {labels - EXPECTED_PERIODS}"
+    )
+
 
 def test_total_record_count_is_reasonable(ceeces_records):
     """
