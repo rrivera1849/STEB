@@ -1,5 +1,6 @@
 import csv
 import os
+import random
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -10,6 +11,10 @@ SUBSETS = (
     ("CEECES1", "CEECES1-metadata.txt", "CEECES 1 - XML files by collection"),
     ("CEECES2", "CEECES2-metadata.txt", "CEECES 2 - XML files by collection"),
 )
+
+# Seed used to shuffle records within each label. Fixed so the dataset is
+# reproducible across machines and runs.
+SHUFFLE_SEED = 42
 
 
 def _load_period_by_letter_id(
@@ -37,20 +42,20 @@ def _load_period_by_letter_id(
     return period_by_id
 
 
-def _extract_letter_text(
+def _extract_letter_paragraphs(
     tei_element: ET.Element,
-) -> str:
+) -> List[str]:
     """
-    Extracts the text of a single letter element, joining its
-    paragraphs with blank lines. Inline editorial markup (notes, page breaks,
-    foreign-language spans, highlighting) are removed, leaving only its
-    visible text.
+    Extracts the paragraphs of a single letter element. Inline editorial
+    markup (notes, page breaks, foreign-language spans, highlighting) are
+    removed, leaving only the visible text; whitespace within each paragraph
+    is collapsed to single spaces.
 
     Args:
         tei_element: A `<TEI>` element representing one letter.
 
     Returns:
-        The joined paragraph text, or an empty string if the letter has no
+        List of cleaned paragraph strings. Raises if the letter has no
         non-empty paragraphs.
     """
     text_el = tei_element.find("text")
@@ -61,10 +66,9 @@ def _extract_letter_text(
             cleaned = re.sub(r"\s+", " ", joined).strip()
             if cleaned:
                 paragraphs.append(cleaned)
-    result = "\n\n".join(paragraphs)
-    if result == "":
+    if not paragraphs:
         raise ValueError("Letter has no non-empty paragraphs")
-    return result
+    return paragraphs
 
 
 def load_ceeces_dataset(
@@ -77,16 +81,26 @@ def load_ceeces_dataset(
     Each TEI XML file under each subset's "XML files by collection" directory
     holds `<TEI xml:id="LETTER_ID">` letters; the period label for a
     given letter is read from the matching row in the subset's tab-delimited
-    metadata file.
+    metadata file. One record is emitted per paragraph, so a single letter
+    contributes several records sharing one label. Records within each label
+    are shuffled with a fixed seed so STEB's downstream sampling does not
+    pick all paragraphs from one author/letter back-to-back.
 
     Args:
         data_dir: Path to the raw dataset directory containing `CEECES1/` and
             `CEECES2/` subdirectories.
 
     Returns:
-        List of records with `text` (one full letter) and `label` (the period
+        List of records with `text` (one paragraph) and `label` (the period
         string from the metadata, e.g. "1680-1699") fields.
     """
+    # Skip the two pre-1680 periods: each has only one letter in the
+    # CEECES 1 metadata, which yields a handful of paragraphs and would
+    # be dropped by STEB's downstream class-size filter anyway. Excluding
+    # them upfront keeps the loader output to the six 18th-century classes
+    # the dataset is actually meant to evaluate.
+    SKIP_PERIODS = {"1640-1659", "1660-1679"}
+
     root = Path(data_dir)
     if not root.is_dir():
         raise ValueError(f"Data directory not found: {root}")
@@ -104,7 +118,7 @@ def load_ceeces_dataset(
         period_by_id = _load_period_by_letter_id(metadata_path)
         for xml_path in sorted(xml_dir.glob("*.xml")):
             tree = ET.parse(xml_path)
-            for tei in tree.getroot().iter("TEI"): # several letters per file, saved by author name
+            for tei in tree.getroot().iter("TEI"):  # several letters per file, saved by author name
                 letter_id = tei.attrib.get(
                     "{http://www.w3.org/XML/1998/namespace}id"
                 )
@@ -113,9 +127,22 @@ def load_ceeces_dataset(
                 period = period_by_id.get(letter_id)
                 if not period:
                     raise ValueError(f"Letter ID {letter_id} not found in metadata: {metadata_path}")
-                text = _extract_letter_text(tei)
-                if not text:
-                    raise ValueError(f"Letter {letter_id} has no text: {xml_path}")
-                records.append({"text": text, "label": period})
+                if period in SKIP_PERIODS:
+                    continue
+                for paragraph in _extract_letter_paragraphs(tei):
+                    records.append({"text": paragraph, "label": period})
 
-    return records
+    # Shuffle within each label so consecutive records are not all from the
+    # same author/letter (paragraphs from one letter were appended back-to-back
+    # above). Order across labels is preserved alphabetically for determinism.
+    records_by_label: Dict[str, List[Dict[str, Any]]] = {}
+    for rec in records:
+        records_by_label.setdefault(rec["label"], []).append(rec)
+    rng = random.Random(SHUFFLE_SEED)
+    for group in records_by_label.values():
+        rng.shuffle(group)
+    return [
+        rec
+        for label in sorted(records_by_label)
+        for rec in records_by_label[label]
+    ]
