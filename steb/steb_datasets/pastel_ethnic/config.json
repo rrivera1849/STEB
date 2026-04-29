@@ -1,0 +1,14 @@
+{
+  "type": "custom",
+  "loader_module": "steb.loaders.pastel",
+  "loader_function": "load_pastel_ethnic",
+  "data_dir": "PASTEL/data/v2/stories/test",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}

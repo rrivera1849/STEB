@@ -604,6 +604,19 @@ else
     echo "Skipping stack-exchange-politeness-corpus (already exists)"
 fi
 
+# PASTEL (Kang et al., EMNLP 2019) — parallel persona-annotated stories
+if [ ! -d "PASTEL" ]; then
+    echo "Downloading PASTEL..."
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/dykang/PASTEL.git PASTEL
+    cd PASTEL
+    git sparse-checkout set data
+    unzip -q data/data_v2.zip -d data/
+    rm -rf .git data/data.zip data/data_v2.zip
+    cd ..
+else
+    echo "Skipping PASTEL (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
