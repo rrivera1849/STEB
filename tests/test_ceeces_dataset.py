@@ -131,57 +131,133 @@ def test_ceeces1_metadata_header_and_first_rows():
     with open(CEECES1_METADATA_PATH, "r", encoding="cp1252", newline="") as f:
         reader = csv.reader(f, delimiter="\t")
         header = next(reader)
-        first_three = [next(reader) for _ in range(3)]
+        first_three_rows = [next(reader) for _ in range(3)]
 
     assert header == expected_header
 
-    bowrey_source = (
-        "A Geographical Account of Countries Round the Bay of Bengal, "
-        "1669 to 1679, by Thomas Bowrey. Ed. by Sir Richard Carnac Temple. "
-        "Cambridge: Hakluyt Society, 1905. Hakluyt Society Second Series "
-        "No. XII."
-    )
-    bowrey_papers_source = (
-        "The Papers of Thomas Bowrey 1669-1713. Ed. by Sir Richard Carnac "
-        "Temple. London: Hakluyt Society, 1925. Hakluyt Society Second "
-        "Series No. LVIII."
-    )
+    actual = [dict(zip(header, row)) for row in first_three_rows]
 
-    expected_rows = [
-        [
-            "BOWREY_001", "Bowrey", "1680-1699", "TBOWREY",
-            "Thomas", "Bowrey", "M", "M", "M", "merchant",
-            "37", "1650", "30-39", "H", "", "",
-            "http://www.oxforddnb.com/view/article/57447",
-            "JDAVIS", "John", "Davis", "M", "M", "M", "merchant", "",
-            "T", "India merchants known to each other", "A",
-            "1687", "N", "N", "Y", "",
-            "Other recipients: the EIC council in Cuddalore.",
-            "696", bowrey_source, "xxxi-xxxiii",
-        ],
-        [
-            "BOWREY_002", "Bowrey", "1680-1699", "TBOWREY",
-            "Thomas", "Bowrey", "M", "M", "M", "merchant",
-            "37", "1650", "30-39", "H", "", "",
-            "http://www.oxforddnb.com/view/article/57447",
-            "JDAVIS", "John", "Davis", "M", "M", "M", "merchant", "",
-            "T", "India merchants known to each other", "A",
-            "1687", "N", "N", "N", "", "",
-            "186", bowrey_source, "xxxiii",
-        ],
-        [
-            "BOWREY_003", "Bowrey", "1700-1719", "THAMMOND",
-            "Thomas", "Hammond", "M", "M", "M", "merchant",
-            "", "", "", "L", "", "", "",
-            "TBOWREY", "Thomas", "Bowrey", "M", "M", "M", "merchant",
-            "http://www.oxforddnb.com/view/article/57447",
-            "T", "business partners", "A",
-            "1704", "N", "N", "N", "", "",
-            "360", bowrey_papers_source, "149-150",
-        ],
+    expected = [
+        {
+            "LetterID":             "BOWREY_001",
+            "Collection":           "Bowrey",
+            "Period":               "1680-1699",
+            "SenderID":             "TBOWREY",
+            "SenderFirstName":      "Thomas",
+            "SenderLastName":       "Bowrey",
+            "SenderGender":         "M",
+            "SenderCurrentRank":    "M",
+            "SenderHighestRank":    "M",
+            "SenderStatus":         "merchant",
+            "SenderAge":            "37",
+            "SenderYearOfBirth":    "1650",
+            "SenderAgeGroup":       "30-39",
+            "SenderRegion":         "H",
+            "SenderSocialMobility": "",
+            "SenderEducation":      "",
+            "SenderDNB":            "http://www.oxforddnb.com/view/article/57447",
+            "RecipientID":          "JDAVIS",
+            "RecipientFirstName":   "John",
+            "RecipientLastName":    "Davis",
+            "RecipientGender":      "M",
+            "RecipientCurrentRank": "M",
+            "RecipientHighestRank": "M",
+            "RecipientStatus":      "merchant",
+            "RecipientDNB":         "",
+            "RelationshipCode":     "T",
+            "Relationship":         "India merchants known to each other",
+            "LetterAuthenticity":   "A",
+            "Year":                 "1687",
+            "YearUncertain":        "N",
+            "MultipleSenders":      "N",
+            "MultipleRecipients":   "Y",
+            "LetterNotes":          "",
+            "CorrespondentNotes":   "Other recipients: the EIC council in Cuddalore.",
+            "WordCount":            "696",
+            "Source":               "A Geographical Account of Countries Round the Bay of Bengal, 1669 to 1679, by Thomas Bowrey. Ed. by Sir Richard Carnac Temple. Cambridge: Hakluyt Society, 1905. Hakluyt Society Second Series No. XII.",
+            "PageNumber":           "xxxi-xxxiii",
+        },
+        {
+            "LetterID":             "BOWREY_002",
+            "Collection":           "Bowrey",
+            "Period":               "1680-1699",
+            "SenderID":             "TBOWREY",
+            "SenderFirstName":      "Thomas",
+            "SenderLastName":       "Bowrey",
+            "SenderGender":         "M",
+            "SenderCurrentRank":    "M",
+            "SenderHighestRank":    "M",
+            "SenderStatus":         "merchant",
+            "SenderAge":            "37",
+            "SenderYearOfBirth":    "1650",
+            "SenderAgeGroup":       "30-39",
+            "SenderRegion":         "H",
+            "SenderSocialMobility": "",
+            "SenderEducation":      "",
+            "SenderDNB":            "http://www.oxforddnb.com/view/article/57447",
+            "RecipientID":          "JDAVIS",
+            "RecipientFirstName":   "John",
+            "RecipientLastName":    "Davis",
+            "RecipientGender":      "M",
+            "RecipientCurrentRank": "M",
+            "RecipientHighestRank": "M",
+            "RecipientStatus":      "merchant",
+            "RecipientDNB":         "",
+            "RelationshipCode":     "T",
+            "Relationship":         "India merchants known to each other",
+            "LetterAuthenticity":   "A",
+            "Year":                 "1687",
+            "YearUncertain":        "N",
+            "MultipleSenders":      "N",
+            "MultipleRecipients":   "N",
+            "LetterNotes":          "",
+            "CorrespondentNotes":   "",
+            "WordCount":            "186",
+            "Source":               "A Geographical Account of Countries Round the Bay of Bengal, 1669 to 1679, by Thomas Bowrey. Ed. by Sir Richard Carnac Temple. Cambridge: Hakluyt Society, 1905. Hakluyt Society Second Series No. XII.",
+            "PageNumber":           "xxxiii",
+        },
+        {
+            "LetterID":             "BOWREY_003",
+            "Collection":           "Bowrey",
+            "Period":               "1700-1719",
+            "SenderID":             "THAMMOND",
+            "SenderFirstName":      "Thomas",
+            "SenderLastName":       "Hammond",
+            "SenderGender":         "M",
+            "SenderCurrentRank":    "M",
+            "SenderHighestRank":    "M",
+            "SenderStatus":         "merchant",
+            "SenderAge":            "",
+            "SenderYearOfBirth":    "",
+            "SenderAgeGroup":       "",
+            "SenderRegion":         "L",
+            "SenderSocialMobility": "",
+            "SenderEducation":      "",
+            "SenderDNB":            "",
+            "RecipientID":          "TBOWREY",
+            "RecipientFirstName":   "Thomas",
+            "RecipientLastName":    "Bowrey",
+            "RecipientGender":      "M",
+            "RecipientCurrentRank": "M",
+            "RecipientHighestRank": "M",
+            "RecipientStatus":      "merchant",
+            "RecipientDNB":         "http://www.oxforddnb.com/view/article/57447",
+            "RelationshipCode":     "T",
+            "Relationship":         "business partners",
+            "LetterAuthenticity":   "A",
+            "Year":                 "1704",
+            "YearUncertain":        "N",
+            "MultipleSenders":      "N",
+            "MultipleRecipients":   "N",
+            "LetterNotes":          "",
+            "CorrespondentNotes":   "",
+            "WordCount":            "360",
+            "Source":               "The Papers of Thomas Bowrey 1669-1713. Ed. by Sir Richard Carnac Temple. London: Hakluyt Society, 1925. Hakluyt Society Second Series No. LVIII.",
+            "PageNumber":           "149-150",
+        },
     ]
 
-    assert first_three == expected_rows
+    assert actual == expected
 
 
 def test_extract_letter_text_skips_self_closing_notes():
