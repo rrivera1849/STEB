@@ -1,7 +1,7 @@
 import os
 from typing import Any, Dict, List
 
-from datasets import load_dataset
+from datasets import concatenate_datasets, load_dataset
 
 
 def _age_bucket(
@@ -32,13 +32,15 @@ def load_blog(
     data_dir: str,
 ) -> List[Dict[str, Any]]:
     """
-    Loads the Blog Authorship Corpus (validation split) from Hugging Face
-    and labels each post by a single demographic attribute.
+    Loads the Blog Authorship Corpus (all splits combined) from Hugging
+    Face and labels each post by a single demographic attribute.
 
     The *data_dir* argument encodes the target attribute as its last path
     component: ``"age"`` produces three classes (``"10s"``, ``"20s"``,
     ``"30s"``) following the Schler et al. (2006) age groupings, while
     ``"gender"`` produces two classes (``"male"``, ``"female"``).
+    The corpus has no held-out test split, so we concatenate the
+    available train and validation splits to expose the full ~727k posts.
 
     Args:
         data_dir: Path whose last component is ``"age"`` or ``"gender"``.
@@ -52,11 +54,11 @@ def load_blog(
             f"Unknown blog attribute '{attribute}'. Expected 'age' or 'gender'."
         )
 
-    ds = load_dataset(
+    splits = load_dataset(
         "barilan/blog_authorship_corpus",
-        split="validation",
         trust_remote_code=True,
     )
+    ds = concatenate_datasets([splits[name] for name in splits])
 
     records: List[Dict[str, Any]] = []
     for row in ds:
