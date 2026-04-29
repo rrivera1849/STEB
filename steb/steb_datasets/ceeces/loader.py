@@ -124,7 +124,7 @@ def load_ceeces_dataset(
                     records.append({"text": paragraph, "label": period})
 
     # Shuffle so paragraphs from one author/letter are not back-to-back
-    # (they were appended in author then letter order above). Fixed seed
+    # if records are clamped. Fixed seed
     # for reproducibility.
     random.Random(SHUFFLE_SEED).shuffle(records)
     return records
