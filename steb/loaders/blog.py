@@ -10,6 +10,7 @@ def _age_bucket(
     """
     Maps a blogger's integer age to one of the three Schler et al. (2006)
     age groups, or returns ``None`` if the age falls outside them.
+    Categories extracted from https://u.cs.biu.ac.il/~koppel/BlogCorpus.htm
 
     Args:
         age: The blogger's self-reported age.
