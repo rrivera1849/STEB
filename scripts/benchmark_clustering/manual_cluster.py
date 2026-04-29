@@ -11,9 +11,10 @@ task; the entry still contributes to all other tasks the dataset
 declares. `--oa_only` is the separate task-restriction switch. Either
 flag may appear without the other.
 """
+import functools
 import os
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -36,7 +37,10 @@ def _benchmark_default_ep_configs() -> Dict[str, str]:
     matching the directory layout produced by ``steb run``. When a task
     has multiple episode_sizes in the preset, the first one is taken.
     Used by ``build_manual_cluster_tables`` to pick a deterministic
-    ep_config per task when ``--episode-params`` isn't passed.
+    ep_config per task when ``--episode-params`` isn't passed. The string
+    may contain the literal ``"_auto"`` (e.g. ``"1_auto"``) for tasks whose
+    preset uses ``n_episodes_per_class="auto"``; resolution to the
+    actual on-disk value is handled by ``_expected_ep_config``.
     """
     defaults: Dict[str, str] = {}
     config = get_benchmark_config()
@@ -45,6 +49,72 @@ def _benchmark_default_ep_configs() -> Dict[str, str]:
         n_eps = item["n_episodes_per_class"]
         defaults[item["task"]] = f"{ep_size}_{n_eps}"
     return defaults
+
+
+@functools.lru_cache(maxsize=None)
+def _resolve_auto_n_episodes(
+    dataset_name: str,
+    episode_size: int,
+    task_name: str,
+) -> Optional[int]:
+    """Resolve ``n_episodes_per_class="auto"`` for one (dataset, task).
+
+    Calls ``DatasetLoader.preview`` so we use the same code path STEB
+    itself takes when running the benchmark — no duplicated logic.
+    Returns the resolved integer, or ``None`` if the dataset's raw data
+    is missing / the loader raises (in which case we cannot tie a saved
+    ep_config to ``auto`` and the caller should skip it).
+
+    Cached because preview loads and counts the dataset, which is the
+    expensive part; the same (dataset, episode_size, task) is queried
+    once per cluster entry it appears in.
+    """
+    try:
+        from steb.dataset_loader import DatasetLoader
+        loader = DatasetLoader(
+            dataset_name=dataset_name,
+            episode_size=episode_size,
+            n_episodes_per_class="auto",
+            task_name=task_name,
+        )
+        return loader.preview()["n_episodes_per_class"]
+    except Exception as exc:  # noqa: BLE001 — surface as warning, do not crash
+        print(
+            f"  WARNING: could not resolve auto n_episodes_per_class for "
+            f"({dataset_name}, {task_name}, episode_size={episode_size}): "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return None
+
+
+def _expected_ep_config(
+    default: str,
+    resolve_auto: Callable[[int], Optional[int]],
+) -> Optional[str]:
+    """Convert a benchmark default ep_config into the on-disk form.
+
+    For fixed defaults (e.g. ``"1_2"``) returns the string unchanged.
+    For ``"<int>_auto"`` defaults, calls ``resolve_auto(episode_size)``
+    to obtain the resolved ``n_episodes_per_class`` and assembles the
+    concrete string ``"<int>_<resolved>"``. Returns ``None`` when the
+    episode size in the default isn't an integer or when ``resolve_auto``
+    returns ``None``.
+
+    The resolver is injected so this function stays trivially testable
+    without touching real datasets.
+    """
+    if not default.endswith("_auto"):
+        return default
+    ep_size_str, _ = default.split("_", 1)
+    try:
+        ep_size = int(ep_size_str)
+    except ValueError:
+        return None
+    resolved = resolve_auto(ep_size)
+    if resolved is None:
+        return None
+    return f"{ep_size}_{resolved}"
 
 
 def parse_cluster_entry(
@@ -160,7 +230,8 @@ def build_manual_cluster_tables(
     else:
         print("Manual clusters: --episode-params not set; using benchmark preset defaults per task:")
         for task, ep_config in sorted(benchmark_defaults.items()):
-            print(f"  {task}: {ep_config}")
+            suffix = " (resolved per dataset)" if ep_config.endswith("_auto") else ""
+            print(f"  {task}: {ep_config}{suffix}")
 
     # Walk discovered runs, honour each entry's --oa_only and --oa_variant
     # flags, and bucket scores by (cluster, task, metric, dataset).
@@ -168,13 +239,18 @@ def build_manual_cluster_tables(
     warned_missing: set = set()
 
     for (dataset, task, ep_config), model_metrics in all_scores.items():
+        if dataset not in dataset_to_entries:
+            continue
         if episode_params:
             if ep_config != episode_params:
                 continue
-        elif benchmark_defaults.get(task) != ep_config:
-            continue
-        if dataset not in dataset_to_entries:
-            continue
+        else:
+            expected = _expected_ep_config(
+                benchmark_defaults[task],
+                lambda ep_size, _ds=dataset, _task=task: _resolve_auto_n_episodes(_ds, ep_size, _task),
+            )
+            if expected is None or expected != ep_config:
+                continue
 
         for cluster_name, entry in dataset_to_entries[dataset]:
             if entry.oa_only and task != "order_alignment":
