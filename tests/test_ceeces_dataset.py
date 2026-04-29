@@ -4,7 +4,7 @@ import os
 import pytest
 
 from steb.steb_datasets.ceeces.loader import (
-    _extract_letter_text,
+    _extract_letter_paragraphs,
     _load_period_by_letter_id,
     load_ceeces_dataset,
 )
@@ -16,10 +16,10 @@ CEECES1_METADATA_PATH = os.path.join(
     RAW_CEECES_DIR, "CEECES1", "CEECES1-metadata.txt"
 )
 
-# Period values that appear in the CEECES 1 + 2 metadata `Period` column.
+# Period values the loader emits. The CEECES 1 metadata also lists
+# "1640-1659" and "1660-1679", but each of those covers only a single 17th-
+# century stray letter; the loader explicitly skips them.
 EXPECTED_PERIODS = {
-    "1640-1659",
-    "1660-1679",
     "1680-1699",
     "1700-1719",
     "1720-1739",
@@ -79,10 +79,12 @@ def test_labels_are_known_periods(ceeces_records):
 
 def test_total_record_count_is_reasonable(ceeces_records):
     """
-    Sanity check: CEECES 1 has 1172 letters with metadata and CEECES 2 has
-    1452.
+    Sanity check: pinned to the exact paragraph count produced by the loader
+    against the published CEECES 1 + 2 archives, after the two pre-1680
+    periods are skipped. Per-period counts are 2897 / 1657 / 1462 / 3203 /
+    3238 / 3229 = 15686 paragraphs total.
     """
-    assert len(ceeces_records) == (1172 + 1452)
+    assert len(ceeces_records) == 15686
 
 
 # ---------------------------------------------------------------------------
@@ -263,5 +265,5 @@ def test_extract_letter_text_skips_self_closing_notes():
         "</TEI>"
     )
     tei = ET.fromstring(xml)
-    text = _extract_letter_text(tei)
-    assert text == "Porto Novo, May 14th, 1687.\n\nTo Mr. Davis."
+    paragraphs = _extract_letter_paragraphs(tei)
+    assert paragraphs == ["Porto Novo, May 14th, 1687.", "To Mr. Davis."]
