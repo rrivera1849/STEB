@@ -123,17 +123,8 @@ def load_ceeces_dataset(
                 for paragraph in _extract_letter_paragraphs(tei):
                     records.append({"text": paragraph, "label": period})
 
-    # Shuffle within each label so consecutive records are not all from the
-    # same author/letter (paragraphs from one letter were appended back-to-back
-    # above). Order across labels is preserved alphabetically for determinism.
-    records_by_label: Dict[str, List[Dict[str, Any]]] = {}
-    for rec in records:
-        records_by_label.setdefault(rec["label"], []).append(rec)
-    rng = random.Random(SHUFFLE_SEED)
-    for group in records_by_label.values():
-        rng.shuffle(group)
-    return [
-        rec
-        for label in sorted(records_by_label)
-        for rec in records_by_label[label]
-    ]
+    # Shuffle so paragraphs from one author/letter are not back-to-back
+    # (they were appended in author then letter order above). Fixed seed
+    # for reproducibility.
+    random.Random(SHUFFLE_SEED).shuffle(records)
+    return records
