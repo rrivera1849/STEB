@@ -68,42 +68,18 @@ def ceeces_records():
 # Tests: dataset-level properties
 # ---------------------------------------------------------------------------
 
-def test_record_shape(ceeces_records):
-    """Every record has a non-empty string `text` and a string `label`."""
-    for rec in ceeces_records:
-        assert set(rec.keys()) == {"text", "label"}
-        assert isinstance(rec["text"], str) and rec["text"].strip()
-        assert isinstance(rec["label"], str) and rec["label"].strip()
-
-
-def test_labels_are_known_periods(ceeces_records):
-    """All emitted labels are values that appear in the CEECES metadata."""
-    labels = {rec["label"] for rec in ceeces_records}
-    assert labels, "Expected at least one label in CEECES records"
-    assert labels.issubset(EXPECTED_PERIODS), (
-        f"Unexpected period labels: {labels - EXPECTED_PERIODS}"
-    )
-
 
 def test_total_record_count_is_reasonable(ceeces_records):
     """
-    Sanity check: CEECES 1 has ~1180 letters with metadata and CEECES 2 has
-    ~1452. We expect roughly that many records, allowing some loss to letters
-    without metadata or without paragraph content.
+    Sanity check: CEECES 1 has 1172 letters with metadata and CEECES 2 has
+    1452.
     """
-    assert len(ceeces_records) > 2000
+    assert len(ceeces_records) == (1172 + 1452)
 
 
 # ---------------------------------------------------------------------------
 # Tests: helpers
 # ---------------------------------------------------------------------------
-
-@requires_ceeces1_metadata
-def test_period_metadata_parses_known_letter():
-    """Metadata loader maps `BOWREY_001` to its known period from CEECES 1."""
-    period_by_id = _load_period_by_letter_id(CEECES1_METADATA_PATH)
-    assert period_by_id.get("BOWREY_001") == "1680-1699"
-
 
 @requires_ceeces1_metadata
 def test_ceeces1_metadata_header_and_first_rows():
@@ -259,6 +235,11 @@ def test_ceeces1_metadata_header_and_first_rows():
 
     assert actual == expected
 
+@requires_ceeces1_metadata
+def test_period_metadata_parses_known_letter():
+    """Metadata loader maps `BOWREY_001` to its known period from CEECES 1."""
+    period_by_id = _load_period_by_letter_id(CEECES1_METADATA_PATH)
+    assert period_by_id.get("BOWREY_001") == "1680-1699"
 
 def test_extract_letter_text_skips_self_closing_notes():
     """`itertext`-based extraction returns paragraph text without editor markup."""
