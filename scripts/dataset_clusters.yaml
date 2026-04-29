@@ -130,6 +130,12 @@ time:
     - ceeces
     - parallel_shakespeare --oa_variant acc
 
+demographics:
+  description: "Recognising demographic features of the author (age, gender, occupation, education)"
+  datasets:
+    - blog_age
+    - blog_gender
+
 feature_probing:
   description: "Probing embeddings for stylistic features"
   datasets:
