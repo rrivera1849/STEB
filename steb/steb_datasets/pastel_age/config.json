@@ -2,7 +2,7 @@
   "type": "custom",
   "loader_module": "steb.loaders.pastel",
   "loader_function": "load_pastel_age",
-  "data_dir": "PASTEL/data/v2/stories/test",
+  "data_dir": "PASTEL/data/v2/stories",
   "record_handler": {
     "text_getter": "text",
     "label_getter": "label"
