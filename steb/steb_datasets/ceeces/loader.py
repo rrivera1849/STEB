@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 
-XML_NS_ID = "{http://www.w3.org/XML/1998/namespace}id"
-
 SUBSETS = (
     ("CEECES1", "CEECES1-metadata.txt", "CEECES 1 - XML files by collection"),
     ("CEECES2", "CEECES2-metadata.txt", "CEECES 2 - XML files by collection"),
@@ -111,7 +109,11 @@ def load_ceeces_dataset(
         for xml_path in sorted(xml_dir.glob("*.xml")):
             tree = ET.parse(xml_path)
             for tei in tree.getroot().iter("TEI"):
-                letter_id = tei.attrib.get(XML_NS_ID)
+                # `xml:id` in Clark notation — ElementTree expands the
+                # built-in `xml:` prefix to its full namespace URI.
+                letter_id = tei.attrib.get(
+                    "{http://www.w3.org/XML/1998/namespace}id"
+                )
                 if not letter_id:
                     continue
                 period = period_by_id.get(letter_id)
