@@ -75,6 +75,4 @@ def load_blog(
 
         records.append({"text": text, "label": label})
 
-    unique_labels = set(r["label"] for r in records)
-    print(f"Unique labels: {unique_labels}")
     return records
