@@ -4,6 +4,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List
+import random
 
 # constant defining expected CEECES XML folder and metadata file names
 SUBSETS = (
