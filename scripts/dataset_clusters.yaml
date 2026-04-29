@@ -127,6 +127,7 @@ style_vs_content:
 time:
   description: "Recognising temporal/historical English register (e.g. Early Modern Shakespearean vs. Modern English)"
   datasets:
+    - ceeces
     - parallel_shakespeare --oa_variant acc
 
 feature_probing:

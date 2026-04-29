@@ -1,0 +1,14 @@
+{
+  "dataset_name": "ceeces",
+  "type": "custom",
+  "data_dir": "ceeces",
+  "loader_function": "load_ceeces_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}
