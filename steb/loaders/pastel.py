@@ -17,11 +17,15 @@ def _load_pastel_stories(
     output sentences are joined with a single space into one text string.
 
     Records whose persona attribute is missing, an empty string, or the
-    upstream "Empty" sentinel are dropped.
+    upstream "Empty" sentinel are dropped. JSON files are gathered
+    recursively, so data_dir may either be a single split directory
+    (e.g. .../stories/test) or the parent directory containing all
+    splits (e.g. .../stories), in which case train, valid, and test
+    are all loaded.
 
     Args:
-        data_dir: Path to a PASTEL split directory containing per-story
-            JSON files (e.g. raw_datasets/PASTEL/data/v2/stories/test).
+        data_dir: Path to a PASTEL stories directory containing per-story
+            JSON files, optionally nested in train/valid/test subdirs.
         attribute: Persona key to use as the label. One of
             "age", "gender", "country", "ethnic", "education",
             "politics", "tod".
@@ -30,11 +34,11 @@ def _load_pastel_stories(
         List of {"text": str, "label": str} records, one per usable story.
     """
     if not os.path.isdir(data_dir):
-        raise FileNotFoundError(f"PASTEL split directory not found: {data_dir}")
+        raise FileNotFoundError(f"PASTEL stories directory not found: {data_dir}")
 
-    files = sorted(glob.glob(os.path.join(data_dir, "*.json")))
+    files = sorted(glob.glob(os.path.join(data_dir, "**", "*.json"), recursive=True))
     if not files:
-        raise FileNotFoundError(f"No .json story files found in {data_dir}")
+        raise FileNotFoundError(f"No .json story files found under {data_dir}")
 
     records = []
     for path in files:
@@ -63,11 +67,6 @@ def load_pastel_age(data_dir: str) -> List[Dict[str, Any]]:
 def load_pastel_gender(data_dir: str) -> List[Dict[str, Any]]:
     """Load PASTEL stories labelled by annotator gender."""
     return _load_pastel_stories(data_dir, "gender")
-
-
-def load_pastel_country(data_dir: str) -> List[Dict[str, Any]]:
-    """Load PASTEL stories labelled by annotator country."""
-    return _load_pastel_stories(data_dir, "country")
 
 
 def load_pastel_ethnic(data_dir: str) -> List[Dict[str, Any]]:
