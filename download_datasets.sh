@@ -604,6 +604,20 @@ else
     echo "Skipping stack-exchange-politeness-corpus (already exists)"
 fi
 
+# FCE released dataset (Cambridge Learner Corpus, FCE subset). Used for L1
+# (native-language) prediction; non-commercial research/educational licence
+# shipped in the unpacked tree. Issue #107.
+if [ ! -d "fce_l1" ]; then
+    echo "Downloading fce_l1 (FCE released dataset)..."
+    mkdir -p fce_l1
+    curl -L -o fce_l1/fce-released-dataset.zip \
+        https://s3-eu-west-1.amazonaws.com/ilexir-website-media/fce-released-dataset.zip
+    unzip -q fce_l1/fce-released-dataset.zip -d fce_l1
+    rm fce_l1/fce-released-dataset.zip
+else
+    echo "Skipping fce_l1 (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
