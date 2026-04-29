@@ -1,6 +1,5 @@
 import csv
 import os
-import random
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -66,8 +65,6 @@ def _extract_letter_paragraphs(
             cleaned = re.sub(r"\s+", " ", joined).strip()
             if cleaned:
                 paragraphs.append(cleaned)
-    if not paragraphs:
-        raise ValueError("Letter has no non-empty paragraphs")
     return paragraphs
 
 
@@ -81,10 +78,7 @@ def load_ceeces_dataset(
     Each TEI XML file under each subset's "XML files by collection" directory
     holds `<TEI xml:id="LETTER_ID">` letters; the period label for a
     given letter is read from the matching row in the subset's tab-delimited
-    metadata file. One record is emitted per paragraph, so a single letter
-    contributes several records sharing one label. Records within each label
-    are shuffled with a fixed seed so STEB's downstream sampling does not
-    pick all paragraphs from one author/letter back-to-back.
+    metadata file.
 
     Args:
         data_dir: Path to the raw dataset directory containing `CEECES1/` and
@@ -95,10 +89,7 @@ def load_ceeces_dataset(
         string from the metadata, e.g. "1680-1699") fields.
     """
     # Skip the two pre-1680 periods: each has only one letter in the
-    # CEECES 1 metadata, which yields a handful of paragraphs and would
-    # be dropped by STEB's downstream class-size filter anyway. Excluding
-    # them upfront keeps the loader output to the six 18th-century classes
-    # the dataset is actually meant to evaluate.
+    # CEECES 1 metadata.
     SKIP_PERIODS = {"1640-1659", "1660-1679"}
 
     root = Path(data_dir)
