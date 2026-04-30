@@ -605,18 +605,19 @@ else
 fi
 
 # PASTEL (Kang et al., EMNLP 2019) — parallel persona-annotated stories.
-# We only keep the v2 stories directory (~31M); the v2 sentences directory
-# (~155M) and repo metadata files are not used by the loader and are
-# discarded after extraction.
+# Only the v2 stories subtree (~31M, ~7.9k JSON files) is needed by the
+# loader. We selectively extract just that subtree from data_v2.zip so
+# we don't pay for unzipping and re-deleting v2/sentences (~155M,
+# ~40k JSON files) — bulk deletion of small files is slow on synced
+# filesystems like iCloud Drive.
 if [ ! -d "PASTEL" ]; then
     echo "Downloading PASTEL..."
     git clone --depth 1 --filter=blob:none --sparse https://github.com/dykang/PASTEL.git PASTEL
     cd PASTEL
     git sparse-checkout set data
-    unzip -q data/data_v2.zip -d data/
+    unzip -q data/data_v2.zip "v2/stories/*" -d data/
     rm -rf .git \
         data/data.zip data/data_v2.zip \
-        data/v2/sentences \
         README.md dataset.png transfer.png requirements.txt setup.sh
     cd ..
 else
