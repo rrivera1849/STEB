@@ -1,0 +1,14 @@
+{
+  "dataset_name": "fce_l1",
+  "type": "custom",
+  "data_dir": "fce_l1",
+  "loader_function": "load_fce_l1_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {"n_episodes_per_class": 100},
+    "all_to_all_pair_classification": {"n_episodes_per_class": 100}
+  }
+}
