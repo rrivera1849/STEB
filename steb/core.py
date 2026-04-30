@@ -293,8 +293,12 @@ def _iter_task_configs(
 
     for dataset_name in datasets:
         config_path = os.path.join(package_dir, "steb_datasets", dataset_name, "config.json")
-        with open(config_path) as f:
-            config = json.load(f)
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            yield (dataset_name, None, str(e), None, None)
+            continue
 
         tasks_to_run = [task_name] if task_name else list(config.get("tasks", {}).keys())
 
@@ -348,9 +352,14 @@ def preview(
     results = []
     lines = []
 
-    for dataset_name, current_task_name, _, episode_size, resolved_n_episodes in _iter_task_configs(
+    for dataset_name, current_task_name, task_config, episode_size, resolved_n_episodes in _iter_task_configs(
         datasets, task_name, episode_sizes, n_episodes_per_class,
     ):
+        if current_task_name is None:
+            error_msg = task_config  # sentinel: error string stored in task_config slot
+            print(colored(f"  {dataset_name} | ERROR: {error_msg}", "red"))
+            continue
+
         try:
             loader = DatasetLoader(
                 dataset_name=dataset_name,
@@ -559,6 +568,12 @@ def evaluate(
     for dataset_name, current_task_name, task_config, episode_size, resolved_n_episodes in _iter_task_configs(
         datasets, task_name, episode_sizes, n_episodes_per_class,
     ):
+        if current_task_name is None:
+            error_msg = task_config  # sentinel: error string stored in task_config slot
+            print(colored(f"--- Skipping {dataset_name}: {error_msg} ---", "red"))
+            failures.append((dataset_name, -1, "config", error_msg))
+            continue
+
         print(colored(f"--- Evaluating {dataset_name} | {current_task_name} (episode size: {episode_size}) ---", "cyan"))
 
         model_str = os.path.basename(model.model_name_or_path)
