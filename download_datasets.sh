@@ -604,14 +604,20 @@ else
     echo "Skipping stack-exchange-politeness-corpus (already exists)"
 fi
 
-# PASTEL (Kang et al., EMNLP 2019) — parallel persona-annotated stories
+# PASTEL (Kang et al., EMNLP 2019) — parallel persona-annotated stories.
+# We only keep the v2 stories directory (~31M); the v2 sentences directory
+# (~155M) and repo metadata files are not used by the loader and are
+# discarded after extraction.
 if [ ! -d "PASTEL" ]; then
     echo "Downloading PASTEL..."
     git clone --depth 1 --filter=blob:none --sparse https://github.com/dykang/PASTEL.git PASTEL
     cd PASTEL
     git sparse-checkout set data
     unzip -q data/data_v2.zip -d data/
-    rm -rf .git data/data.zip data/data_v2.zip
+    rm -rf .git \
+        data/data.zip data/data_v2.zip \
+        data/v2/sentences \
+        README.md dataset.png transfer.png requirements.txt setup.sh
     cd ..
 else
     echo "Skipping PASTEL (already exists)"
