@@ -40,21 +40,21 @@ def _extract_learner_text(
 ) -> str:
     """
     Extracts the learner-original text of a single `<coded_answer>` block,
-    joining its `<p>` paragraphs with blank lines. Whitespace within each
-    paragraph is collapsed.
+    joining its `<p>` paragraphs with blank lines.
 
     Args:
         coded_answer: A `<coded_answer>` element holding `<p>` paragraphs.
 
     Returns:
-        The joined paragraph text, or an empty string if the answer has no
-        non-empty paragraphs.
+        The joined paragraph text.
     """
     paragraphs: List[str] = []
     for p in coded_answer.findall("p"):
         chunks: List[str] = []
         if p.text:
             chunks.append(p.text)
+        else:
+            raise ValueError("Paragraph missing text")
         _collect_learner_text(p, chunks)
         cleaned = re.sub(r"\s+", " ", "".join(chunks)).strip()
         if cleaned:
@@ -94,14 +94,11 @@ def load_fce_l1_dataset(
     for xml_path in sorted(dataset_dir.rglob("*.xml")):
         tree = ET.parse(xml_path)
         learner = tree.getroot()
-        lang_el = learner.find(".//personnel/language")
-        if lang_el is None or not (lang_el.text or "").strip():
-            continue
-        l1 = lang_el.text.strip()
+        lang_learner = learner.find(".//personnel/language")
+        if lang_learner is None or not (lang_learner.text or "").strip():
+            raise ValueError(f"Missing or empty language label in {xml_path}")
+        l1 = lang_learner.text.strip()
         for coded_answer in learner.iter("coded_answer"):
             text = _extract_learner_text(coded_answer)
-            if not text:
-                continue
             records.append({"text": text, "label": l1})
-
     return records
