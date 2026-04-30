@@ -21,9 +21,7 @@ def load_pastel(
     Each story JSON is a single object with keys 'output.sentences' (list
     of 5 sentences rewritten in the annotator's persona) and 'persona'
     (dict with lowercase persona keys). The output sentences are joined
-    with single spaces into one text string. Records whose persona
-    attribute is missing, an empty string, or the upstream "Empty"
-    sentinel are dropped.
+    with single spaces into one text string.
 
     Args:
         data_dir: Path of the form ".../<stories_root>/<attribute>",
