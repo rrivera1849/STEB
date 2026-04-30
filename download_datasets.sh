@@ -569,8 +569,7 @@ else
     echo "Skipping parallel_shakespeare (already exists)"
 fi
 
-# 8 verse-aligned public-domain English Bible translations
-# (KJV, ASV, YLT, DARBY, DRA, BBE, WEB, LEB).
+# 8 verse-aligned public-domain English Bible translations (KJV, ASV, YLT, DARBY, DRA, BBE, WEB, LEB).
 if [ ! -d "bible_versions" ]; then
     echo "Downloading bible_versions..."
     git clone --depth 1 --filter=blob:none --sparse \
