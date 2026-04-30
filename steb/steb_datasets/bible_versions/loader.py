@@ -5,6 +5,27 @@ from typing import Any, Dict, List, Tuple
 TRANSLATIONS = ("ASV", "BBE", "DARBY", "DRA", "KJV", "LEB", "WEB", "YLT")
 
 
+def _normalize(
+    text: str,
+) -> str:
+    """
+    Whitespace-collapse and lowercase a verse for collision detection.
+
+    Differences in casing, leading/trailing whitespace, or runs of internal
+    whitespace between translations are treated as "the same" so that
+    essentially identical verses (which carry no style signal) can be
+    filtered out by ``load_bible_versions_dataset``.
+
+    Args:
+        text: Raw verse text.
+
+    Returns:
+        The lowercase form of ``text`` with all runs of whitespace collapsed
+        to a single space.
+    """
+    return " ".join(text.lower().split())
+
+
 def _parse_chapter_file(
     path: str,
 ) -> Dict[int, str]:
@@ -85,9 +106,12 @@ def load_bible_versions_dataset(
 
     The translations span an archaic-to-modern English spectrum, but cover
     the same biblical content. Only references that appear in all 8
-    translations are returned.
+    translations are returned. References for which any two translations
+    produce the same whitespace-collapsed, lowercased verse text are
+    dropped, since they carry no style signal between the colliding
+    translations.
 
-    The loader returns the full corpus (~31k verses x 8 translations).
+    The loader returns the full corpus (~25k verses x 8 translations).
 
     Args:
         data_dir: Path to the ``Data/Bibles`` directory containing one folder
@@ -111,8 +135,17 @@ def load_bible_versions_dataset(
     # Sort deterministically so loader output order is platform-independent.
     sorted_refs = sorted(common_refs)
 
+    # Drop references where any two translations produce the same
+    # normalized verse text. Such verses carry no style signal between the
+    # colliding translations and would only add noise to the tasks.
+    collision_free_refs = [
+        ref for ref in sorted_refs
+        if len({_normalize(per_translation[t][ref]) for t in TRANSLATIONS})
+        == len(TRANSLATIONS)
+    ]
+
     records: List[Dict[str, Any]] = []
-    for ref in sorted_refs:
+    for ref in collision_free_refs:
         for translation in TRANSLATIONS:
             records.append({
                 "text": per_translation[translation][ref],
