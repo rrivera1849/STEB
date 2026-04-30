@@ -8,36 +8,17 @@ StylePTB is a fine-grained controllable text style-transfer benchmark built
 on top of the Penn Treebank. It provides parallel ``(source, target)``
 sentence pairs across 21 transformation types (voice, tense, emphasis,
 removal/addition, synonym/antonym substitution, ...). Each pair shares
-content but differs along one stylistic dimension, which makes it a clean
-content-controlled probe for style-aware sentence embeddings.
-
-Why ``order_alignment``
-=======================
-Each parallel pair is emitted as a single record whose ``text`` is the
-length-2 ordered list ``[target, source]`` -- the styled (transformed)
-sentence first, the original second -- matching the "most-intense ->
-least-intense" convention used by ``dummy_order_alignment`` and the other
-order-alignment datasets (STEL, SynthSTEL, OneStopEnglish).
-
-The order-alignment task groups records by label and, for every pair of
-records with the same label, asks whether position-0 of one record can be
-aligned to position-0 of another (target <-> target) and position-1 to
-position-1 (source <-> source). For StylePTB this is precisely the
-question we want to ask: do the embeddings separate the two style sides
-even though each source shares its content with its cross-style partner?
+content but differs along one "stylistic" dimension.
 
 Subtypes shipped: 15 of 21
 ==========================
 Six of the 21 transformations are excluded:
 
 * ``NSR``/``ASR``/``VSR`` (noun/adjective/verb synonym replacement) --
-  single-word lexical swaps with no consistent stylistic axis. The signal
-  is too weak for a sentence-level embedding probe.
+  single-word lexical swaps with no consistent stylistic axis
 * ``NAR``/``AAR``/``VAR`` (noun/adjective/verb antonym replacement) --
   these change *meaning* (e.g. "happy" -> "sad"), violating the
   same-content assumption that makes order-alignment interpretable here.
-  An embedding could score well on these for the wrong reason
-  (sentiment/topic separation rather than style).
 
 The remaining 15 are:
 
@@ -61,10 +42,6 @@ LFS   least_frequent_synonym          Replace word with its rarest synonym
 MFS   most_frequent_synonym           Replace word with its commonest synonym
 ===== =============================== ===============================================
 
-``LFS``/``MFS`` are kept as the synonym-style probe along the frequency
-axis (a recognised stylistic dimension), even though the other generic
-synonym variants are dropped.
-
 Splits
 ======
 StylePTB ships train/dev/test splits per subtype, but they are produced
@@ -76,9 +53,8 @@ Caveat: PTB tokenisation
 ========================
 The text is the original Penn Treebank tokenisation: lowercased, with
 contractions split at the apostrophe (``do n't``, ``wo n't``, ``it 's``)
-and punctuation treated as separate tokens. We deliberately do not
-detokenise -- any reconstruction would be heuristic and would risk
-biasing the comparison between sources and targets.
+and punctuation treated as separate tokens. We do not
+detokenize.
 """
 
 import os
