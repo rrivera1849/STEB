@@ -607,9 +607,9 @@ fi
 # FCE released dataset (Cambridge Learner Corpus, FCE subset). Used for L1
 # (native-language) prediction. Only the dataset/ subfolder (the learner
 # script XMLs) is extracted; outliers/, prompts/, README, license, and the
-# examiner-scores file are skipped. Issue #107.
+# examiner-scores file are skipped.
 if [ ! -d "fce_l1" ]; then
-    echo "Downloading fce_l1 (FCE released dataset, dataset/ subfolder only)..."
+    echo "Downloading fce_l1 (FCE released dataset)..."
     mkdir -p fce_l1
     curl -L -o fce_l1/fce-released-dataset.zip \
         https://s3-eu-west-1.amazonaws.com/ilexir-website-media/fce-released-dataset.zip
