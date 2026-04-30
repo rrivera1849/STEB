@@ -37,5 +37,8 @@ def load_the_pile_dataset(
             continue
         ds = load_dataset(HF_PATH, name=config_name, split="train", streaming=True)
         for row in islice(ds, SAMPLES_PER_CATEGORY):
-            records.append({"text": row["text"], "label": config_name})
+            text = row.get("text")
+            if not isinstance(text, str) or not text.strip():
+                continue
+            records.append({"text": text, "label": config_name})
     return records
