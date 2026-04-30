@@ -85,7 +85,7 @@ def _collect_translation(
     return verses
 
 
-def load_style_transfer_bible_dataset(
+def load_bible_versions_dataset(
     data_dir: str,
 ) -> List[Dict[str, Any]]:
     """
@@ -107,7 +107,7 @@ def load_style_transfer_bible_dataset(
 
     Args:
         data_dir: Path to the ``Data/Bibles`` directory containing one folder
-            per translation, e.g. ``raw_datasets/style_transfer_bible/Data/Bibles``.
+            per translation, e.g. ``raw_datasets/bible_versions/Data/Bibles``.
 
     Returns:
         A list of ``{'text': verse_text, 'label': translation_name}`` records,

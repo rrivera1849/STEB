@@ -1,8 +1,8 @@
 {
-  "dataset_name": "style_transfer_bible",
+  "dataset_name": "bible_versions",
   "type": "custom",
-  "data_dir": "style_transfer_bible/Data/Bibles",
-  "loader_function": "load_style_transfer_bible_dataset",
+  "data_dir": "bible_versions/Data/Bibles",
+  "loader_function": "load_bible_versions_dataset",
   "record_handler": {
     "text_getter": "text",
     "label_getter": "label"
