@@ -569,19 +569,16 @@ else
     echo "Skipping parallel_shakespeare (already exists)"
 fi
 
-# Carlson, Riddell & Rockmore 2018 StyleTransferBibleData (Royal Society Open
-# Science 5: 171920). 8 verse-aligned public-domain English Bible translations
-# (KJV, ASV, YLT, DARBY, DRA, BBE, WEB, LEB). Only Data/Bibles/ is needed; the
-# rest of the repo (training splits, model code, results) is skipped via
-# sparse-checkout.
-if [ ! -d "style_transfer_bible" ]; then
-    echo "Downloading style_transfer_bible..."
+# 8 verse-aligned public-domain English Bible translations
+# (KJV, ASV, YLT, DARBY, DRA, BBE, WEB, LEB).
+if [ ! -d "bible_versions" ]; then
+    echo "Downloading bible_versions..."
     git clone --depth 1 --filter=blob:none --sparse \
-        https://github.com/keithecarlson/StyleTransferBibleData.git style_transfer_bible
-    git -C style_transfer_bible sparse-checkout set Data/Bibles
-    rm -rf style_transfer_bible/.git
+        https://github.com/keithecarlson/StyleTransferBibleData.git bible_versions
+    git -C bible_versions sparse-checkout set Data/Bibles
+    rm -rf bible_versions/.git
 else
-    echo "Skipping style_transfer_bible (already exists)"
+    echo "Skipping bible_versions (already exists)"
 fi
 
 # MASC 3.0.0 (Manually Annotated Sub-Corpus) — text genre source
