@@ -63,8 +63,10 @@ def _collect_translation(
     for book in sorted(os.listdir(translation_dir)):
         book_dir = os.path.join(translation_dir, book)
         if not os.path.isdir(book_dir):
-            raise FileNotFoundError(f"{book_dir} does not exist")
+            continue  # elements like .DS_Store
         for filename in sorted(os.listdir(book_dir)):
+            if not filename.endswith(".txt"):
+                continue
             stem = filename[: -len(".txt")]
             chapter_str = stem[len(book):]
             chapter = int(chapter_str)
