@@ -616,6 +616,23 @@ if [ ! -d "fce_l1" ]; then
     rm fce_l1/fce-released-dataset.zip
 else
     echo "Skipping fce_l1 (already exists)"
+    
+# CEECES 1 + 2 (Corpus of Early English Correspondence Extension Samplers,
+# University of Helsinki, VARIENG). 18th-century English letters labelled by
+# 20-year period; used for historical period prediction (issue #94).
+if [ ! -d "ceeces" ]; then
+    echo "Downloading ceeces (CEECES 1 + CEECES 2)..."
+    mkdir -p ceeces/CEECES1 ceeces/CEECES2
+    curl -L -o ceeces/CEECES1/CEECES1-metadata.txt https://zenodo.org/records/6411789/files/CEECES1-metadata.txt
+    curl -L -o ceeces/CEECES1/CEECES-1.zip         https://zenodo.org/records/6411789/files/CEECES-1.zip
+    unzip -q ceeces/CEECES1/CEECES-1.zip -d ceeces/CEECES1
+    rm ceeces/CEECES1/CEECES-1.zip
+    curl -L -o ceeces/CEECES2/CEECES2-metadata.txt https://zenodo.org/records/5887101/files/CEECES2-metadata.txt
+    curl -L -o ceeces/CEECES2/CEECES-2.zip         https://zenodo.org/records/5887101/files/CEECES-2.zip
+    unzip -q ceeces/CEECES2/CEECES-2.zip -d ceeces/CEECES2
+    rm ceeces/CEECES2/CEECES-2.zip
+else
+    echo "Skipping ceeces (already exists)"
 fi
 
 #### Probing
