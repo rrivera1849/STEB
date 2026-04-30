@@ -26,7 +26,7 @@ def _parse_chapter_file(
             line = raw_line.strip()
             if not line:
                 continue
-            parts = line.split(maxsplit=1)
+            parts = line.split(maxsplit=1)  # lines look like `1 In the beginning God created...``
             if len(parts) != 2:
                 continue
             verse_num_str, verse_text = parts
