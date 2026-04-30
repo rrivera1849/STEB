@@ -30,11 +30,15 @@ from .discovery import (
 
 
 def _benchmark_default_ep_configs() -> Dict[str, str]:
-    """Return ``{task: canonical_ep_config_string}`` for the benchmark preset.
+    """Return ``{task: ep_config_prefix}`` for the benchmark preset.
 
-    The episode-config string is ``"{episode_size}_{n_episodes_per_class}"``,
-    matching the directory layout produced by ``steb run``. When a task
-    has multiple episode_sizes in the preset, the first one is taken.
+    When ``n_episodes_per_class`` is a fixed integer the prefix is the
+    full ``"{episode_size}_{n_episodes}"`` string that matches the
+    directory layout produced by ``steb run``.  When it is ``"auto"``
+    the resolved value varies per dataset, so only the episode size is
+    stored (e.g. ``"1"``).  Callers should use
+    ``_ep_config_matches`` to compare against directory names.
+
     Used by ``build_manual_cluster_tables`` to pick a deterministic
     ep_config per task when ``--episode-params`` isn't passed.
     """
@@ -43,8 +47,31 @@ def _benchmark_default_ep_configs() -> Dict[str, str]:
     for item in config["config"]["tasks"]:
         ep_size = item["episode_sizes"][0]
         n_eps = item["n_episodes_per_class"]
-        defaults[item["task"]] = f"{ep_size}_{n_eps}"
+        if n_eps == "auto":
+            defaults[item["task"]] = str(ep_size)
+        else:
+            defaults[item["task"]] = f"{ep_size}_{n_eps}"
     return defaults
+
+
+def _ep_config_matches(
+    ep_dir_name: str,
+    default: str,
+) -> bool:
+    """Check whether a results directory name matches a benchmark default.
+
+    Args:
+        ep_dir_name: The directory name on disk (e.g. ``"1_47"``).
+        default: The benchmark default — either a full match like
+            ``"1_50"`` or an episode-size-only prefix like ``"1"``
+            (used when ``n_episodes_per_class`` is ``"auto"``).
+
+    Returns:
+        True if the directory matches the default.
+    """
+    if "_" in default:
+        return ep_dir_name == default
+    return ep_dir_name.startswith(f"{default}_")
 
 
 def parse_cluster_entry(
@@ -171,7 +198,7 @@ def build_manual_cluster_tables(
         if episode_params:
             if ep_config != episode_params:
                 continue
-        elif benchmark_defaults.get(task) != ep_config:
+        elif not _ep_config_matches(ep_config, benchmark_defaults.get(task, "")):
             continue
         if dataset not in dataset_to_entries:
             continue

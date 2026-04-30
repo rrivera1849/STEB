@@ -53,7 +53,9 @@ def plot_dendrogram(
     Returns:
         The linkage matrix from hierarchical clustering.
     """
+    # RRS - Correlation is between -1, and 1, so dist is between 0, and 2
     dist = np.clip(1 - corr_matrix.values, 0, 2)
+    # RRS - Forget about self-correlations (diagonal)
     np.fill_diagonal(dist, 0)
     dist = (dist + dist.T) / 2
     Z = linkage(squareform(dist), method="ward")
@@ -83,6 +85,8 @@ def plot_heatmap(
         task_name: Task name for the plot title.
         output_path: File path to save the figure.
     """
+    # RRS - Order by clusters found, so that the clusters are visually grouped together
+    # in the heatmap
     order = leaves_list(Z)
     ordered_labels = [corr_matrix.columns[i] for i in order]
     ordered_corr = corr_matrix.loc[ordered_labels, ordered_labels]
@@ -125,9 +129,10 @@ def build_summary(
     Returns:
         A dictionary with cluster assignments, metadata, and confidence flag.
     """
+    # RRS - For each dataset, assign a cluster label based on the distance threshold
     labels = fcluster(Z, t=threshold, criterion="distance")
     datasets = corr_matrix.columns.tolist()
-
+    # RRS - Create a dictionary mapping cluster labels to lists of datasets
     clusters: Dict[str, List[str]] = {}
     for dataset, label in zip(datasets, labels):
         clusters.setdefault(f"cluster_{label}", []).append(dataset)

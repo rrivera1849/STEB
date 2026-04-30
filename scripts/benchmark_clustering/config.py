@@ -92,7 +92,6 @@ EXCLUDED_DATASETS = SEMANTIC_DATASETS | NON_ENGLISH_DATASETS
 # Models to exclude from analysis (e.g. broken runs, non-comparable baselines).
 EXCLUDED_MODELS: set[str] = set()
 EXCLUDED_MODELS.add("avgs_typetoken_read.yaml")
-# EXCLUDED_MODELS.add("surface_pos.yaml")
 EXCLUDED_MODELS.add("lftk")
 EXCLUDED_MODELS.add("tfidf")
 EXCLUDED_MODELS.add("tfidfngrams")
