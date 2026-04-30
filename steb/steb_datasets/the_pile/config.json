@@ -1,0 +1,14 @@
+{
+  "dataset_name": "the_pile",
+  "type": "custom",
+  "data_dir": "the_pile",
+  "loader_function": "load_the_pile_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}
