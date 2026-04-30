@@ -32,7 +32,7 @@ def load_the_pile_dataset(
         sampled row across all Pile categories.
     """
     records: List[Dict[str, Any]] = []
-    for config_name in get_dataset_config_names(HF_PATH):
+    for config_name in sorted(get_dataset_config_names(HF_PATH)):
         if config_name in SKIP_CONFIGS:
             continue
         ds = load_dataset(HF_PATH, name=config_name, split="train", streaming=True)
