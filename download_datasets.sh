@@ -604,6 +604,26 @@ else
     echo "Skipping stack-exchange-politeness-corpus (already exists)"
 fi
 
+# PASTEL (Kang et al., EMNLP 2019) — parallel persona-annotated stories.
+# Only the v2 stories subtree (~31M, ~7.9k JSON files) is needed by the
+# loader. We selectively extract just that subtree from data_v2.zip so
+# we don't pay for unzipping and re-deleting v2/sentences (~155M,
+# ~40k JSON files) — bulk deletion of small files is slow on synced
+# filesystems like iCloud Drive.
+if [ ! -d "PASTEL" ]; then
+    echo "Downloading PASTEL..."
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/dykang/PASTEL.git PASTEL
+    cd PASTEL
+    git sparse-checkout set data
+    unzip -q data/data_v2.zip "v2/stories/*" -d data/
+    rm -rf .git \
+        data/data.zip data/data_v2.zip \
+        README.md dataset.png transfer.png requirements.txt setup.sh
+    cd ..
+else
+    echo "Skipping PASTEL (already exists)"
+fi
+
 # FCE released dataset (Cambridge Learner Corpus, FCE subset). Used for L1
 # (native-language) prediction. Only the dataset/ subfolder (the learner
 # script XMLs) is extracted; outliers/, prompts/, README, license, and the
@@ -618,7 +638,7 @@ if [ ! -d "fce_l1" ]; then
 else
     echo "Skipping fce_l1 (already exists)"
 fi
-    
+
 # CEECES 1 + 2 (Corpus of Early English Correspondence Extension Samplers,
 # University of Helsinki, VARIENG). 18th-century English letters labelled by
 # 20-year period; used for historical period prediction (issue #94).
