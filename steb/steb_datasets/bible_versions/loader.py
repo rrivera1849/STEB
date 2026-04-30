@@ -63,18 +63,11 @@ def _collect_translation(
     for book in sorted(os.listdir(translation_dir)):
         book_dir = os.path.join(translation_dir, book)
         if not os.path.isdir(book_dir):
-            continue
+            raise FileNotFoundError(f"{book_dir} does not exist")
         for filename in sorted(os.listdir(book_dir)):
-            if not filename.endswith(".txt"):
-                continue
             stem = filename[: -len(".txt")]
-            if not stem.startswith(book):
-                continue
             chapter_str = stem[len(book):]
-            try:
-                chapter = int(chapter_str)
-            except ValueError:
-                continue
+            chapter = int(chapter_str)
             chapter_path = os.path.join(book_dir, filename)
             for verse_num, verse_text in _parse_chapter_file(chapter_path).items():
                 verses[(book, chapter, verse_num)] = verse_text
