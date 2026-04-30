@@ -135,6 +135,12 @@ demographics:
   datasets:
     - blog_age
     - blog_gender
+    - fce_l1
+    - pastel_age
+    - pastel_education
+    - pastel_gender
+    - pastel_ethnic
+    - pastel_politics
 
 feature_probing:
   description: "Probing embeddings for stylistic features"
@@ -149,8 +155,3 @@ dialect:
   datasets:
     - endive
     - twitter_aave_sae
-
-demographics:
-  description: "Recognising demographic features of the author (age, gender, occupation, education)"
-  datasets:
-    - fce_l1
