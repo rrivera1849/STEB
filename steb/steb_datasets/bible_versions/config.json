@@ -1,0 +1,14 @@
+{
+  "dataset_name": "bible_versions",
+  "type": "custom",
+  "data_dir": "bible_versions/Data/Bibles",
+  "loader_function": "load_bible_versions_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}
