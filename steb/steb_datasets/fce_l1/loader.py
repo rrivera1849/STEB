@@ -69,18 +69,12 @@ def load_fce_l1_dataset(
     Loads the FCE released corpus for L1 (native-language) prediction.
 
     The First Certificate in English (FCE) released dataset (Yannakoudakis
-    et al., 2011) is a Cambridge Learner Corpus subset of upper-intermediate
-    ESOL exam scripts. Each script holds two `<coded_answer>` blocks: a
-    mandatory Part 1 letter (Q1) and a self-selected Part 2 task (Q2). Both
-    are written by the same candidate and labelled with the same L1, read
-    from `<head><candidate><personnel><language>`. Each `<coded_answer>` is
-    emitted as one record so Q1 and Q2 are independent samples; this
-    accepts a mild Q2 topic-by-L1 confound (Q2 prompts are self-selected)
-    in exchange for doubling the per-class instance count.
+    et al., 2011) at https://aclanthology.org/P11-1019/ is a
+    Cambridge Learner Corpus subset of FCE exams written by 16 different
+    native language speakers.
 
     The corpus is distributed under a non-commercial research/educational
-    licence (a `license` file ships in the unpacked tree); see issue #107
-    and the cite for Yannakoudakis et al., 2011.
+    licence.
 
     Args:
         data_dir: Path to the raw dataset directory containing the

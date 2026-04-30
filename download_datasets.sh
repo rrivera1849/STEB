@@ -616,6 +616,7 @@ if [ ! -d "fce_l1" ]; then
     rm fce_l1/fce-released-dataset.zip
 else
     echo "Skipping fce_l1 (already exists)"
+fi
     
 # CEECES 1 + 2 (Corpus of Early English Correspondence Extension Samplers,
 # University of Helsinki, VARIENG). 18th-century English letters labelled by
