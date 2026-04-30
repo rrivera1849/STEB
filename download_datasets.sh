@@ -569,6 +569,17 @@ else
     echo "Skipping parallel_shakespeare (already exists)"
 fi
 
+# 8 verse-aligned public-domain English Bible translations (KJV, ASV, YLT, DARBY, DRA, BBE, WEB, LEB).
+if [ ! -d "bible_versions" ]; then
+    echo "Downloading bible_versions..."
+    git clone --depth 1 --filter=blob:none --sparse \
+        https://github.com/keithecarlson/StyleTransferBibleData.git bible_versions
+    git -C bible_versions sparse-checkout set Data/Bibles
+    rm -rf bible_versions/.git
+else
+    echo "Skipping bible_versions (already exists)"
+fi
+
 # MASC 3.0.0 (Manually Annotated Sub-Corpus) — text genre source
 if [ ! -d "MASC-3.0.0" ]; then
     echo "Downloading MASC-3.0.0..."
