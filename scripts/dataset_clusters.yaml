@@ -100,6 +100,7 @@ genre:
   datasets:
     - x_genre
     - masc_text_genre
+    - the_pile
 
 style:
   description: "Judging which of two texts is more stylistically similar to a reference"
@@ -127,6 +128,7 @@ style_vs_content:
 time:
   description: "Recognising temporal/historical English register (e.g. Early Modern Shakespearean vs. Modern English)"
   datasets:
+    - bible_versions
     - ceeces
     - parallel_shakespeare --oa_variant acc
 
