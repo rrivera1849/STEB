@@ -47,21 +47,18 @@ def _collect_translation(
     Walk a single-translation directory and return all verses keyed by the
     canonical ``(book, chapter, verse_num)`` triple.
 
-    The Carlson layout is ``<translation>/<Book>/<Book><Chapter>.txt`` (e.g.
-    ``KJV/Genesis/Genesis1.txt``). Files whose stem does not match
-    ``<Book><digits>`` are skipped.
+    The layout is ``<translation>/<Book>/<Book><Chapter>.txt`` (e.g.
+    ``KJV/Genesis/Genesis1.txt``).
 
     Args:
         translation_dir: Absolute path to one translation's root directory.
 
     Returns:
-        A mapping ``(book, chapter, verse_num) -> verse_text``. The directory
-        listing is sorted, so the resulting dict's iteration order is
-        platform-independent in Python 3.7+.
+        A mapping ``(book, chapter, verse_num) -> verse_text``.
     """
     verses: Dict[Tuple[str, int, int], str] = {}
     if not os.path.isdir(translation_dir):
-        return verses
+        raise FileNotFoundError(f"{translation_dir} does not exist")
 
     for book in sorted(os.listdir(translation_dir)):
         book_dir = os.path.join(translation_dir, book)
@@ -93,17 +90,11 @@ def load_bible_versions_dataset(
     StyleTransferBibleData corpus (Carlson, Riddell & Rockmore, 2018,
     *Royal Society Open Science* 5: 171920).
 
-    The translations (KJV, ASV, YLT, DARBY, DRA, BBE, WEB, LEB) span an
-    archaic-to-modern English spectrum, but cover the same biblical content
-    via the ``(book, chapter, verse)`` alignment key. Only references that
-    appear in all 8 translations are emitted, so every label has identical
-    content coverage. This makes the dataset a matched-content stress test
-    for style embedding: clustering or pair classification by translation
-    must rely on style signal because the content is shared across labels.
+    The translations span an archaic-to-modern English spectrum, but cover
+    the same biblical content. Only references that appear in all 8
+    translations are returned.
 
-    The loader returns the full corpus (~31k verses x 8 translations); STEB's
-    ``n_episodes_per_class='auto'`` setting (clamped to
-    ``AUTO_MAX_EPISODES=200``) controls the effective task scale at runtime.
+    The loader returns the full corpus (~31k verses x 8 translations).
 
     Args:
         data_dir: Path to the ``Data/Bibles`` directory containing one folder
@@ -111,11 +102,9 @@ def load_bible_versions_dataset(
 
     Returns:
         A list of ``{'text': verse_text, 'label': translation_name}`` records,
-        emitted in deterministic order: outer loop over sorted
-        ``(book, chapter, verse)`` references, inner loop over the canonical
-        ``TRANSLATIONS`` tuple.
+        emitted in deterministic order.
     """
-    per_translation: Dict[str, Dict[Tuple[str, int, int], str]] = {}
+    per_translation: Dict[str, Dict[Tuple[str, int, int], str]] = {} # [str, int, int] = book, chapter, verse
     for translation in TRANSLATIONS:
         translation_dir = os.path.join(data_dir, translation)
         per_translation[translation] = _collect_translation(translation_dir)
