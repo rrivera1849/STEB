@@ -28,11 +28,8 @@ def _learner_text(
     if elem.text:
         parts.append(elem.text)
     for child in elem:
-        if child.tag == "c":
-            if child.tail:
-                parts.append(child.tail)
-            continue
-        parts.append(_learner_text(child))
+        if child.tag != "c": # skip corrections
+            parts.append(_learner_text(child))
         if child.tail:
             parts.append(child.tail)
     return "".join(parts)
