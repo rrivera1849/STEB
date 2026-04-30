@@ -1,8 +1,10 @@
 import os
+import random
 from typing import Any, Dict, List, Tuple
 
 
 TRANSLATIONS = ("ASV", "BBE", "DARBY", "DRA", "KJV", "LEB", "WEB", "YLT")
+SHUFFLE_SEED = 42
 
 
 def _normalize(
@@ -145,6 +147,14 @@ def load_bible_versions_dataset(
         if len({_normalize(per_translation[t][ref]) for t in TRANSLATIONS})
         == len(TRANSLATIONS)
     ]
+
+    # Shuffle references (not individual records) so STEB's per-class cap
+    # samples a representative spread across the canon instead of biasing to
+    # whichever books sort first. Shuffling references rather than records
+    # keeps the matched-content property: every translation still sees the
+    # same set of verses. Mersenne Twister with a fixed seed makes the order
+    # platform-deterministic.
+    random.Random(SHUFFLE_SEED).shuffle(collision_free_refs)
 
     records: List[Dict[str, Any]] = []
     for ref in collision_free_refs:
