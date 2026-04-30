@@ -4,12 +4,11 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 
-def _collect_learner_text(
+def _learner_text(
     elem: ET.Element,
-    chunks: List[str],
-) -> None:
+) -> str:
     """
-    Depth-first text walker that emits the text written by the learner.
+    Returns the learner-surface text of `elem` and its descendants.
 
     The FCE error-coding wraps every correction in `<NS><i>...</i><c>...</c></NS>`,
     where `<i>` is the learner's incorrect/original form and `<c>` is the
@@ -19,20 +18,24 @@ def _collect_learner_text(
     because tails belong to the parent's text flow, not the element.
 
     Args:
-        elem: The element whose children to walk.
-        chunks: Accumulator list that the collected text fragments are
-            appended to in document order.
+        elem: The element to flatten to a string.
+
+    Returns:
+        The concatenated learner-surface text in document order, with the
+        examiner's `<c>` corrections excluded.
     """
+    parts: List[str] = []
+    if elem.text:
+        parts.append(elem.text)
     for child in elem:
         if child.tag == "c":
             if child.tail:
-                chunks.append(child.tail)
+                parts.append(child.tail)
             continue
-        if child.text:
-            chunks.append(child.text)
-        _collect_learner_text(child, chunks)
+        parts.append(_learner_text(child))
         if child.tail:
-            chunks.append(child.tail)
+            parts.append(child.tail)
+    return "".join(parts)
 
 
 def _extract_learner_text(
@@ -48,18 +51,11 @@ def _extract_learner_text(
     Returns:
         The joined paragraph text.
     """
-    paragraphs: List[str] = []
-    for p in coded_answer.findall("p"):
-        chunks: List[str] = []
-        if p.text:
-            chunks.append(p.text)
-        else:
-            raise ValueError("Paragraph missing text")
-        _collect_learner_text(p, chunks)
-        cleaned = re.sub(r"\s+", " ", "".join(chunks)).strip()
-        if cleaned:
-            paragraphs.append(cleaned)
-    return "\n\n".join(paragraphs)
+    paragraphs = [
+        re.sub(r"\s+", " ", _learner_text(p)).strip()
+        for p in coded_answer.findall("p")
+    ]
+    return "\n\n".join(p for p in paragraphs if p)
 
 
 def load_fce_l1_dataset(
