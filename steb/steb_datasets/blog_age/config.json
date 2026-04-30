@@ -1,0 +1,15 @@
+{
+  "dataset_name": "blog_age",
+  "type": "custom",
+  "data_dir": "blog/age",
+  "loader_module": "steb.loaders.blog",
+  "loader_function": "load_blog",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}
