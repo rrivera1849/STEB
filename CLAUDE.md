@@ -54,8 +54,6 @@ Always separate imports by type and alphabetically, first standard library impor
   - If a loader is specific to one dataset -> `steb/steb_datasets/<name>/loader.py`
 - Every new dataset should have at least one task in its `tasks` field.
 - For custom datasets, add the download step to `download_datasets.sh`.
-- After the loader and configs are in place, suggest a LaTeX paragraph (4–8 sentences) describing: dataset name + citation, what each record contains, why this dataset was added (style dimension probed), the STEB task(s) it supports, the subset/splits chosen and why, and any caveats (e.g. tokenization).
-- Include the LaTeX paragraph in the PR description under a `## LaTeX paragraph` heading so it's easy to lift.
 
 ## Pull Requests
 
