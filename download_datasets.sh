@@ -604,6 +604,21 @@ else
     echo "Skipping stack-exchange-politeness-corpus (already exists)"
 fi
 
+# FCE released dataset (Cambridge Learner Corpus, FCE subset). Used for L1
+# (native-language) prediction. Only the dataset/ subfolder (the learner
+# script XMLs) is extracted; outliers/, prompts/, README, license, and the
+# examiner-scores file are skipped.
+if [ ! -d "fce_l1" ]; then
+    echo "Downloading fce_l1 (FCE released dataset)..."
+    mkdir -p fce_l1
+    curl -L -o fce_l1/fce-released-dataset.zip \
+        https://s3-eu-west-1.amazonaws.com/ilexir-website-media/fce-released-dataset.zip
+    unzip -q fce_l1/fce-released-dataset.zip 'fce-released-dataset/dataset/*' -d fce_l1
+    rm fce_l1/fce-released-dataset.zip
+else
+    echo "Skipping fce_l1 (already exists)"
+fi
+    
 # CEECES 1 + 2 (Corpus of Early English Correspondence Extension Samplers,
 # University of Helsinki, VARIENG). 18th-century English letters labelled by
 # 20-year period; used for historical period prediction (issue #94).
