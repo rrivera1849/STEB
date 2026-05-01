@@ -155,7 +155,8 @@ feature_probing:
     - probing_stackexchange
 
 dialect:
-  description: "Recognising English dialect identity (SAE plus AAVE, ChcE, CollSgE, IndE, JamE)"
+  description: "Recognising English dialect / variety identity across world Englishes (regional, contact, L2, pidgin, creole)"
   datasets:
     - endive
     - twitter_aave_sae
+    - eWAVE
