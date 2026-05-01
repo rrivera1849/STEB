@@ -668,6 +668,21 @@ else
     echo "Skipping ceeces (already exists)"
 fi
 
+# StylePTB (Lyu et al., NAACL 2021) — fine-grained style-transfer pairs.
+# Source: https://github.com/lvyiwei1/StylePTB
+# We only need fulldata.h16 (the master file with all 21 transformations
+# interleaved as <code>/<source>/<target> triplets) plus the LICENSE.
+# Note: the text is PTB-tokenized (lowercased, contractions split as
+# "n't", "wo", "'s") — this is intentional and preserved.
+if [ ! -d "styleptb" ]; then
+    echo "Downloading StylePTB..."
+    mkdir styleptb
+    curl -L -o styleptb/fulldata.h16 https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/fulldata.h16
+    curl -L -o styleptb/LICENSE https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/LICENSE
+else
+    echo "Skipping styleptb (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
