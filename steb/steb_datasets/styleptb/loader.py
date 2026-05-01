@@ -109,6 +109,7 @@ def load_styleptb_dataset(
         (e.g. ``"active_to_passive"``); records sharing a label are
         compared pairwise by the order-alignment task.
     """
+    # fulldata is used in StylePTB, see https://github.com/lvyiwei1/StylePTB/blob/master/single_transform_checkout.py
     fulldata_path = os.path.join(data_dir, "fulldata.h16")
     if not os.path.isfile(fulldata_path):
         raise FileNotFoundError(f"fulldata.h16 not found in: {data_dir}")
@@ -118,9 +119,9 @@ def load_styleptb_dataset(
 
     records: List[Dict[str, Any]] = []
     n = len(lines)
-    for i in range(n - 2):
-        code = lines[i][:3]
-        if code not in _KEPT_CODES:
+    for i in range(n - 2):  # iterate per line, not in triples becaues of NSR1775: includes 4 lines
+        code = lines[i][:3]  # entries go from TPR1 to IAD59767, i.e., with an appended id
+        if code not in _KEPT_CODES:  # only go with this line if it starts with a code
             continue
         source = lines[i + 1]
         target = lines[i + 2]
