@@ -674,13 +674,13 @@ fi
 # interleaved as <code>/<source>/<target> triplets) plus the LICENSE.
 # Note: the text is PTB-tokenized (lowercased, contractions split as
 # "n't", "wo", "'s") — this is intentional and preserved.
-if [ ! -d "styleptb" ]; then
+if [ ! -d "StylePTB" ]; then
     echo "Downloading StylePTB..."
-    mkdir styleptb
-    curl -L -o styleptb/fulldata.h16 https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/fulldata.h16
-    curl -L -o styleptb/LICENSE https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/LICENSE
+    mkdir StylePTB
+    curl -L -o StylePTB/fulldata.h16 https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/fulldata.h16
+    curl -L -o StylePTB/LICENSE https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/LICENSE
 else
-    echo "Skipping styleptb (already exists)"
+    echo "Skipping StylePTB (already exists)"
 fi
 
 #### Probing

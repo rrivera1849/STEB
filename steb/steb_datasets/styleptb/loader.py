@@ -83,7 +83,7 @@ _KEPT_CODES: Dict[str, str] = {
 }
 
 
-def load_styleptb_dataset(
+def load_StylePTB_dataset(
     data_dir: str,
 ) -> List[Dict[str, Any]]:
     """
@@ -101,7 +101,7 @@ def load_styleptb_dataset(
 
     Args:
         data_dir: Path to the directory holding ``fulldata.h16``,
-            typically ``raw_datasets/styleptb``.
+            typically ``raw_datasets/StylePTB``.
 
     Returns:
         A list of records, each ``{"text": [target, source], "label":

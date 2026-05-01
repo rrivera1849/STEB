@@ -1,9 +1,9 @@
 {
-  "dataset_name": "styleptb",
+  "dataset_name": "StylePTB",
   "description": "StylePTB (Lyu et al., NAACL 2021) parallel style-transfer pairs across 15 of the 21 single-transform subtypes. Each record is a length-2 ordered list [target, source] grouped under the subtype label; order_alignment tests whether embeddings separate the two style sides despite shared content. See loader.py for the full subtype table, the rationale for the 6 dropped subtypes, and the PTB-tokenization caveat.",
   "type": "custom",
-  "data_dir": "styleptb",
-  "loader_function": "load_styleptb_dataset",
+  "data_dir": "StylePTB",
+  "loader_function": "load_StylePTB_dataset",
   "record_handler": {
     "text_getter": "text",
     "label_getter": "label"
