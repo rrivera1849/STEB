@@ -18,18 +18,8 @@ Join
 ``Name`` (e.g. ``"Scottish English"``, ``"Urban African American Vernacular
 English"``).
 
-Filter
-======
-Varieties with fewer than 2 examples are dropped: clustering and all-pair
-classification both need at least one same-class pair to produce a non-trivial
-signal. This is a no-op on the v3.0.1 release (every represented variety has
->=29 examples) but is kept as a guard against sparser future releases.
-
 Caveat: uneven coverage
 =======================
-Per-variety counts span 29-196 (median 71) across the 53 varieties that
-appear in the CLDF examples table; the long tail is unavoidable for a
-linguistic feature survey rather than a balanced corpus.
 """
 
 import csv
@@ -45,7 +35,7 @@ def load_eWAVE_dataset(
     data_dir: str,
 ) -> List[Dict[str, Any]]:
     """
-    Load eWAVE example sentences labelled by variety of English.
+    Load eWAVE example sentences labeled by variety of English.
 
     Reads ``cldf/examples.csv`` and ``cldf/languages.csv`` from ``data_dir``,
     joins them on ``Language_ID`` -> ``ID``, and emits one record per example
