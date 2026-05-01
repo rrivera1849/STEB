@@ -683,6 +683,21 @@ else
     echo "Skipping StylePTB (already exists)"
 fi
 
+# eWAVE (Kortmann, Lunkenheimer & Ehret 2020) — electronic World Atlas of
+# Varieties of English. CLDF release on Zenodo, CC-BY 3.0.
+if [ ! -d "eWAVE" ]; then
+    echo "Downloading eWAVE..."
+    curl -L -o ewave.zip "https://zenodo.org/api/records/17433568/files/cldf-datasets/ewave-v3.0.1.zip/content"
+    unzip -q ewave.zip
+    mkdir -p eWAVE/cldf
+    mv cldf-datasets-ewave-*/cldf/examples.csv eWAVE/cldf/
+    mv cldf-datasets-ewave-*/cldf/languages.csv eWAVE/cldf/
+    mv cldf-datasets-ewave-*/LICENSE eWAVE/ 2>/dev/null || true
+    rm -rf cldf-datasets-ewave-* ewave.zip
+else
+    echo "Skipping eWAVE (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
