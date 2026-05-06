@@ -1,0 +1,15 @@
+{
+  "dataset_name": "eWAVE",
+  "description": "eWAVE (Kortmann, Lunkenheimer & Ehret 2020) example sentences from 53 varieties of English, joined from cldf/examples.csv and cldf/languages.csv. Label is the full variety name (e.g. 'Scottish English'). Coverage is uneven. According to claude: 29-196 examples per variety, median 71, ~4.2k records total.",
+  "type": "custom",
+  "data_dir": "eWAVE",
+  "loader_function": "load_eWAVE_dataset",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}

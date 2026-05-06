@@ -668,6 +668,36 @@ else
     echo "Skipping ceeces (already exists)"
 fi
 
+# StylePTB (Lyu et al., NAACL 2021) — fine-grained style-transfer pairs.
+# Source: https://github.com/lvyiwei1/StylePTB
+# We only need fulldata.h16 (the master file with all 21 transformations
+# interleaved as <code>/<source>/<target> triplets) plus the LICENSE.
+# Note: the text is PTB-tokenized (lowercased, contractions split as
+# "n't", "wo", "'s") — this is intentional and preserved.
+if [ ! -d "StylePTB" ]; then
+    echo "Downloading StylePTB..."
+    mkdir StylePTB
+    curl -L -o StylePTB/fulldata.h16 https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/fulldata.h16
+    curl -L -o StylePTB/LICENSE https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/LICENSE
+else
+    echo "Skipping StylePTB (already exists)"
+fi
+
+# eWAVE (Kortmann, Lunkenheimer & Ehret 2020) — electronic World Atlas of
+# Varieties of English. CLDF release on Zenodo, CC-BY 3.0.
+if [ ! -d "eWAVE" ]; then
+    echo "Downloading eWAVE..."
+    curl -L -o ewave.zip "https://zenodo.org/api/records/17433568/files/cldf-datasets/ewave-v3.0.1.zip/content"
+    unzip -q ewave.zip
+    mkdir -p eWAVE/cldf
+    mv cldf-datasets-ewave-*/cldf/examples.csv eWAVE/cldf/
+    mv cldf-datasets-ewave-*/cldf/languages.csv eWAVE/cldf/
+    mv cldf-datasets-ewave-*/LICENSE eWAVE/ 2>/dev/null || true
+    rm -rf cldf-datasets-ewave-* ewave.zip
+else
+    echo "Skipping eWAVE (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
