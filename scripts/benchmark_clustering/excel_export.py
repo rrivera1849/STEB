@@ -131,7 +131,7 @@ def export_excel(
     underline_font = Font(underline="single", size=BASE_FONT_SIZE)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-        scores_df[model_cols] = scores_df[model_cols].round(2)
+        scores_df[model_cols] = scores_df[model_cols].round(4)
         scores_df.to_excel(writer, sheet_name="scores", index=False)
 
         # Bold best, underline second best per row (across model columns)
@@ -157,7 +157,7 @@ def export_excel(
             }
             summary_df = pd.DataFrame(columns)
             summary_df.index.name = "model"
-            summary_df = summary_df.round(2)
+            summary_df = summary_df.round(4)
 
             # Prepend a "# datasets" row
             ds_counts = task_n_datasets or {}
@@ -207,7 +207,7 @@ def export_excel(
                     continue
                 agg_df = pd.DataFrame(avg_series)
                 agg_df["average"] = agg_df.mean(axis=1)
-                agg_df = agg_df.round(2)
+                agg_df = agg_df.round(4)
                 sheet_name = agg_sheet_name[:31]
                 agg_df.to_excel(writer, sheet_name=sheet_name)
 
@@ -236,7 +236,7 @@ def export_excel(
                 data_start_row = max_datasets + 2 if max_datasets > 0 else 0
                 mc_df = mc_df.copy()
                 mc_df["average"] = mc_df.mean(axis=1)
-                mc_df = mc_df.round(2)
+                mc_df = mc_df.round(4)
                 mc_df.to_excel(writer, sheet_name=sheet_name, startrow=data_start_row)
 
                 ws = writer.sheets[sheet_name]
