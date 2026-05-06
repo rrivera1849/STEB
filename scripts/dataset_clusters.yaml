@@ -113,6 +113,7 @@ style:
     - wikipedia_politeness
     - stackexchange_politeness
     - ASSET --oa_variant acc
+    - stylePTB --oa_variant acc
 
 style_vs_content:
   description: "Judging which of two texts is more stylistically similar to a reference"
@@ -124,6 +125,7 @@ style_vs_content:
     - OneStopEnglishCorpus --oa_variant distractor --oa_only
     - parallel_shakespeare --oa_variant distractor --oa_only
     - ASSET --oa_variant distractor --oa_only
+    - StylePTB --oa_variant distractor --oa_only
 
 time:
   description: "Recognising temporal/historical English register (e.g. Early Modern Shakespearean vs. Modern English)"
@@ -153,7 +155,8 @@ feature_probing:
     - probing_stackexchange
 
 dialect:
-  description: "Recognising English dialect identity (SAE plus AAVE, ChcE, CollSgE, IndE, JamE)"
+  description: "Recognising English dialects across world Englishes"
   datasets:
     - endive
     - twitter_aave_sae
+    - eWAVE
