@@ -1,7 +1,7 @@
 """Automatic clustering analysis: per-task correlation, dendrogram, summary."""
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +10,7 @@ from scipy.cluster.hierarchy import dendrogram, fcluster, leaves_list, linkage
 from scipy.spatial.distance import squareform
 from scipy.stats import spearmanr
 
-from .config import LOW_CONFIDENCE_THRESHOLD
+from .config import LOW_CONFIDENCE_THRESHOLD, MODEL_CATEGORIES
 from .discovery import discover_scores
 
 
@@ -186,7 +186,7 @@ def analyze_task(
     include_excluded: bool = False,
     threshold: float = 1.0,
     complete_datasets: bool = False,
-) -> Optional[pd.Series]:
+) -> Optional[Tuple[pd.Series, int]]:
     """Run the full clustering analysis for a single task.
 
     Args:
@@ -202,7 +202,8 @@ def analyze_task(
             of dropping models with missing datasets.
 
     Returns:
-        A Series of per-model task scores, or None if the task was skipped.
+        A tuple of (per-model task scores, number of datasets), or None if
+        the task was skipped.
     """
     print(f"\n{'='*60}")
     print(f"Task: {task_name}")
@@ -259,7 +260,7 @@ def analyze_task(
         print(f"  Task scores:")
         for model in task_score.index:
             print(f"    {model}: {task_score.loc[model]:.4f}")
-        return task_score
+        return task_score, len(df.columns)
 
     # Compute correlations
     corr = compute_correlation_matrix(df)
@@ -296,12 +297,134 @@ def analyze_task(
     for model in agg.index:
         print(f"    {model}: {agg.loc[model, 'task_score']:.4f}")
 
-    return agg["task_score"]
+    return agg["task_score"], len(df.columns)
+
+
+def _get_model_category(
+    model: str,
+) -> str:
+    """Return the category of a model based on MODEL_CATEGORIES config.
+
+    Args:
+        model: The model name.
+
+    Returns:
+        The category name ("style", "semantic", or "other").
+    """
+    for category, models in MODEL_CATEGORIES.items():
+        if model in models:
+            return category
+    return "other"
+
+
+# Colors for each model category in the ranking plot.
+_CATEGORY_COLORS = {
+    "style": "#2196F3",
+    "semantic": "#FF9800",
+    "other": "#9E9E9E",
+}
+
+
+def _plot_ranking_bars(
+    steb_scores: pd.Series,
+    ax,
+    grouped: bool,
+) -> None:
+    """Draw horizontal bars on an axis, optionally grouped by category.
+
+    Args:
+        steb_scores: Series of STEB scores indexed by model name.
+        ax: Matplotlib axis to draw on.
+        grouped: If True, group bars by category with gaps between groups.
+    """
+    from matplotlib.patches import Patch
+
+    if grouped:
+        categories_map = {m: _get_model_category(m) for m in steb_scores.index}
+        groups = {}
+        for cat in ["style", "semantic", "other"]:
+            members = {m: s for m, s in steb_scores.items() if categories_map[m] == cat}
+            if members:
+                groups[cat] = pd.Series(members).sort_values(ascending=True)
+
+        y_offset = 0
+        y_ticks = []
+        y_labels = []
+
+        for cat in ["semantic", "other", "style"]:
+            if cat not in groups:
+                continue
+            scores = groups[cat]
+            n = len(scores)
+            y_pos = np.arange(y_offset, y_offset + n)
+            ax.barh(
+                y_pos, scores.values,
+                color=_CATEGORY_COLORS[cat], edgecolor="white", height=0.7,
+            )
+            for i, val in enumerate(scores.values):
+                ax.text(val + 0.005, y_pos[i], f"{val:.3f}", va="center", fontsize=9)
+            y_ticks.extend(y_pos)
+            y_labels.extend(scores.index)
+            y_offset += n + 1
+
+        ax.set_yticks(y_ticks)
+        ax.set_yticklabels(y_labels, fontsize=10)
+        present = [c for c in ["style", "semantic", "other"] if c in groups]
+    else:
+        sorted_scores = steb_scores.sort_values(ascending=True)
+        categories = [_get_model_category(m) for m in sorted_scores.index]
+        colors = [_CATEGORY_COLORS[c] for c in categories]
+        n = len(sorted_scores)
+        y_pos = np.arange(n)
+        ax.barh(y_pos, sorted_scores.values, color=colors, edgecolor="white", height=0.7)
+        for i, val in enumerate(sorted_scores.values):
+            ax.text(val + 0.005, i, f"{val:.3f}", va="center", fontsize=9)
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(sorted_scores.index, fontsize=10)
+        present = sorted(set(categories))
+
+    ax.set_xlabel("STEB Score", fontsize=12)
+    ax.set_title("STEB Score", fontsize=14)
+
+    legend_handles = [Patch(facecolor=_CATEGORY_COLORS[c], label=c) for c in present]
+    ax.legend(handles=legend_handles, loc="lower right", fontsize=10)
+    ax.set_xlim(0, steb_scores.max() * 1.12)
+
+
+def plot_model_ranking(
+    steb_scores: pd.Series,
+    output_dir: str,
+) -> List[str]:
+    """Generate ranking plots (sorted and grouped) and save them.
+
+    Args:
+        steb_scores: Series of STEB scores indexed by model name.
+        output_dir: Directory to save the figures.
+
+    Returns:
+        List of output file paths [ranking.png, ranking_grouped.png].
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    paths = []
+    n = len(steb_scores)
+
+    for grouped, filename in [(False, "ranking.png"), (True, "ranking_grouped.png")]:
+        path = os.path.join(output_dir, filename)
+        fig, ax = plt.subplots(figsize=(10, max(4, n * 0.45)))
+        _plot_ranking_bars(steb_scores, ax, grouped=grouped)
+        fig.tight_layout()
+        fig.savefig(path, dpi=150)
+        plt.close(fig)
+        paths.append(path)
+
+    print(f"  Saved ranking plots: {', '.join(paths)}")
+    return paths
 
 
 def print_summary_table(
     task_scores: Dict[str, pd.Series],
     task_metrics: Dict[str, str],
+    task_n_datasets: Dict[str, int],
     output_dir: str,
 ) -> None:
     """Print a Markdown table summarizing per-model scores across tasks.
@@ -311,17 +434,28 @@ def print_summary_table(
     Args:
         task_scores: Mapping from task name to a Series of per-model task scores.
         task_metrics: Mapping from task name to metric name (for column headers).
+        task_n_datasets: Mapping from task name to number of datasets used.
         output_dir: Directory to save the summary table file.
     """
     if not task_scores:
         return
 
+    col_names = {
+        task: f"{task} ({task_metrics[task]})"
+        for task in task_scores
+    }
     columns = {
-        f"{task} ({task_metrics[task]})": scores
+        col_names[task]: scores
         for task, scores in task_scores.items()
     }
     df = pd.DataFrame(columns)
     df.index.name = "Model"
+
+    # Build a "# datasets" row
+    n_datasets_row = {
+        col_names[task]: str(task_n_datasets[task]) if task in task_n_datasets else "—"
+        for task in task_scores
+    }
 
     # Bold the best value in each column
     for col in df.columns:
@@ -332,6 +466,11 @@ def print_summary_table(
         best_idx = valid.idxmax()
         df[col] = df[col].apply(lambda x: f"{x:.4f}" if pd.notna(x) else "—")
         df.at[best_idx, col] = f"**{df.at[best_idx, col]}**"
+
+    # Insert the datasets row at the top
+    n_datasets_df = pd.DataFrame(n_datasets_row, index=["# datasets"])
+    n_datasets_df.index.name = "Model"
+    df = pd.concat([n_datasets_df, df])
 
     table = df.to_markdown()
 
