@@ -4,6 +4,7 @@ Run with:
     python -m scripts.benchmark_clustering [args]
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -18,7 +19,7 @@ import pandas as pd
 
 from steb.utils import RESULTS_DIR
 
-from .auto_cluster import analyze_task, print_summary_table
+from .auto_cluster import analyze_task, plot_model_ranking, print_summary_table
 from .config import TASK_METRICS
 from .excel_export import export_excel
 from .manual_cluster import (
@@ -120,7 +121,9 @@ def main() -> None:
         sys.exit(1)
 
     task_scores: Dict[str, pd.Series] = {}
+    task_n_datasets: Dict[str, int] = {}
     effective_metrics: Dict[str, str] = {}
+    ranking_plot_paths: Optional[List[str]] = None
 
     if args.task or args.all_tasks:
         tasks = list(TASK_METRICS.keys()) if args.all_tasks else [args.task]
@@ -143,9 +146,23 @@ def main() -> None:
                 args.complete_datasets,
             )
             if result is not None:
-                task_scores[task] = result
+                scores, n_datasets = result
+                task_scores[task] = scores
+                task_n_datasets[task] = n_datasets
 
-        print_summary_table(task_scores, effective_metrics, args.output_dir)
+        # Compute an overall STEB average across tasks for each model
+        if len(task_scores) > 1:
+            all_task_df = pd.DataFrame(task_scores)
+            task_scores["STEB_score"] = all_task_df.mean(axis=1)
+            effective_metrics["STEB_score"] = "avg"
+            task_n_datasets["STEB_score"] = sum(task_n_datasets.values())
+
+        print_summary_table(task_scores, effective_metrics, task_n_datasets, args.output_dir)
+
+        # Plot model ranking if we have the STEB score
+        if "STEB_score" in task_scores:
+            ranking_plot_paths = plot_model_ranking(task_scores["STEB_score"], args.output_dir)
+
         print(f"Done. Produced analysis for {len(task_scores)}/{len(tasks)} tasks.")
 
     manual_cluster_tables: Optional[Dict[str, pd.DataFrame]] = None
@@ -172,8 +189,10 @@ def main() -> None:
             args.include_excluded,
             task_scores if task_scores else None,
             effective_metrics if effective_metrics else None,
+            task_n_datasets if task_n_datasets else None,
             manual_cluster_tables,
             manual_cluster_datasets,
+            ranking_plot_paths=ranking_plot_paths if task_scores else None,
         )
 
 

@@ -1,10 +1,50 @@
 """Export benchmark scores to a multi-sheet Excel workbook."""
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from .config import OA_VARIANT_METRICS, TASK_METRICS
+from .config import AGGREGATE_SHEETS, OA_VARIANT_METRICS, TASK_METRICS
 from .discovery import _warn_missing_metric, discover_all_scores
+
+
+def _highlight_best_cells(
+    ws,
+    cells: List[Tuple[float, int]],
+    bold_font,
+    underline_font,
+    axis: str,
+    fixed_idx: int,
+) -> None:
+    """Bold best and underline second-best cells, handling ties.
+
+    Args:
+        ws: The openpyxl worksheet.
+        cells: List of (value, index) pairs for the varying axis.
+        bold_font: Font to apply to best value(s).
+        underline_font: Font to apply to second-best value(s).
+        axis: "row" if fixed_idx is a row (varying columns) or
+              "col" if fixed_idx is a column (varying rows).
+        fixed_idx: The fixed row or column index (1-indexed).
+    """
+    if len(cells) < 2:
+        return
+    cells.sort(key=lambda x: x[0], reverse=True)
+    best_val = cells[0][0]
+    second_val = next((v for v, _ in cells if v < best_val), None)
+
+    for val, idx in cells:
+        if val == best_val:
+            cell = ws.cell(
+                row=fixed_idx if axis == "row" else idx,
+                column=idx if axis == "row" else fixed_idx,
+            )
+            cell.font = bold_font
+        elif second_val is not None and val == second_val:
+            cell = ws.cell(
+                row=fixed_idx if axis == "row" else idx,
+                column=idx if axis == "row" else fixed_idx,
+            )
+            cell.font = underline_font
 
 
 def export_excel(
@@ -13,8 +53,10 @@ def export_excel(
     include_excluded: bool = False,
     task_scores: Optional[Dict[str, pd.Series]] = None,
     task_metrics: Optional[Dict[str, str]] = None,
+    task_n_datasets: Optional[Dict[str, int]] = None,
     manual_cluster_tables: Optional[Dict[str, pd.DataFrame]] = None,
     manual_cluster_datasets: Optional[Dict[str, Dict[str, List[str]]]] = None,
+    ranking_plot_paths: Optional[List[str]] = None,
 ) -> None:
     """Export all scores to an Excel file.
 
@@ -22,7 +64,8 @@ def export_excel(
       - "scores": one row per (dataset, task, episode_config) with per-model
         metric values. Best per row is bold, second best is underlined.
       - "summary": cluster-aware aggregated scores per model per task
-        (if --task or --all-tasks was used).
+        (if --task or --all-tasks was used). Includes a "# datasets" row.
+      - "ranking": embedded model ranking plot (if ranking_plot_path provided).
       - One sheet per cluster named "mc_{cluster}" with manual cluster
         averages (if --manual-clusters was used). Best per column is bold,
         second best is underlined. Includes dataset list per column.
@@ -34,10 +77,13 @@ def export_excel(
         task_scores: Mapping from task name to per-model aggregated scores.
             If provided, written as the "summary" sheet.
         task_metrics: Mapping from task name to metric name (for column headers).
+        task_n_datasets: Mapping from task name to number of datasets used.
         manual_cluster_tables: Mapping from cluster name to DataFrame of manual
             cluster averages (models x tasks).
         manual_cluster_datasets: Mapping from cluster name to dict of column
             name to list of dataset names included in that column.
+        ranking_plot_paths: Paths to ranking plot PNGs to embed in Excel
+            [ranking.png, ranking_grouped.png].
     """
     rows = discover_all_scores(results_dir, include_excluded)
     if not rows:
@@ -79,10 +125,13 @@ def export_excel(
 
     from openpyxl.styles import Font
 
-    bold_font = Font(bold=True)
-    underline_font = Font(underline="single")
+    BASE_FONT_SIZE = 14
+    base_font = Font(size=BASE_FONT_SIZE)
+    bold_font = Font(bold=True, size=BASE_FONT_SIZE)
+    underline_font = Font(underline="single", size=BASE_FONT_SIZE)
 
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        scores_df[model_cols] = scores_df[model_cols].round(2)
         scores_df.to_excel(writer, sheet_name="scores", index=False)
 
         # Bold best, underline second best per row (across model columns)
@@ -95,34 +144,82 @@ def export_excel(
                 cell = ws_scores.cell(row=row_idx, column=col_idx)
                 if isinstance(cell.value, (int, float)):
                     vals.append((cell.value, col_idx))
-            if len(vals) < 2:
-                continue
-            vals.sort(key=lambda x: x[0], reverse=True)
-            ws_scores.cell(row=row_idx, column=vals[0][1]).font = bold_font
-            ws_scores.cell(row=row_idx, column=vals[1][1]).font = underline_font
+            _highlight_best_cells(ws_scores, vals, bold_font, underline_font, "row", row_idx)
 
         if task_scores and task_metrics:
+            col_names = {
+                task: f"{task} ({task_metrics[task]})"
+                for task in task_scores
+            }
             columns = {
-                f"{task} ({task_metrics[task]})": scores
+                col_names[task]: scores
                 for task, scores in task_scores.items()
             }
             summary_df = pd.DataFrame(columns)
             summary_df.index.name = "model"
+            summary_df = summary_df.round(2)
+
+            # Prepend a "# datasets" row
+            ds_counts = task_n_datasets or {}
+            n_datasets_row = {
+                col_names[task]: ds_counts.get(task, "")
+                for task in task_scores
+            }
+            n_datasets_df = pd.DataFrame(n_datasets_row, index=["# datasets"])
+            n_datasets_df.index.name = "model"
+            summary_df = pd.concat([n_datasets_df, summary_df])
+
             summary_df.to_excel(writer, sheet_name="summary")
 
-            # Bold best, underline second best per column (across models)
+            # Bold best, underline second best per column (skip # datasets row)
             ws_summary = writer.sheets["summary"]
+            # Data starts at row 3 (row 1 = header, row 2 = # datasets)
             for col_idx in range(2, len(summary_df.columns) + 2):  # skip index col
                 vals = []
-                for row_idx in range(2, len(summary_df) + 2):  # skip header
+                for row_idx in range(3, len(summary_df) + 2):  # skip header + datasets row
                     cell = ws_summary.cell(row=row_idx, column=col_idx)
                     if isinstance(cell.value, (int, float)):
                         vals.append((cell.value, row_idx))
-                if len(vals) < 2:
+                _highlight_best_cells(ws_summary, vals, bold_font, underline_font, "col", col_idx)
+
+        # Embed ranking plots as sheets
+        if ranking_plot_paths:
+            from openpyxl.drawing.image import Image as XlImage
+            sheet_names = ["ranking", "ranking_grouped"]
+            for plot_path, sname in zip(ranking_plot_paths, sheet_names):
+                ws = writer.book.create_sheet(sname)
+                img = XlImage(plot_path)
+                ws.add_image(img, "A1")
+
+        # Aggregate sheets: combine columns from multiple manual cluster tables
+        if manual_cluster_tables and AGGREGATE_SHEETS:
+            italic_font = Font(italic=True, size=BASE_FONT_SIZE)
+            for agg_sheet_name, source_clusters in AGGREGATE_SHEETS:
+                avg_series = {}
+                for cluster_name in source_clusters:
+                    mc_df = manual_cluster_tables.get(cluster_name)
+                    if mc_df is None:
+                        print(f"  Warning: aggregate sheet '{agg_sheet_name}' references "
+                              f"missing cluster '{cluster_name}', skipping it.")
+                        continue
+                    avg_series[cluster_name] = mc_df.mean(axis=1)
+                if not avg_series:
                     continue
-                vals.sort(key=lambda x: x[0], reverse=True)
-                ws_summary.cell(row=vals[0][1], column=col_idx).font = bold_font
-                ws_summary.cell(row=vals[1][1], column=col_idx).font = underline_font
+                agg_df = pd.DataFrame(avg_series)
+                agg_df["average"] = agg_df.mean(axis=1)
+                agg_df = agg_df.round(2)
+                sheet_name = agg_sheet_name[:31]
+                agg_df.to_excel(writer, sheet_name=sheet_name)
+
+                ws = writer.sheets[sheet_name]
+                # Bold best, underline second best per column
+                for col_idx in range(2, len(agg_df.columns) + 2):
+                    vals = []
+                    for row_idx in range(2, len(agg_df) + 2):
+                        cell = ws.cell(row=row_idx, column=col_idx)
+                        if isinstance(cell.value, (int, float)):
+                            vals.append((cell.value, row_idx))
+                    _highlight_best_cells(ws, vals, bold_font, underline_font, "col", col_idx)
 
         if manual_cluster_tables:
             col_ds_all = manual_cluster_datasets or {}
@@ -137,13 +234,16 @@ def export_excel(
                 )
                 # Leave rows for: "Datasets:" label + one row per dataset + blank row
                 data_start_row = max_datasets + 2 if max_datasets > 0 else 0
+                mc_df = mc_df.copy()
+                mc_df["average"] = mc_df.mean(axis=1)
+                mc_df = mc_df.round(2)
                 mc_df.to_excel(writer, sheet_name=sheet_name, startrow=data_start_row)
 
                 ws = writer.sheets[sheet_name]
 
                 # Write dataset lists above the data
                 if col_ds:
-                    italic_font = Font(italic=True)
+                    italic_font = Font(italic=True, size=BASE_FONT_SIZE)
                     ws.cell(row=1, column=1, value="Datasets:").font = italic_font
                     for col_idx, col_name in enumerate(mc_df.columns, start=2):
                         datasets = col_ds.get(col_name, [])
@@ -159,18 +259,21 @@ def export_excel(
                         cell = ws.cell(row=row_idx, column=col_idx)
                         if isinstance(cell.value, (int, float)):
                             vals.append((cell.value, row_idx))
-                    if len(vals) < 2:
-                        continue
-                    vals.sort(key=lambda x: x[0], reverse=True)
-                    ws.cell(row=vals[0][1], column=col_idx).font = bold_font
-                    ws.cell(row=vals[1][1], column=col_idx).font = underline_font
+                    _highlight_best_cells(ws, vals, bold_font, underline_font, "col", col_idx)
 
-        # Auto-resize columns for all sheets
+        # Set base font size and auto-resize columns for all sheets
         for ws in writer.book.worksheets:
             for col in ws.columns:
                 max_len = 0
                 col_letter = col[0].column_letter
                 for cell in col:
+                    if cell.font.size is None or cell.font.size < BASE_FONT_SIZE:
+                        cell.font = Font(
+                            size=BASE_FONT_SIZE,
+                            bold=cell.font.bold,
+                            italic=cell.font.italic,
+                            underline=cell.font.underline,
+                        )
                     if cell.value is not None:
                         max_len = max(max_len, len(str(cell.value)))
                 ws.column_dimensions[col_letter].width = max_len + 2
@@ -178,6 +281,13 @@ def export_excel(
     n_sheets = 1
     if task_scores:
         n_sheets += 1
+    if ranking_plot_paths:
+        n_sheets += len(ranking_plot_paths)
     if manual_cluster_tables:
         n_sheets += len(manual_cluster_tables)
+    if manual_cluster_tables and AGGREGATE_SHEETS:
+        n_sheets += sum(
+            1 for _, sources in AGGREGATE_SHEETS
+            if any(s in manual_cluster_tables for s in sources)
+        )
     print(f"Exported {len(scores_df)} rows × {len(model_cols)} models ({n_sheets} sheets) to {output_path}")

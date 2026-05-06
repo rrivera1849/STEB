@@ -1,6 +1,6 @@
 """Configuration constants for benchmark_clustering."""
 from dataclasses import dataclass
-from typing import Dict, Literal, Optional
+from typing import Dict, List, Literal, Optional, Tuple
 
 
 # Maps task name -> primary metric
@@ -97,3 +97,36 @@ EXCLUDED_MODELS.add("tfidf")
 EXCLUDED_MODELS.add("tfidfngrams")
 
 LOW_CONFIDENCE_THRESHOLD = 10
+
+# Aggregate sheets: each entry defines a new Excel sheet that concatenates
+# columns from multiple manual cluster tables side by side.
+# Format: (sheet_name, [manual_cluster_name, ...])
+AGGREGATE_SHEETS: List[Tuple[str, List[str]]] = [
+    ("summary_tasks", ["machine_text_detection", "machine_text_detection_adversarial", "authorship_verification", "authorship_retrieval"]),
+    ("summary_features", ["genre", "style", "style_vs_content", "time", "demographics", "feature_probing", "dialect"]),
+]
+
+# Model categories for ranking plot. Models not listed get "other" styling.
+MODEL_CATEGORIES: Dict[str, List[str]] = {
+    "style": [
+        "LUAR-CRUD",
+        "LUAR-MUD",
+        "Style-Embedding",
+        "mstyledistance",
+        "multilingual-style-representation",
+        "star",
+        "styledistance"
+    ],
+    "semantic": [
+        "Qwen3-Embedding-8B",
+        "all-mpnet-base-v2",
+        "bge-base-en-v1.5",
+        "bge-large-en-v1.5",
+        "e5-base-v2",
+        "e5-large-v2",
+        "e5-mistral-7b-instruct",
+        "gte-base-en-v1.5",
+        "gte-large-en-v1.5",
+        "jina-embeddings-v3"
+    ],
+}
