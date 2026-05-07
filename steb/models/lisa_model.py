@@ -11,12 +11,15 @@ from tqdm import tqdm
 
 from .base import STEBModel
 from .chunking import chunk_text
-from .lisa_helpers import EncT5ForSequenceClassification, EncT5Tokenizer
+from transformers import AutoTokenizer
+
+from .lisa_helpers import EncT5ForSequenceClassification
 from .hf_model import _aggregate_chunks
 
 LISA_MAX_LENGTH = 512
 LISA_NUM_LABELS = 768
 LISA_EMBEDDER_FILENAME = "linear_embedder.ckpt"
+LISA_BOS_TOKEN_ID = 32100
 
 
 def is_lisa_model(
@@ -67,7 +70,7 @@ class LISAModel(STEBModel):
         self.model.to(self.device)
         self.model.eval()
 
-        self.tokenizer = EncT5Tokenizer.from_pretrained("t5-base")
+        self.tokenizer = AutoTokenizer.from_pretrained("t5-base")
 
         embedder_path = os.path.join(model_name_or_path, LISA_EMBEDDER_FILENAME)
         checkpoint = torch.load(embedder_path, map_location=self.device)
@@ -116,13 +119,27 @@ class LISAModel(STEBModel):
 
         while start_idx < len(all_chunks):
             batch = all_chunks[start_idx:start_idx + cur_batch_size]
+            # Reserve one token for the BOS we prepend below
             tokenized = self.tokenizer(
                 batch,
                 truncation=True,
-                max_length=LISA_MAX_LENGTH,
+                max_length=LISA_MAX_LENGTH - 1,
                 padding=True,
                 return_tensors="pt",
-            ).to(self.device)
+            )
+
+            # LISA's EncT5Tokenizer expected <s> + tokens + </s>, but the
+            # fast T5 tokenizer in transformers >=5 only appends </s>.
+            # Manually prepend the BOS token to match the original format.
+            bos_ids = torch.full(
+                (tokenized["input_ids"].shape[0], 1),
+                LISA_BOS_TOKEN_ID,
+                dtype=tokenized["input_ids"].dtype,
+            )
+            bos_mask = torch.ones_like(bos_ids)
+            tokenized["input_ids"] = torch.cat([bos_ids, tokenized["input_ids"]], dim=1)
+            tokenized["attention_mask"] = torch.cat([bos_mask, tokenized["attention_mask"]], dim=1)
+            tokenized = tokenized.to(self.device)
 
             try:
                 predictions = self.model.forward(**tokenized)[0]
