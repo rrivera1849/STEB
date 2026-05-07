@@ -21,10 +21,8 @@ def load_the_pile_dataset(
     aggregates them. For each per-category config we stream the train
     split and collect the first ``SAMPLES_PER_CATEGORY`` rows whose
     text is non-empty and shorter than ``MAX_TEXT_LENGTH`` characters,
-    using the config name as the label. Rows at or above the length
-    cap are skipped to avoid downstream spaCy E088 errors during
-    sentence splitting. The ``all`` config is skipped to avoid
-    duplicating samples under a separate label.
+    using the config name as the label. The ``all`` config is skipped
+    to avoid duplicating samples under a separate label.
 
     Args:
         data_dir: Unused. Required by the STEB custom-loader contract;
