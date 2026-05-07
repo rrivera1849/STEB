@@ -42,9 +42,11 @@ def load_the_pile_dataset(
             if collected >= SAMPLES_PER_CATEGORY:
                 break
             text = row.get("text")
-            if not isinstance(text, str) or not text.strip():
+            if not isinstance(text, str):
                 continue
             if len(text) >= MAX_TEXT_LENGTH:
+                continue
+            if not text.strip():
                 continue
             records.append({"text": text, "label": config_name})
             collected += 1
