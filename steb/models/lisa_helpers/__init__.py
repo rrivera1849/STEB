@@ -1,2 +1,1 @@
 from .enc_t5_modeling import EncT5ForSequenceClassification
-from .enc_t5_tokenization import EncT5Tokenizer

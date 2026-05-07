@@ -9,7 +9,6 @@ from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers.models.t5.modeling_t5 import T5Config, T5PreTrainedModel, T5Stack
-from transformers.utils.model_parallel_utils import assert_device_map, get_device_map
 
 
 class EncT5ForSequenceClassification(T5PreTrainedModel):
@@ -39,42 +38,13 @@ class EncT5ForSequenceClassification(T5PreTrainedModel):
         encoder_config = copy.deepcopy(config)
         encoder_config.use_cache = False
         encoder_config.is_encoder_decoder = False
-        self.encoder = T5Stack(encoder_config, self.shared)
+        self.encoder = T5Stack(encoder_config)
+        self.encoder.embed_tokens = self.shared
 
         self.dropout = nn.Dropout(dropout)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.post_init()
-
-        self.model_parallel = False
-        self.device_map = None
-
-    def parallelize(
-        self,
-        device_map=None,
-    ):
-        """Distribute encoder layers across GPUs.
-
-        Args:
-            device_map: Optional mapping of layers to devices.
-        """
-        self.device_map = (
-            get_device_map(len(self.encoder.block), range(torch.cuda.device_count()))
-            if device_map is None
-            else device_map
-        )
-        assert_device_map(self.device_map, len(self.encoder.block))
-        self.encoder.parallelize(self.device_map)
-        self.classifier = self.classifier.to(self.encoder.first_device)
-        self.model_parallel = True
-
-    def deparallelize(self):
-        """Move all model parameters back to CPU."""
-        self.encoder.deparallelize()
-        self.encoder = self.encoder.to("cpu")
-        self.model_parallel = False
-        self.device_map = None
-        torch.cuda.empty_cache()
 
     def get_input_embeddings(self):
         """Return the shared embedding layer."""
