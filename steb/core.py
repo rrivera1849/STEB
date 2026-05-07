@@ -14,6 +14,7 @@ from transformers.models.auto.modeling_auto import (
 
 from .dataset_loader import DatasetLoader
 from .models import MODEL_REGISTRY
+from .models.lisa_model import is_lisa_model
 from .processors.base import Processor
 from .steb_datasets import DATASET_REGISTRY
 from .utils import RESULTS_DIR
@@ -108,6 +109,9 @@ def get_model(model_name_or_path: str):
     for model_cls in MODEL_REGISTRY.values():
         if model_name_or_path in model_cls.supported_models:
             return model_cls(model_name_or_path)
+
+    if is_lisa_model(model_name_or_path):
+        return MODEL_REGISTRY["lisa"](model_name_or_path)
 
     if _is_causal_model(model_name_or_path):
         return MODEL_REGISTRY["causal"](model_name_or_path)
