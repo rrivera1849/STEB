@@ -82,7 +82,6 @@ authorship_retrieval:
     - amazon
     - fanfiction
     - stackexchange_retrieval
-    - radiotalk
 
 speaker_attribution:
   description: "Identifying speakers in transcribed conversations"
