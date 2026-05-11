@@ -135,6 +135,7 @@ def build_manual_cluster_tables(
     episode_params: Optional[str],
     include_excluded: bool = False,
     complete_datasets: bool = False,
+    allowed_models: Optional[set] = None,
 ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, Dict[str, List[str]]]]:
     """Build one table per manual cluster.
 
@@ -157,6 +158,7 @@ def build_manual_cluster_tables(
         complete_datasets: If True, within each cluster column (a
             ``task (metric)`` slot), drop datasets that not all models
             have results for.
+        allowed_models: If provided, only include models in this set.
 
     Returns:
         A tuple of:
@@ -165,7 +167,7 @@ def build_manual_cluster_tables(
           - A dict mapping cluster name to a dict of column name to
             list of dataset names included in that column.
     """
-    all_scores = discover_all_scores(results_dir, include_excluded)
+    all_scores = discover_all_scores(results_dir, include_excluded, allowed_models)
     if not all_scores:
         return {}, {}
 

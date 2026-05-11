@@ -73,6 +73,7 @@ def discover_scores(
     primary_metric: str,
     episode_params: Optional[str],
     include_excluded: bool = False,
+    allowed_models: Optional[set] = None,
 ) -> pd.DataFrame:
     """Scan the results directory and build a models x datasets score matrix.
 
@@ -83,6 +84,7 @@ def discover_scores(
         episode_params: Episode params filter like '1_50'. If None, picks the
             first episode params found per dataset-model pair.
         include_excluded: If True, include semantic and non-English datasets.
+        allowed_models: If provided, only include models in this set.
 
     Returns:
         A DataFrame with models as rows and datasets as columns.
@@ -108,6 +110,8 @@ def discover_scores(
             if not model_dir.is_dir():
                 continue
             if model_dir.name in EXCLUDED_MODELS:
+                continue
+            if allowed_models is not None and model_dir.name not in allowed_models:
                 continue
 
             for ep_dir in sorted(model_dir.iterdir()):
@@ -138,6 +142,7 @@ def discover_scores(
 def discover_all_scores(
     results_dir: str,
     include_excluded: bool = False,
+    allowed_models: Optional[set] = None,
 ) -> Dict[Tuple[str, str, str], Dict[str, Dict[str, float]]]:
     """Scan the results directory and collect top-level metrics across tasks.
 
@@ -151,6 +156,7 @@ def discover_all_scores(
     Args:
         results_dir: Path to the root results directory.
         include_excluded: If True, include semantic and non-English datasets.
+        allowed_models: If provided, only include models in this set.
 
     Returns:
         A dict mapping (dataset, task, episode_config) to a dict mapping
@@ -183,6 +189,8 @@ def discover_all_scores(
             if not model_dir.is_dir():
                 continue
             if model_dir.name in EXCLUDED_MODELS:
+                continue
+            if allowed_models is not None and model_dir.name not in allowed_models:
                 continue
 
             for ep_dir in sorted(model_dir.iterdir()):
