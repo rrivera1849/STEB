@@ -1,0 +1,15 @@
+{
+  "dataset_name": "wikipedia_politeness",
+  "type": "custom",
+  "loader_module": "steb.loaders.politeness",
+  "loader_function": "load_politeness_dataset",
+  "data_dir": "wikipedia-politeness-corpus",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "clustering": {},
+    "all_to_all_pair_classification": {}
+  }
+}

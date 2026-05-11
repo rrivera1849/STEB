@@ -1,15 +1,29 @@
 #!/bin/sh
 
-# Usage: ./download_datasets.sh [--purge]
-#   --purge    Remove all existing datasets before downloading
+# Usage: ./download_datasets.sh [--purge] [output_dir]
+#   --purge      Remove all existing datasets before downloading
+#   output_dir   Directory to download datasets into (default: ./raw_datasets)
 
-if [ "$1" = "--purge" ]; then
-    echo "Purging all datasets in ./raw_datasets..."
-    rm -rf ./raw_datasets
+PURGE=false
+OUTPUT_DIR=""
+
+for arg in "$@"; do
+    if [ "$arg" = "--purge" ]; then
+        PURGE=true
+    else
+        OUTPUT_DIR="$arg"
+    fi
+done
+
+OUTPUT_DIR="${OUTPUT_DIR:-./raw_datasets}"
+
+if [ "$PURGE" = true ]; then
+    echo "Purging all datasets in ${OUTPUT_DIR}..."
+    rm -rf "$OUTPUT_DIR"
 fi
 
-mkdir -p ./raw_datasets
-cd ./raw_datasets
+mkdir -p "$OUTPUT_DIR"
+cd "$OUTPUT_DIR"
 
 # Note: The blog_authorship_corpus download is currently disabled due to an unreliable server.
 # curl -k -O http://www.cs.biu.ac.il/~koppel/blogs/blogs.zip
@@ -532,6 +546,158 @@ else
     echo "Skipping PAN18 Cross-Domain Authorship Attribution (already exists)"
 fi
 
+# Groenwold et al. 2020 AAVE/SAE parallel tweets (EMNLP 2020)
+if [ ! -d "twitter_aave_sae" ]; then
+    echo "Downloading twitter_aave_sae..."
+    mkdir -p twitter_aave_sae
+    curl -L -o twitter_aave_sae.zip https://aclanthology.org/attachments/2020.emnlp-main.473.OptionalSupplementaryMaterial.zip
+    unzip -q -j twitter_aave_sae.zip "EMNLP-AAVE-files/aave_samples.txt" "EMNLP-AAVE-files/sae_samples.txt" -d twitter_aave_sae
+    rm twitter_aave_sae.zip
+else
+    echo "Skipping twitter_aave_sae (already exists)"
+fi
+
+# Xu et al. 2012 parallel Shakespeare (COLING 2012)
+if [ ! -d "parallel_shakespeare" ]; then
+    echo "Downloading parallel_shakespeare..."
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/cocoxu/Shakespeare.git parallel_shakespeare_tmp
+    git -C parallel_shakespeare_tmp sparse-checkout set data/align/plays/merged
+    mkdir -p parallel_shakespeare
+    cp parallel_shakespeare_tmp/data/align/plays/merged/*.snt.aligned parallel_shakespeare/
+    rm -rf parallel_shakespeare_tmp
+else
+    echo "Skipping parallel_shakespeare (already exists)"
+fi
+
+# 8 verse-aligned public-domain English Bible translations (KJV, ASV, YLT, DARBY, DRA, BBE, WEB, LEB).
+if [ ! -d "bible_versions" ]; then
+    echo "Downloading bible_versions..."
+    git clone --depth 1 --filter=blob:none --sparse \
+        https://github.com/keithecarlson/StyleTransferBibleData.git bible_versions
+    git -C bible_versions sparse-checkout set Data/Bibles
+    rm -rf bible_versions/.git
+else
+    echo "Skipping bible_versions (already exists)"
+fi
+
+# MASC 3.0.0 (Manually Annotated Sub-Corpus) — text genre source
+if [ ! -d "MASC-3.0.0" ]; then
+    echo "Downloading MASC-3.0.0..."
+    wget --no-check-certificate https://www.anc.org/MASC/download/MASC-3.0.0.zip
+    unzip -q MASC-3.0.0.zip
+    rm MASC-3.0.0.zip
+else
+    echo "Skipping MASC-3.0.0 (already exists)"
+fi
+
+# Stanford politeness corpora (Wikipedia + Stack Exchange).
+# Zip URLs taken from convokit's official download config:
+#   https://github.com/CornellNLP/ConvoKit/blob/master/download_config.json
+# (Same URLs convokit.download() resolves at runtime; using curl avoids
+#  pulling the full convokit package as a dependency.)
+if [ ! -d "wikipedia-politeness-corpus" ]; then
+    echo "Downloading wikipedia-politeness-corpus..."
+    curl -L -o wikipedia-politeness-corpus.zip \
+        https://zissou.infosci.cornell.edu/convokit/datasets/wikipedia-politeness-corpus/wikipedia-politeness-corpus.zip
+    unzip -q wikipedia-politeness-corpus.zip
+    rm wikipedia-politeness-corpus.zip
+else
+    echo "Skipping wikipedia-politeness-corpus (already exists)"
+fi
+
+if [ ! -d "stack-exchange-politeness-corpus" ]; then
+    echo "Downloading stack-exchange-politeness-corpus..."
+    curl -L -o stack-exchange-politeness-corpus.zip \
+        https://zissou.infosci.cornell.edu/convokit/datasets/stack-exchange-politeness-corpus/stack-exchange-politeness-corpus.zip
+    unzip -q stack-exchange-politeness-corpus.zip
+    rm stack-exchange-politeness-corpus.zip
+else
+    echo "Skipping stack-exchange-politeness-corpus (already exists)"
+fi
+
+# PASTEL (Kang et al., EMNLP 2019) — parallel persona-annotated stories.
+# Only the v2 stories subtree (~31M, ~7.9k JSON files) is needed by the
+# loader. We selectively extract just that subtree from data_v2.zip so
+# we don't pay for unzipping and re-deleting v2/sentences (~155M,
+# ~40k JSON files) — bulk deletion of small files is slow on synced
+# filesystems like iCloud Drive.
+if [ ! -d "PASTEL" ]; then
+    echo "Downloading PASTEL..."
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/dykang/PASTEL.git PASTEL
+    cd PASTEL
+    git sparse-checkout set data
+    unzip -q data/data_v2.zip "v2/stories/*" -d data/
+    rm -rf .git \
+        data/data.zip data/data_v2.zip \
+        README.md dataset.png transfer.png requirements.txt setup.sh
+    cd ..
+else
+    echo "Skipping PASTEL (already exists)"
+fi
+
+# FCE released dataset (Cambridge Learner Corpus, FCE subset). Used for L1
+# (native-language) prediction. Only the dataset/ subfolder (the learner
+# script XMLs) is extracted; outliers/, prompts/, README, license, and the
+# examiner-scores file are skipped.
+if [ ! -d "fce_l1" ]; then
+    echo "Downloading fce_l1 (FCE released dataset)..."
+    mkdir -p fce_l1
+    curl -L -o fce_l1/fce-released-dataset.zip \
+        https://s3-eu-west-1.amazonaws.com/ilexir-website-media/fce-released-dataset.zip
+    unzip -q fce_l1/fce-released-dataset.zip 'fce-released-dataset/dataset/*' -d fce_l1
+    rm fce_l1/fce-released-dataset.zip
+else
+    echo "Skipping fce_l1 (already exists)"
+fi
+
+# CEECES 1 + 2 (Corpus of Early English Correspondence Extension Samplers,
+# University of Helsinki, VARIENG). 18th-century English letters labelled by
+# 20-year period; used for historical period prediction (issue #94).
+if [ ! -d "ceeces" ]; then
+    echo "Downloading ceeces (CEECES 1 + CEECES 2)..."
+    mkdir -p ceeces/CEECES1 ceeces/CEECES2
+    curl -L -o ceeces/CEECES1/CEECES1-metadata.txt https://zenodo.org/records/6411789/files/CEECES1-metadata.txt
+    curl -L -o ceeces/CEECES1/CEECES-1.zip         https://zenodo.org/records/6411789/files/CEECES-1.zip
+    unzip -q ceeces/CEECES1/CEECES-1.zip -d ceeces/CEECES1
+    rm ceeces/CEECES1/CEECES-1.zip
+    curl -L -o ceeces/CEECES2/CEECES2-metadata.txt https://zenodo.org/records/5887101/files/CEECES2-metadata.txt
+    curl -L -o ceeces/CEECES2/CEECES-2.zip         https://zenodo.org/records/5887101/files/CEECES-2.zip
+    unzip -q ceeces/CEECES2/CEECES-2.zip -d ceeces/CEECES2
+    rm ceeces/CEECES2/CEECES-2.zip
+else
+    echo "Skipping ceeces (already exists)"
+fi
+
+# StylePTB (Lyu et al., NAACL 2021) — fine-grained style-transfer pairs.
+# Source: https://github.com/lvyiwei1/StylePTB
+# We only need fulldata.h16 (the master file with all 21 transformations
+# interleaved as <code>/<source>/<target> triplets) plus the LICENSE.
+# Note: the text is PTB-tokenized (lowercased, contractions split as
+# "n't", "wo", "'s") — this is intentional and preserved.
+if [ ! -d "StylePTB" ]; then
+    echo "Downloading StylePTB..."
+    mkdir StylePTB
+    curl -L -o StylePTB/fulldata.h16 https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/fulldata.h16
+    curl -L -o StylePTB/LICENSE https://raw.githubusercontent.com/lvyiwei1/StylePTB/master/LICENSE
+else
+    echo "Skipping StylePTB (already exists)"
+fi
+
+# eWAVE (Kortmann, Lunkenheimer & Ehret 2020) — electronic World Atlas of
+# Varieties of English. CLDF release on Zenodo, CC-BY 3.0.
+if [ ! -d "eWAVE" ]; then
+    echo "Downloading eWAVE..."
+    curl -L -o ewave.zip "https://zenodo.org/api/records/17433568/files/cldf-datasets/ewave-v3.0.1.zip/content"
+    unzip -q ewave.zip
+    mkdir -p eWAVE/cldf
+    mv cldf-datasets-ewave-*/cldf/examples.csv eWAVE/cldf/
+    mv cldf-datasets-ewave-*/cldf/languages.csv eWAVE/cldf/
+    mv cldf-datasets-ewave-*/LICENSE eWAVE/ 2>/dev/null || true
+    rm -rf cldf-datasets-ewave-* ewave.zip
+else
+    echo "Skipping eWAVE (already exists)"
+fi
+
 #### Probing
 
 mkdir ./probing
@@ -546,7 +712,7 @@ fi
 
 if [ ! -f ./probing/blog.jsonl ]; then
     echo "Downloading blog.jsonl..."
-    gdown https://drive.google.com/file/d/1hrG48JsBx0NUVJ3m9mj37Mct83CfWeLt/view?usp=drive_link --fuzzy
+    gdown https://drive.google.com/file/d/1JU9F5SbPV8PaefcBwpy7wUCWrzNXsydO/view?usp=drive_link --fuzzy
     mv blog.jsonl ./probing/
 else
     echo "Skipping blog.jsonl (already exists)"
@@ -554,7 +720,7 @@ fi
 
 if [ ! -f ./probing/stackexchange.jsonl ]; then
     echo "Downloading stackexchange.jsonl..."
-    gdown https://drive.google.com/file/d/1SAZME3ezaDuywX-cT2bL-H3IU9-3Ambz/view?usp=drive_link --fuzzy
+    gdown https://drive.google.com/file/d/1Ke_Re3kwfOmr2ljApcS8GP2CdsiNPHz7/view?usp=drive_link --fuzzy
     mv stackexchange.jsonl ./probing/
 else
     echo "Skipping stackexchange.jsonl (already exists)"
@@ -562,7 +728,7 @@ fi
 
 if [ ! -f ./probing/reddit.jsonl ]; then
     echo "Downloading reddit.jsonl..."
-    gdown https://drive.google.com/file/d/1KTDjsG7PHW-8PMq3O02BLLIrIcqTmALK/view?usp=drive_link --fuzzy
+    gdown https://drive.google.com/file/d/1pU-Yo--OMtgG8qafk-7DBd_4WhYH_urc/view?usp=drive_link --fuzzy
     mv reddit.jsonl ./probing/
 else
     echo "Skipping reddit.jsonl (already exists)"
@@ -570,7 +736,7 @@ fi
 
 if [ ! -f ./probing/amazon.jsonl ]; then
     echo "Downloading amazon.jsonl..."
-    gdown https://drive.google.com/file/d/1dYmKCn04p9bRFQ_ASdgw0Aah-r8A5UKf/view?usp=drive_link --fuzzy
+    gdown https://drive.google.com/file/d/1zIRqhSMEdQZ4EZq3-jCLpccuTvXsmCyx/view?usp=drive_link --fuzzy
     mv amazon.jsonl ./probing/
 else
     echo "Skipping amazon.jsonl (already exists)"

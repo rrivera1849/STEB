@@ -3,7 +3,7 @@ import json
 import os
 from collections import defaultdict
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from datasets import load_dataset
 from termcolor import colored
@@ -66,11 +66,14 @@ class DatasetLoader:
     This class is responsible for loading datasets, processing them into episodes, and caching the results.
     It can handle both Hugging Face datasets and custom local datasets.
     """
+    AUTO_MIN_EPISODES = 25
+    AUTO_MAX_EPISODES = 200
+
     def __init__(
         self,
         dataset_name: str,
         episode_size: int = 5,
-        n_episodes_per_class: int = 50,
+        n_episodes_per_class: Union[int, str] = 50,
         force_reload: bool = False,
         seed: int = 42,
         task_name: Optional[str] = None,
@@ -82,6 +85,8 @@ class DatasetLoader:
             dataset_name: The name of the dataset to load.
             episode_size: The number of text samples per episode.
             n_episodes_per_class: The number of episodes to generate for each class.
+                Use "auto" to adaptively pick the value that preserves all classes,
+                clamped to [AUTO_MIN_EPISODES, AUTO_MAX_EPISODES].
             force_reload: If True, forces reprocessing of the dataset.
             seed: The random seed used for sampling (included in cache key).
             task_name: The task to load data for. When a task defines its own
@@ -108,23 +113,18 @@ class DatasetLoader:
         with open(config_path, "r") as f:
             return config_path, json.load(f)
 
-    def load(self):
+    def _load_source_and_handler(self):
         """
-        Loads, processes, and returns the dataset.
-        Handles loading from cache, downloading from Hugging Face or a custom source,
-        processing records, and saving the processed data to cache.
+        Loads the raw dataset and builds the record handler.
+
+        Returns:
+            A tuple of (dataset_iter, handler) where dataset_iter is the raw
+            dataset iterable and handler is a partial-applied record_handler.
         """
-        dataset_path = self._get_dataset_path()
-
-        if os.path.exists(dataset_path) and not self.force_reload:
-            print(colored(f"Loading dataset from {dataset_path}", "green"))
-            with open(dataset_path, "r") as f:
-                return json.loads(f.read())
-
         loader_module_name = self.config.get("loader_module", f"steb.steb_datasets.{self.dataset_name}.loader")
 
         if self.config["type"] == "huggingface":
-            loader_kwargs = self.config["loader_kwargs"]
+            loader_kwargs = dict(self.config["loader_kwargs"])
             loader_kwargs["cache_dir"] = CACHE_DIR
             dataset_iter = load_dataset(**loader_kwargs)
         elif self.config["type"] == "custom":
@@ -135,19 +135,18 @@ class DatasetLoader:
             raise ValueError(f"Unknown dataset type: {self.config['type']}")
 
         effective_rh = self._get_effective_record_handler()
-
         text_getter = effective_rh.get("text_getter")
         label_getter = effective_rh.get("label_getter")
 
         label_transform = None
         if "label_getter_function" in effective_rh:
-            loader_module = importlib.import_module(loader_module_name)
-            label_transform = getattr(loader_module, effective_rh["label_getter_function"])
+            lm = importlib.import_module(loader_module_name)
+            label_transform = getattr(lm, effective_rh["label_getter_function"])
 
         custom_record_handler = None
         if "custom_record_handler_function" in effective_rh:
-            loader_module = importlib.import_module(loader_module_name)
-            custom_record_handler = getattr(loader_module, effective_rh["custom_record_handler_function"])
+            lm = importlib.import_module(loader_module_name)
+            custom_record_handler = getattr(lm, effective_rh["custom_record_handler_function"])
 
         handler = partial(
             record_handler,
@@ -157,14 +156,47 @@ class DatasetLoader:
             custom_record_handler=custom_record_handler,
         )
 
+        return dataset_iter, handler
+
+    def load(self):
+        """
+        Loads, processes, and returns the dataset.
+
+        Handles loading from cache, downloading from Hugging Face or a custom source,
+        processing records, and saving the processed data to cache.
+        When ``n_episodes_per_class`` is ``"auto"``, the value is resolved from
+        the dataset before caching so the cache key reflects the actual count.
+        """
+        # For non-auto mode, try cache first (before loading the dataset)
+        if self.n_episodes_per_class != "auto":
+            dataset_path = self._get_dataset_path()
+            if os.path.exists(dataset_path) and not self.force_reload:
+                print(colored(f"Loading dataset from {dataset_path}", "green"))
+                with open(dataset_path, "r") as f:
+                    return json.loads(f.read())
+
+        dataset_iter, handler = self._load_source_and_handler()
+        label_counts = self._count_labels(dataset_iter, handler)
+
+        # Resolve "auto" n_episodes_per_class from the label counts
+        if self.n_episodes_per_class == "auto":
+            self.n_episodes_per_class = self._resolve_auto_episodes(label_counts)
+
+        # Now that n_episodes_per_class is resolved, check cache
+        dataset_path = self._get_dataset_path()
+        if os.path.exists(dataset_path) and not self.force_reload:
+            print(colored(f"Loading dataset from {dataset_path}", "green"))
+            with open(dataset_path, "r") as f:
+                return json.loads(f.read())
+
         if self.episode_size == -1:
             N = 1
         else:
             N = self.episode_size * self.n_episodes_per_class
 
-        dataset: Dict[str, List[List[str]]] = defaultdict(list)
+        valid_labels = self._get_valid_labels_from_counts(label_counts, N)
 
-        valid_labels = self.get_valid_labels(dataset_iter, handler)
+        dataset: Dict[str, List[List[str]]] = defaultdict(list)
 
         for example in dataset_iter:
             record = handler(example)
@@ -174,7 +206,7 @@ class DatasetLoader:
                 continue
             dataset[record["label"]].append(record["text"])
 
-        # RRS - Unsure if this is necessary at this point, we should've ensured that 
+        # RRS - Unsure if this is necessary at this point, we should've ensured that
         # everything is the same size
         if self.episode_size != -1:
             dataset = {k: v for k, v in dataset.items() if len(v) == N}
@@ -239,45 +271,134 @@ class DatasetLoader:
             base_str += f"_{self.task_name}"
         return os.path.join(PROCESSED_DATA_DIR, base_str + ".json")
 
-    def get_valid_labels(
-        self,
-        dataset_iter,
-        handler,
-    ):
+    def preview(self) -> Dict[str, Any]:
         """
-        Gets all the labels for classes that have enough samples.
+        Returns dataset statistics without collecting data.
 
-        A class is considered valid if it has at least
-        ``self.episode_size * self.n_episodes_per_class`` samples.
-        Logs a summary of class counts and any dropped classes.
+        Loads the dataset source, counts labels, resolves "auto" n_episodes_per_class,
+        and reports which classes would be kept or dropped.
+
+        Returns:
+            A dict with keys: total_classes, kept_classes, dropped_classes,
+            dropped_labels, n_episodes_per_class, episode_size, min_class_count,
+            samples_per_class.
         """
+        dataset_iter, handler = self._load_source_and_handler()
+        label_counts = self._count_labels(dataset_iter, handler)
+
+        if self.n_episodes_per_class == "auto":
+            resolved = self._resolve_auto_episodes(label_counts)
+        else:
+            resolved = self.n_episodes_per_class
+
         if self.episode_size == -1:
             N = 1
         else:
-            N = self.episode_size * self.n_episodes_per_class
+            N = self.episode_size * resolved
 
+        min_count = min(label_counts.values()) if label_counts else 0
+        dropped = {k: v for k, v in label_counts.items() if v < N}
+
+        return {
+            "total_classes": len(label_counts),
+            "kept_classes": len(label_counts) - len(dropped),
+            "dropped_classes": len(dropped),
+            "dropped_labels": dropped,
+            "n_episodes_per_class": resolved,
+            "episode_size": self.episode_size,
+            "min_class_count": min_count,
+            "samples_per_class": N,
+        }
+
+    def _count_labels(
+        self,
+        dataset_iter,
+        handler,
+    ) -> Dict[str, int]:
+        """
+        Counts the number of samples per label in the dataset.
+
+        Args:
+            dataset_iter: The dataset iterator.
+            handler: The record handler function.
+
+        Returns:
+            A dictionary mapping labels to their sample counts.
+        """
         label_to_count: Dict[str, int] = defaultdict(int)
         for example in dataset_iter:
             record = handler(example)
             if record is None:
                 continue
             label_to_count[record["label"]] += 1
+        return label_to_count
 
-        total_classes = len(label_to_count)
-        print(colored(f"  Dataset '{self.dataset_name}': {total_classes} classes found, "
-                      f"need {N} samples per class", "blue"))
+    def _resolve_auto_episodes(
+        self,
+        label_counts: Dict[str, int],
+    ) -> int:
+        """
+        Computes n_episodes_per_class that preserves all classes, clamped to
+        [AUTO_MIN_EPISODES, AUTO_MAX_EPISODES].
 
-        dropped = {k: v for k, v in label_to_count.items() if v < N}
+        Args:
+            label_counts: A dictionary mapping labels to their sample counts.
+
+        Returns:
+            The resolved n_episodes_per_class value.
+        """
+        if self.episode_size == -1:
+            return 1
+
+        min_samples = min(label_counts.values())
+        computed = min_samples // self.episode_size
+        resolved = max(self.AUTO_MIN_EPISODES, min(computed, self.AUTO_MAX_EPISODES))
+
+        print(colored(
+            f"  Auto n_episodes_per_class for '{self.dataset_name}': "
+            f"smallest class has {min_samples} samples, "
+            f"episode_size={self.episode_size} -> "
+            f"computed={computed}, resolved={resolved}",
+            "blue",
+        ))
+
+        return resolved
+
+    def _get_valid_labels_from_counts(
+        self,
+        label_counts: Dict[str, int],
+        N: int,
+    ) -> List[str]:
+        """
+        Filters labels that have at least N samples.
+
+        Args:
+            label_counts: A dictionary mapping labels to their sample counts.
+            N: The minimum number of samples required per class.
+
+        Returns:
+            A list of valid label strings.
+        """
+        total_classes = len(label_counts)
+        print(colored(
+            f"  Dataset '{self.dataset_name}': {total_classes} classes found, "
+            f"need {N} samples per class",
+            "blue",
+        ))
+
+        dropped = {k: v for k, v in label_counts.items() if v < N}
         if dropped:
             print(colored(f"  Dropping {len(dropped)} class(es) with insufficient samples:", "yellow"))
             for label, count in sorted(dropped.items(), key=lambda x: x[1]):
                 print(colored(f"    - '{label}': {count}/{N} samples", "yellow"))
 
-        valid_labels = [k for k, v in label_to_count.items() if v >= N]
+        valid_labels = [k for k, v in label_counts.items() if v >= N]
 
         if not valid_labels:
-            raise ValueError(f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
-                          f"This might be expected for dummy datasets.")
+            raise ValueError(
+                f"No valid labels found with at least {N} samples in dataset: {self.dataset_name}. "
+                f"This might be expected for dummy datasets."
+            )
 
         print(colored(f"  Keeping {len(valid_labels)}/{total_classes} classes", "green"))
         return valid_labels
