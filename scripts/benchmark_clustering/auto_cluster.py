@@ -186,6 +186,7 @@ def analyze_task(
     include_excluded: bool = False,
     threshold: float = 1.0,
     complete_datasets: bool = False,
+    allowed_models: Optional[set] = None,
 ) -> Optional[Tuple[pd.Series, int]]:
     """Run the full clustering analysis for a single task.
 
@@ -200,6 +201,7 @@ def analyze_task(
         threshold: Distance threshold for flat clustering.
         complete_datasets: If True, drop datasets with missing models instead
             of dropping models with missing datasets.
+        allowed_models: If provided, only include models in this set.
 
     Returns:
         A tuple of (per-model task scores, number of datasets), or None if
@@ -209,7 +211,7 @@ def analyze_task(
     print(f"Task: {task_name}")
     print(f"{'='*60}")
 
-    df = discover_scores(results_dir, task_name, primary_metric, episode_params, include_excluded)
+    df = discover_scores(results_dir, task_name, primary_metric, episode_params, include_excluded, allowed_models)
     if df.empty:
         print(f"  No results found. Skipping.")
         return None
@@ -320,8 +322,61 @@ def _get_model_category(
 # Colors for each model category in the ranking plot.
 _CATEGORY_COLORS = {
     "style": "#2196F3",
+    "multilingual": "#90CAF9",
     "semantic": "#FF9800",
     "other": "#9E9E9E",
+}
+
+# Multilingual models are style models but rendered in a different shade.
+# For grouping purposes they belong to "style".
+_MULTILINGUAL_MODELS = {"mstyledistance", "multilingual-style-representation"}
+
+# Display categories (bottom to top in grouped mode)
+_DISPLAY_ORDER = ["semantic", "style"]
+
+
+def _get_display_category(
+    model: str,
+) -> str:
+    """Return the display category for a model (style or semantic only).
+
+    Multilingual models are grouped under style. Models not in any
+    category return "other".
+
+    Args:
+        model: The model name.
+
+    Returns:
+        "style", "semantic", or "other".
+    """
+    cat = _get_model_category(model)
+    if cat == "multilingual":
+        return "style"
+    return cat
+
+
+def _get_bar_color(
+    model: str,
+) -> str:
+    """Return the bar color for a model.
+
+    Multilingual models get a distinct shade within the style group.
+
+    Args:
+        model: The model name.
+
+    Returns:
+        A hex color string.
+    """
+    if model in _MULTILINGUAL_MODELS:
+        return _CATEGORY_COLORS["multilingual"]
+    return _CATEGORY_COLORS[_get_display_category(model)]
+
+
+# Short display names for models with long identifiers.
+_DISPLAY_NAMES: Dict[str, str] = {
+    "e5-mistral-7b-instruct": "e5-mistral-7b",
+    "lisa_checkpoint": "LISA"
 }
 
 
@@ -339,10 +394,17 @@ def _plot_ranking_bars(
     """
     from matplotlib.patches import Patch
 
+    x_min = 0.25
+
     if grouped:
-        categories_map = {m: _get_model_category(m) for m in steb_scores.index}
+        categories_map = {m: _get_display_category(m) for m in steb_scores.index}
+
+        # Drop "other" models
+        steb_scores = steb_scores[[m for m in steb_scores.index if categories_map[m] != "other"]]
+        categories_map = {m: c for m, c in categories_map.items() if c != "other"}
+
         groups = {}
-        for cat in ["style", "semantic", "other"]:
+        for cat in _DISPLAY_ORDER:
             members = {m: s for m, s in steb_scores.items() if categories_map[m] == cat}
             if members:
                 groups[cat] = pd.Series(members).sort_values(ascending=True)
@@ -351,44 +413,68 @@ def _plot_ranking_bars(
         y_ticks = []
         y_labels = []
 
-        for cat in ["semantic", "other", "style"]:
+        for cat in _DISPLAY_ORDER:
             if cat not in groups:
                 continue
             scores = groups[cat]
             n = len(scores)
             y_pos = np.arange(y_offset, y_offset + n)
+            bar_colors = [_get_bar_color(m) for m in scores.index]
             ax.barh(
                 y_pos, scores.values,
-                color=_CATEGORY_COLORS[cat], edgecolor="white", height=0.7,
+                color=bar_colors, edgecolor="white", height=0.7,
             )
-            for i, val in enumerate(scores.values):
-                ax.text(val + 0.005, y_pos[i], f"{val:.3f}", va="center", fontsize=9)
+
+            # Model names inside the bars, score values at the end
+            for i, (model, val) in enumerate(scores.items()):
+                label = _DISPLAY_NAMES.get(model, model)
+                ax.text(
+                    x_min + 0.005, y_pos[i], label,
+                    va="center", ha="left", fontsize=14, fontweight="bold",
+                    color="white",
+                )
+                ax.text(val + 0.005, y_pos[i], f"{val:.3f}", va="center", fontsize=14)
+
+            # Vertical line at the best score in this category
+            best_val = scores.max()
+            ax.axvline(
+                x=best_val, color=_CATEGORY_COLORS[cat],
+                linestyle="--", linewidth=1.5, alpha=0.6,
+            )
+
             y_ticks.extend(y_pos)
-            y_labels.extend(scores.index)
+            y_labels.extend([""] * n)
             y_offset += n + 1
 
         ax.set_yticks(y_ticks)
-        ax.set_yticklabels(y_labels, fontsize=10)
-        present = [c for c in ["style", "semantic", "other"] if c in groups]
+        ax.set_yticklabels(y_labels)
+        present = [c for c in _DISPLAY_ORDER if c in groups]
     else:
         sorted_scores = steb_scores.sort_values(ascending=True)
-        categories = [_get_model_category(m) for m in sorted_scores.index]
-        colors = [_CATEGORY_COLORS[c] for c in categories]
+        categories = [_get_display_category(m) for m in sorted_scores.index]
+        colors = [_get_bar_color(m) for m in sorted_scores.index]
         n = len(sorted_scores)
         y_pos = np.arange(n)
         ax.barh(y_pos, sorted_scores.values, color=colors, edgecolor="white", height=0.7)
-        for i, val in enumerate(sorted_scores.values):
-            ax.text(val + 0.005, i, f"{val:.3f}", va="center", fontsize=9)
+        for i, (model, val) in enumerate(sorted_scores.items()):
+            label = _DISPLAY_NAMES.get(model, model)
+            ax.text(
+                x_min + 0.005, i, label,
+                va="center", ha="left", fontsize=14, fontweight="bold",
+                color="white",
+            )
+            ax.text(val + 0.005, i, f"{val:.3f}", va="center", fontsize=14)
         ax.set_yticks(y_pos)
-        ax.set_yticklabels(sorted_scores.index, fontsize=10)
+        ax.set_yticklabels([""] * n)
         present = sorted(set(categories))
 
-    ax.set_xlabel("STEB Score", fontsize=12)
-    ax.set_title("STEB Score", fontsize=14)
+    ax.set_xlabel("STEB Score", fontsize=18)
+    ax.set_title("STEB Score", fontsize=20)
+    ax.tick_params(axis="x", labelsize=14)
 
     legend_handles = [Patch(facecolor=_CATEGORY_COLORS[c], label=c) for c in present]
-    ax.legend(handles=legend_handles, loc="lower right", fontsize=10)
-    ax.set_xlim(0, steb_scores.max() * 1.12)
+    ax.legend(handles=legend_handles, loc="lower right", fontsize=14)
+    ax.set_xlim(x_min, steb_scores.max() * 1.12)
 
 
 def plot_model_ranking(

@@ -112,10 +112,13 @@ MODEL_CATEGORIES: Dict[str, List[str]] = {
         "LUAR-CRUD",
         "LUAR-MUD",
         "Style-Embedding",
+        "star",
+        "styledistance",
+        "lisa_checkpoint",
+    ],
+    "multilingual": [
         "mstyledistance",
         "multilingual-style-representation",
-        "star",
-        "styledistance"
     ],
     "semantic": [
         "Qwen3-Embedding-8B",
@@ -127,6 +130,6 @@ MODEL_CATEGORIES: Dict[str, List[str]] = {
         "e5-mistral-7b-instruct",
         "gte-base-en-v1.5",
         "gte-large-en-v1.5",
-        "jina-embeddings-v3"
+        "jina-embeddings-v3",
     ],
 }

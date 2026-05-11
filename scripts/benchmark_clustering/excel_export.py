@@ -57,6 +57,7 @@ def export_excel(
     manual_cluster_tables: Optional[Dict[str, pd.DataFrame]] = None,
     manual_cluster_datasets: Optional[Dict[str, Dict[str, List[str]]]] = None,
     ranking_plot_paths: Optional[List[str]] = None,
+    allowed_models: Optional[set] = None,
 ) -> None:
     """Export all scores to an Excel file.
 
@@ -84,8 +85,9 @@ def export_excel(
             name to list of dataset names included in that column.
         ranking_plot_paths: Paths to ranking plot PNGs to embed in Excel
             [ranking.png, ranking_grouped.png].
+        allowed_models: If provided, only include models in this set.
     """
-    rows = discover_all_scores(results_dir, include_excluded)
+    rows = discover_all_scores(results_dir, include_excluded, allowed_models)
     if not rows:
         print("No scores found. Nothing to export.")
         return

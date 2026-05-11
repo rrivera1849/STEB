@@ -7,7 +7,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 # Ensure the project root is on sys.path so 'from steb.utils import ...'
 # works regardless of the directory the user invokes this from.
@@ -109,12 +109,47 @@ def parse_args() -> argparse.Namespace:
         help="For manual clusters: within each (cluster, task) group, drop "
              "datasets that not all models have results for.",
     )
+    parser.add_argument(
+        "--models-file",
+        metavar="PATH",
+        help="Path to a models file (one org/model per line). "
+             "Only models listed in this file will be included in analysis.",
+    )
     return parser.parse_args()
+
+
+def parse_models_file(
+    models_file: str,
+) -> Set[str]:
+    """Parse a models file and return the set of short model names.
+
+    Each non-blank, non-comment line is expected to be a model identifier
+    like 'org/model-name'. The short name is the part after the last '/'.
+
+    Args:
+        models_file: Path to the models file.
+
+    Returns:
+        Set of short model names.
+    """
+    models = set()
+    with open(models_file) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            models.add(line.split("/")[-1])
+    return models
 
 
 def main() -> None:
     """Entry point for benchmark clustering analysis."""
     args = parse_args()
+
+    allowed_models: Optional[Set[str]] = None
+    if args.models_file:
+        allowed_models = parse_models_file(args.models_file)
+        print(f"Filtering to {len(allowed_models)} models from {args.models_file}")
 
     if not args.task and not args.all_tasks and not args.export_excel and not args.manual_clusters:
         print("Error: specify --task <name>, --all-tasks, --export-excel, or --manual-clusters.")
@@ -144,6 +179,7 @@ def main() -> None:
                 args.include_excluded,
                 args.threshold,
                 args.complete_datasets,
+                allowed_models,
             )
             if result is not None:
                 scores, n_datasets = result
@@ -179,6 +215,7 @@ def main() -> None:
             args.episode_params,
             args.include_excluded,
             args.mc_complete_datasets,
+            allowed_models,
         )
         print_manual_cluster_tables(manual_cluster_tables, manual_cluster_datasets, args.output_dir)
 
@@ -193,6 +230,7 @@ def main() -> None:
             manual_cluster_tables,
             manual_cluster_datasets,
             ranking_plot_paths=ranking_plot_paths if task_scores else None,
+            allowed_models=allowed_models,
         )
 
 
