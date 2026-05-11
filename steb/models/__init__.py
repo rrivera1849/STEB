@@ -16,14 +16,18 @@ def get_model_registry() -> Dict[str, Any]:
         from .function_word_freq_model import FunctionWordFreqModel
         from .hf_model import HFModel
         from .lftk_model import LFTKModel
+        from .lisa_model import LISAModel
         from .luar_model import LUARModel
         from .neurobiber_model import NeurobiberModel
+        from .random_model import RandomModel
         from .tfidf_ngram_model import TFIDFNGModel
 
         _registry = {
             "hf": HFModel,
             "causal": CausalModel,
+            "lisa": LISAModel,
             "luar": LUARModel,
+            "random": RandomModel,
             "lftk": LFTKModel,
             "tfidfngrams": TFIDFNGModel,
             "functionwordfreq": FunctionWordFreqModel,

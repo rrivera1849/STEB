@@ -5,7 +5,7 @@ import sys
 
 from termcolor import colored
 
-from steb import evaluate, get_all_datasets, get_model, get_supported_datasets
+from steb import evaluate, preview, get_all_datasets, get_model, get_supported_datasets
 from steb.presets import PRESETS, resolve_preset
 from steb.utils import RESULTS_DIR
 from steb.validation import validate_all_configs
@@ -18,6 +18,7 @@ def add_common_arguments(parser):
     parser.add_argument("--output-folder", default=RESULTS_DIR, help="Folder to save the results to.")
     parser.add_argument("--force-reload", default=False, action="store_true", help="Whether to force reload the datasets.")
     parser.add_argument("--force-rerun", default=False, action="store_true", help="Re-run evaluations even if metrics file already exists.")
+    parser.add_argument("--force-rerun-oa", default=False, action="store_true", help="Re-run the order_alignment task only.")
     parser.add_argument("--progress-bar", default=False, action="store_true", help="Show a progress bar.")
     parser.add_argument("--seed", type=int, default=42, help="The random seed to use.")
 
@@ -25,7 +26,11 @@ def add_common_arguments(parser):
 def add_iteration_arguments(parser):
     """Adds iteration arguments (episode sizes, n per class) to the parser."""
     parser.add_argument("-e", "--episode-sizes", type=int, nargs="+", help="Number of atomic units to form writing sample.")
-    parser.add_argument("--n-episodes-per-class", type=int, default=50, help="Number of examples per class.")
+    parser.add_argument(
+        "--n-episodes-per-class",
+        default=None,
+        help="Number of examples per class. Use 'auto' to adaptively preserve all classes (default when omitted: per-task default).",
+    )
 
 
 def run_validate():
@@ -132,6 +137,101 @@ def parse_new_dataset_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def run_preview():
+    """
+    Previews dataset statistics for a benchmark run without loading a model.
+
+    Reports class counts, resolved n_episodes_per_class, and dropped classes
+    for each dataset/task/episode_size combination.
+    """
+    parser = argparse.ArgumentParser(description="Preview dataset statistics for a STEB run.")
+    parser.add_argument("cmd", help=argparse.SUPPRESS)
+    parser.add_argument("--preset", type=str, default=None, help=f"Preset to preview. Available: {list(PRESETS.keys())}")
+    parser.add_argument("--task", type=str, default=None, help="Task to preview.")
+    parser.add_argument("--dataset", type=str, default=None, help="Specific dataset to preview.")
+    parser.add_argument("-e", "--episode-sizes", type=int, nargs="+", default=None, help="Episode sizes to preview.")
+    parser.add_argument("--n-episodes-per-class", default=None, help="Override n_episodes_per_class (integer or 'auto').")
+    parser.add_argument("-o", "--output", type=str, default="preview.txt", help="Output file for the report (default: preview.txt).")
+    args = parser.parse_args()
+
+    n_episodes = args.n_episodes_per_class
+    if n_episodes is not None and n_episodes != "auto":
+        n_episodes = int(n_episodes)
+
+    if args.preset:
+        preset_config = resolve_preset(args.preset)
+        task_configs = preset_config["config"]["tasks"]
+        print(colored(f"Previewing preset: {args.preset}", "cyan"))
+
+        all_results = []
+        for item in task_configs:
+            task_name = item["task"]
+            datasets = item["datasets"]
+            ep_sizes = args.episode_sizes or item["episode_sizes"]
+            n_ep = n_episodes or item["n_episodes_per_class"]
+
+            print(colored(f"\nTask: {task_name}", "cyan"))
+            results = preview(
+                datasets=datasets,
+                task_name=task_name,
+                episode_sizes=ep_sizes,
+                n_episodes_per_class=n_ep,
+                show_summary=False,
+            )
+            all_results.extend(results)
+
+        # Print combined summary
+        total_dropped = sum(r["dropped_classes"] for r in all_results)
+        total_kept = sum(r["kept_classes"] for r in all_results)
+        total_total = sum(r["total_classes"] for r in all_results)
+        summary_lines = [
+            "",
+            "=" * 60,
+            "Preview Summary",
+            "=" * 60,
+            f"  Combinations: {len(all_results)}",
+            f"  Classes kept: {total_kept}/{total_total}",
+            f"  Classes dropped: {total_dropped}",
+            "=" * 60,
+        ]
+        for line in summary_lines:
+            print(colored(line, "cyan"))
+
+        # Write combined report
+        if args.output:
+            lines = []
+            for r in all_results:
+                dropped_count = r["dropped_classes"]
+                status_str = "OK" if dropped_count == 0 else f"{dropped_count} dropped"
+                lines.append(
+                    f"  {r['dataset']} | {r['task']} | "
+                    f"ep_size={r['episode_size']} | "
+                    f"n_episodes={r['n_episodes_per_class']} | "
+                    f"classes={r['kept_classes']}/{r['total_classes']} | "
+                    f"min_count={r['min_class_count']} | "
+                    f"{status_str}"
+                )
+            lines.extend(summary_lines)
+            with open(args.output, "w") as f:
+                f.write("\n".join(lines) + "\n")
+            print(colored(f"\n  Report saved to: {args.output}", "cyan"))
+    else:
+        if args.dataset:
+            datasets = [args.dataset]
+        elif args.task:
+            datasets = get_supported_datasets(args.task)
+        else:
+            datasets = [d for d in get_all_datasets() if "dummy" not in d]
+
+        preview(
+            datasets=datasets,
+            task_name=args.task,
+            episode_sizes=args.episode_sizes,
+            n_episodes_per_class=n_episodes,
+            output_file=args.output,
+        )
+
+
 def create_preset_parser() -> argparse.ArgumentParser:
     """
     Creates the argument parser for the '--preset' mode.
@@ -163,6 +263,10 @@ def main():
     if len(sys.argv) >= 2 and sys.argv[1] == "new-dataset":
         args = parse_new_dataset_args()
         run_new_dataset(args)
+        return
+
+    if len(sys.argv) >= 2 and sys.argv[1] == "preview":
+        run_preview()
         return
 
     if "--preset" in sys.argv:
@@ -200,6 +304,7 @@ def main():
                 output_folder=args.output_folder,
                 force_reload=args.force_reload,
                 force_rerun=args.force_rerun,
+                force_rerun_oa=args.force_rerun_oa,
                 progress_bar=args.progress_bar,
                 seed=args.seed,
                 run_name=args.preset,
@@ -279,7 +384,13 @@ def main():
     # Only pass episode args if the task supports them and they were provided.
     # Otherwise, evaluate() will use per-task defaults from TASK_DEFAULTS.
     episode_sizes = getattr(args, "episode_sizes", None) or None
-    n_episodes_per_class = getattr(args, "n_episodes_per_class", None)
+    raw_n_episodes = getattr(args, "n_episodes_per_class", None)
+    if raw_n_episodes is None:
+        n_episodes_per_class = None
+    elif raw_n_episodes == "auto":
+        n_episodes_per_class = "auto"
+    else:
+        n_episodes_per_class = int(raw_n_episodes)
 
     evaluate(
         model,
@@ -291,6 +402,7 @@ def main():
         output_folder=args.output_folder,
         force_reload=args.force_reload,
         force_rerun=args.force_rerun,
+        force_rerun_oa=args.force_rerun_oa,
         progress_bar=args.progress_bar,
         seed=args.seed,
         run_name=args.task,

@@ -102,11 +102,13 @@ class LFTKModel(STEBModel):
         self._feature_keys = _resolve_feature_keys(model_name_or_path)
         self._spacy_model = spacy_model
         self._batch_size = batch_size
-        # Use multiple processes for spaCy where available for speed
-        cpu_count = os.cpu_count() or 1
-        self._n_process = max(1, min(4, cpu_count))
-        # Disable components not needed for most LFTK features to speed up processing
-        self._nlp = spacy.load(spacy_model, disable=["ner", "textcat"]) #NOTE may need to change later
+        self._n_process = 1
+        # Disable parser and NER — surface/POS features only need the tagger.
+        # Use the rule-based sentencizer instead of the dependency parser for
+        # sentence boundaries, which is much faster.
+        self._nlp = spacy.load(spacy_model, disable=["ner", "textcat", "parser"])
+        self._nlp.max_length = 10_000_000
+        self._nlp.add_pipe("sentencizer")
 
     def _text_to_str(self, text: Union[str, List[str]]) -> str:
         """Normalize text to a single string (STEB can pass list of segments)."""
@@ -114,27 +116,26 @@ class LFTKModel(STEBModel):
             return " ".join(t for t in text if isinstance(t, str))
         return text if isinstance(text, str) else ""
 
-    def _extract_features_for_texts(self, texts: List[str], show_progress: bool = False) -> np.ndarray:
-        """Extract LFTK feature vectors for a list of text strings. Returns (n_texts, n_features)."""
-        if not texts:
-            return np.zeros((0, len(self._feature_keys)), dtype=np.float64)
+    def _extract_batch(
+        self,
+        docs: list,
+    ) -> List[dict]:
+        """Extract LFTK features from a batch of spaCy docs.
 
-        normalized = [self._text_to_str(t) for t in texts]
-        docs = list(
-            self._nlp.pipe(
-                normalized,
-                batch_size=self._batch_size,
-                n_process=self._n_process,
-            )
-        )
+        Falls back to per-doc extraction if the batch raises an error
+        (e.g. math domain error for empty/short docs).
 
-        # Single LFTK extractor over the whole batch of docs for speed
+        Args:
+            docs: List of spaCy Doc objects.
+
+        Returns:
+            List of feature dicts, one per doc.
+        """
         extractor = lftk.Extractor(docs=docs)
-        extractor.customize(stop_words=True, punctuations=True, round_decimal=7)  # include stop words and punctuation
+        extractor.customize(stop_words=True, punctuations=True, round_decimal=7)
         try:
             feats_list = extractor.extract(features=self._feature_keys)
         except ValueError:
-            # LFTK can raise math domain error (e.g. log(0)) for empty/short docs in typetokenratio etc.; fall back to per-doc
             feats_list = []
             for doc in docs:
                 if len(doc) < 2:
@@ -147,44 +148,80 @@ class LFTKModel(STEBModel):
                     feats_list.append(feats if isinstance(feats, dict) else feats[0])
                 except (ValueError, ZeroDivisionError):
                     feats_list.append({k: 0.0 for k in self._feature_keys})
-        # LFTK returns a single dict for one doc, list of dicts for multiple docs
         if isinstance(feats_list, dict):
             feats_list = [feats_list]
+        return feats_list
+
+    def _extract_features_for_texts(
+        self,
+        texts: List[str],
+        batch_size: int,
+        show_progress: bool = False,
+    ) -> np.ndarray:
+        """Extract LFTK feature vectors for a list of text strings.
+
+        Args:
+            texts: List of input texts.
+            batch_size: Number of texts to process at a time.
+            show_progress: Whether to show a progress bar.
+
+        Returns:
+            L2-normalized feature array of shape (n_texts, n_features).
+        """
+        if not texts:
+            return np.zeros((0, len(self._feature_keys)), dtype=np.float64)
+
+        normalized = [self._text_to_str(t) for t in texts]
 
         rows = []
-        # LFTK returns one feature dict per doc; align with docs and keep zeros for very short docs
-        for doc, feats in zip(docs, feats_list):
-            if len(doc) < 2:
-                rows.append([0.0] * len(self._feature_keys))
-            else:
-                rows.append([feats.get(k, 0.0) for k in self._feature_keys])
+        iterator = range(0, len(normalized), batch_size)
+        if show_progress:
+            iterator = tqdm(iterator, desc="Embedding (LFTK)", total=len(iterator))
+
+        for i in iterator:
+            batch_texts = normalized[i:i + batch_size]
+            docs = list(self._nlp.pipe(batch_texts, batch_size=batch_size))
+            feats_list = self._extract_batch(docs)
+
+            for doc, feats in zip(docs, feats_list):
+                if len(doc) < 2:
+                    rows.append([0.0] * len(self._feature_keys))
+                else:
+                    rows.append([feats.get(k, 0.0) for k in self._feature_keys])
+
         X = np.array(rows, dtype=np.float64)
-        # L2-normalize so cosine similarity (used by STEB tasks) is scale-invariant; skip zero vectors to avoid collapsing many points to origin (hurts clustering)
         norms = np.linalg.norm(X, axis=1, keepdims=True)
         zero_mask = norms <= 1e-10
-        if show_progress:
-            # Lightweight debug signal about how many episodes effectively have no signal
-            zero_count = int(zero_mask.sum())
-            print(f"LFTKModel: {zero_count}/{X.shape[0]} embeddings have zero norm (len(doc) < 2 or all-zero features).")
         nonzero = ~zero_mask
         X_norm = np.where(nonzero, X / np.where(nonzero, norms, 1.0), X)
         return X_norm
 
     def embed_single(self, texts: List[str], batch_size: int, show_progress: bool = False) -> np.ndarray:
         """Embed a list of single texts; each text becomes one feature vector."""
-        return self._extract_features_for_texts(texts, show_progress=show_progress)
+        return self._extract_features_for_texts(texts, batch_size, show_progress=show_progress)
 
     def embed_multiple(
-        self, episodes: List[List[str]], batch_size: int, show_progress: bool = False
+        self,
+        episodes: List[List[str]],
+        batch_size: int,
+        show_progress: bool = False,
     ) -> np.ndarray:
+        """Embed a list of episodes.
+
+        Each episode is a list of texts. Returns one vector per episode by
+        concatenating the episode's texts into one string and extracting
+        LFTK features from that string.
+
+        Args:
+            episodes: A list of episodes to embed.
+            batch_size: The batch size to use for processing.
+            show_progress: Whether to show a progress bar.
+
+        Returns:
+            A numpy array of shape (n_episodes, n_features).
         """
-        Embed a list of episodes. Each episode is a list of texts (e.g. one per position).
-        Returns one vector per episode by concatenating the episode's texts into one string
-        and extracting LFTK features from that string.
-        """
-        # One string per episode: concatenate all texts in the episode
         concatenated = []
         for ep in episodes:
             parts = [self._text_to_str(t) for t in ep]
             concatenated.append(" ".join(parts))
-        return self._extract_features_for_texts(concatenated, show_progress=show_progress)
+        return self._extract_features_for_texts(concatenated, batch_size, show_progress=show_progress)

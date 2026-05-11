@@ -15,15 +15,15 @@ def get_benchmark_config() -> Dict[str, Any]:
     args_dict = {
         "clustering": {
             "episode_sizes": [1, 2, 3],
-            "n_episodes_per_class": 50,
+            "n_episodes_per_class": "auto",
         },
         "all_to_all_pair_classification": {
             "episode_sizes": [1, 2, 3],
-            "n_episodes_per_class": 50,
+            "n_episodes_per_class": "auto",
         },
         "order_alignment": {
             "episode_sizes": [1],
-            "n_episodes_per_class": 100,
+            "n_episodes_per_class": "auto",
         },
         "pre_defined_pair_classification": {
             "episode_sizes": [1],
@@ -87,28 +87,28 @@ PRESETS = {
         "config": {
             "tasks": [
                 {
-                    "task": "order_alignment", 
+                    "task": "order_alignment",
                     "datasets": ["corpus-of-diverse-styles"],
                     "episode_sizes": [1],
-                    "n_episodes_per_class": 50,
+                    "n_episodes_per_class": "auto",
                 },
                 {
-                    "task": "retrieval", 
+                    "task": "retrieval",
                     "datasets": ["amazon"], # TODO: Replace with a real dataset once we've fixed the speed issue.
                     "episode_sizes": [-1],
                     "n_episodes_per_class": 1
                 },
                 {
-                    "task": "clustering", 
+                    "task": "clustering",
                     "datasets": ["sms_spam"],
                     "episode_sizes": [1],
-                    "n_episodes_per_class": 100,
+                    "n_episodes_per_class": "auto",
                 },
                 {
-                    "task": "all_to_all_pair_classification", 
+                    "task": "all_to_all_pair_classification",
                     "datasets": ["corpus-of-diverse-styles"],
                     "episode_sizes": [1],
-                    "n_episodes_per_class": 100,
+                    "n_episodes_per_class": "auto",
                 },
                 {
                     "task": "pre_defined_pair_classification", 

@@ -34,6 +34,9 @@ def last_token_pooling(
     return token_embeddings[batch_indices, sequence_lengths]
 
 
+MAX_CAUSAL_LENGTH = 10240
+
+
 class CausalModel(STEBModel):
     """
     A Hugging Face causal language model for style text embedding.
@@ -87,7 +90,7 @@ class CausalModel(STEBModel):
         lengths = [len(x) for x in episodes]
         texts = [text for episode in episodes for text in episode]
 
-        max_length = get_model_max_length(self.model, self.tokenizer)
+        max_length = min(get_model_max_length(self.model, self.tokenizer), MAX_CAUSAL_LENGTH)
 
         all_chunks = []
         chunks_per_text = []
@@ -112,7 +115,7 @@ class CausalModel(STEBModel):
             features = self.model(**tokenized_batch)
             # RRS - We can technically just take the last index, since we're doing left-padding
             features = last_token_pooling(features, tokenized_batch["attention_mask"])
-            features = features.detach().cpu().numpy()
+            features = features.detach().cpu().float().numpy()
             all_embeddings.append(features)
 
         all_embeddings = np.concatenate(all_embeddings, axis=0)
