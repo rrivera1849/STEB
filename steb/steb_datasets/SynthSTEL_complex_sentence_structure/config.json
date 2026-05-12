@@ -1,0 +1,14 @@
+{
+  "dataset_name": "SynthSTEL_complex_sentence_structure",
+  "type": "custom",
+  "data_dir": "synthstel/complex_sentence_structure",
+  "loader_module": "steb.loaders.synthstel",
+  "loader_function": "load_synthstel",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "order_alignment": {}
+  }
+}

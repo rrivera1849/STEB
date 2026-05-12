@@ -1,0 +1,14 @@
+{
+  "dataset_name": "SynthSTEL_positive_sentiment",
+  "type": "custom",
+  "data_dir": "synthstel/positive_sentiment",
+  "loader_module": "steb.loaders.synthstel",
+  "loader_function": "load_synthstel",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label"
+  },
+  "tasks": {
+    "order_alignment": {}
+  }
+}

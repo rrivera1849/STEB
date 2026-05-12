@@ -101,18 +101,25 @@ genre:
     - masc_text_genre
     - the_pile
 
-style:
-  description: "Judging which of two texts is more stylistically similar to a reference"
+register:
+  description: "Judging which of two texts shares a target sociolinguistic register (formality, politeness, emotional tone, etc.)"
   datasets:
-    - STEL --oa_variant acc
-    - SynthSTEL --oa_variant acc
+    - STEL_formality --oa_variant acc
+    - STEL_simplicity --oa_variant acc
+    - SynthSTEL_formal_tone --oa_variant acc
+    - SynthSTEL_complex_sentence_structure --oa_variant acc
+    - SynthSTEL_polite_tone --oa_variant acc
+    - SynthSTEL_offensive_language --oa_variant acc
+    - SynthSTEL_positive_sentiment --oa_variant acc
+    - SynthSTEL_humor --oa_variant acc
+    - SynthSTEL_sarcasm --oa_variant acc
+    - SynthSTEL_certain_tone --oa_variant acc
     - corpus-of-diverse-styles --oa_variant acc
     - graded_formality --oa_variant acc
     - OneStopEnglishCorpus --oa_variant acc
     - wikipedia_politeness
     - stackexchange_politeness
     - ASSET --oa_variant acc
-    - stylePTB --oa_variant acc
 
 style_vs_content:
   description: "Judging which of two texts is more stylistically similar to a reference"
@@ -152,6 +159,48 @@ feature_probing:
     - probing_blog
     - probing_reddit
     - probing_stackexchange
+
+predefined_features:
+  description: "Judging which of two texts exhibits a target predefined / surface-level feature (LIWC-style categories, syntactic transforms, lexical markers)"
+  datasets:
+    - probing_amazon
+    - probing_blog
+    - probing_reddit
+    - probing_stackexchange
+    - stylePTB --oa_variant acc
+    - STEL_contraction --oa_variant acc
+    - STEL_emotives --oa_variant acc
+    - STEL_nbr_substitution --oa_variant acc
+    - SynthSTEL_active_voice --oa_variant acc
+    - SynthSTEL_affective_process --oa_variant acc
+    - SynthSTEL_affective_processes --oa_variant acc
+    - SynthSTEL_articles --oa_variant acc
+    - SynthSTEL_cognitive_processes --oa_variant acc
+    - SynthSTEL_conjunctions --oa_variant acc
+    - SynthSTEL_contractions --oa_variant acc
+    - SynthSTEL_emojis --oa_variant acc
+    - SynthSTEL_fluency_in_sentence_construction --oa_variant acc
+    - SynthSTEL_frequent_common_verbs --oa_variant acc
+    - SynthSTEL_frequent_determiners --oa_variant acc
+    - SynthSTEL_frequent_function_words --oa_variant acc
+    - SynthSTEL_frequent_punctuation --oa_variant acc
+    - SynthSTEL_long_words --oa_variant acc
+    - SynthSTEL_metaphors --oa_variant acc
+    - SynthSTEL_misspelled_words --oa_variant acc
+    - SynthSTEL_nominalizations --oa_variant acc
+    - SynthSTEL_numerical_digits --oa_variant acc
+    - SynthSTEL_numerical_substitution --oa_variant acc
+    - SynthSTEL_only_lowercase --oa_variant acc
+    - SynthSTEL_only_uppercase --oa_variant acc
+    - SynthSTEL_personal_pronouns --oa_variant acc
+    - SynthSTEL_prepositions --oa_variant acc
+    - SynthSTEL_present_focused_tense --oa_variant acc
+    - SynthSTEL_present_tense --oa_variant acc
+    - SynthSTEL_pronouns --oa_variant acc
+    - SynthSTEL_self_focused_language --oa_variant acc
+    - SynthSTEL_self_focused_perspective --oa_variant acc
+    - SynthSTEL_text_emojis --oa_variant acc
+    - SynthSTEL_uppercase_letters --oa_variant acc
 
 dialect:
   description: "Recognising English dialects across world Englishes"

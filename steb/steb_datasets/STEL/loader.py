@@ -232,13 +232,26 @@ def extract_pairs_from_row(
     return pairs
 
 
+KNOWN_STEL_TYPES = {"formality", "simplicity", "contraction", "emotives", "nbr_substitution"}
+
+
 def load_stel(data_dir: str) -> List[Dict[str, Any]]:
     """
     Load STEL dataset from TSV files in characteristics and dimensions directories.
 
+    If the trailing component of `data_dir` is one of the known STEL style types,
+    the loader strips it and filters records to that single style type (mirrors
+    the per-attribute split pattern used by PASTEL).
+
     Returns:
         List of records with 'text' (ordered pair) and 'label' (style type) fields.
     """
+    basename = os.path.basename(data_dir.rstrip(os.sep))
+    style_type_filter: Optional[str] = None
+    if basename in KNOWN_STEL_TYPES:
+        style_type_filter = basename
+        data_dir = os.path.dirname(data_dir.rstrip(os.sep))
+
     # Handle nested STEL directory structure
     stel_path = os.path.join(data_dir, "Data", "STEL")
     if not os.path.exists(stel_path):
@@ -287,6 +300,9 @@ def load_stel(data_dir: str) -> List[Dict[str, Any]]:
                                 'text': [most_style, least_style],
                                 'label': style_type
                             })
+
+    if style_type_filter is not None:
+        records = [r for r in records if r["label"] == style_type_filter]
 
     return records
 
