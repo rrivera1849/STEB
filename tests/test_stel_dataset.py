@@ -4,7 +4,7 @@ from typing import Dict, Set, Tuple
 
 import pytest
 
-from steb.steb_datasets.STEL.loader import (
+from steb.loaders.stel import (
     load_stel,
     extract_pairs_from_row,
     parse_id_component,

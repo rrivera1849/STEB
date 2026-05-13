@@ -1,0 +1,130 @@
+import os
+from typing import Any, Dict, List, Optional
+
+from datasets import load_dataset
+
+from steb.utils import CACHE_DIR
+
+
+def synthstel_record_handler(example: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Custom record handler for SynthSTEL.
+    Converts Hugging Face fields into STEB's expected format:
+      - text: [most_style, least_style]
+      - label: style_feature
+
+    SynthSTEL fields (HF): positive, negative, feature, feature_clean
+      - positive: text exhibiting the style feature (=> most_style)
+      - negative: text lacking the style feature (=> least_style)
+      - feature: style feature label
+
+    Uses `feature` rather than `feature_clean` so the 40 raw contrastive
+    labels from the SynthSTEL/StyleDistance paper are preserved. The
+    cleaned variant collapses three self-focused contrasts (vs. inclusive,
+    vs. you-focused, vs. third-person singular) into a single
+    "usage of self-focused perspective or words" label, dropping the
+    count from 40 to 38.
+    """
+    texts: List[str] = []
+
+    most_style = example.get("positive")
+    least_style = example.get("negative")
+    style_feature = example.get("feature")
+
+    if isinstance(most_style, str):
+        most_style = most_style.strip()
+        if most_style:
+            texts.append(most_style)
+
+    if isinstance(least_style, str):
+        least_style = least_style.strip()
+        if least_style:
+            texts.append(least_style)
+
+    if len(texts) != 2:
+        return None
+
+    if isinstance(style_feature, str):
+        style_feature = style_feature.strip().lower()
+    else:
+        style_feature = None
+
+    if not style_feature:
+        return None
+
+    return {
+        "text": texts,
+        "label": style_feature,
+    }
+
+
+# SynthSTEL `feature` (raw contrastive) values that we treat as
+# register (formality, politeness, emotional tone, sarcasm,
+# humor, certain-tone, offensiveness, positive sentiment, complex-vs-simple
+# as the parallel to STEL simplicity). Every other SynthSTEL feature is
+# treated as a single manipulated linguistic feature.
+#
+# Strings match the upstream `feature` column (40 distinct values in the
+# StyleDistance/synthstel HF dataset) rather than `feature_clean` (38
+# values, which collapses three self-focused contrasts into one label).
+SYNTHSTEL_REGISTER_FEATURES: frozenset = frozenset({
+    "certain / uncertain",
+    "complex / simple",
+    "formal / informal",
+    "offensive / non-offensive",
+    "polite / impolite",
+    "positive / negative",
+    "with humor / without humor",
+    "with sarcasm / without sarcasm",
+})
+
+SYNTHSTEL_GROUPS: frozenset = frozenset({"register", "feature"})
+
+
+def load_synthstel(
+    data_dir: str,
+) -> List[Dict[str, Any]]:
+    """
+    Load SynthSTEL from HuggingFace, filtered to one of two subset groups.
+
+    The trailing component of `data_dir` selects the subset group:
+
+      - ``register`` keeps records whose ``feature`` label is in
+        :data:`SYNTHSTEL_REGISTER_FEATURES` (formality, politeness, emotional
+        tone, sarcasm, humor, certain-tone, offensiveness, positive sentiment,
+        complex sentence structure).
+      - ``feature`` keeps every other SynthSTEL feature (surface /
+        linguistic categories such as contractions, emojis, function-word
+        usage, pronoun usage, etc.).
+
+    Args:
+        data_dir: Path whose basename is a member of :data:`SYNTHSTEL_GROUPS`.
+
+    Returns:
+        List of ``{"text": [most_style, least_style], "label": str}`` records
+        whose label is in (or, for ``feature``, outside of) the register set.
+    """
+    group = os.path.basename(data_dir.rstrip(os.sep))
+    if group not in SYNTHSTEL_GROUPS:
+        raise ValueError(
+            f"Unknown SynthSTEL subset group {group!r}; "
+            f"expected one of {sorted(SYNTHSTEL_GROUPS)}"
+        )
+
+    # Load both upstream splits and concatenate.
+    # All 40 features x (90 train + 10 test) = 4000 pairs
+    ds = load_dataset("StyleDistance/synthstel", split="train+test", cache_dir=CACHE_DIR)
+
+    records: List[Dict[str, Any]] = []
+    for example in ds:
+        record = synthstel_record_handler(example)
+        if record is None:
+            continue
+        is_register = record["label"] in SYNTHSTEL_REGISTER_FEATURES
+        if group == "register" and not is_register:
+            continue
+        if group == "feature" and is_register:
+            continue
+        records.append(record)
+
+    return records

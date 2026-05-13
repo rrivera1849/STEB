@@ -101,24 +101,25 @@ genre:
     - masc_text_genre
     - the_pile
 
-style:
-  description: "Judging which of two texts is more stylistically similar to a reference"
+register:
+  description: "Judging which of two texts shares a target register (formality, politeness, etc.)"
   datasets:
-    - STEL --oa_variant acc
-    - SynthSTEL --oa_variant acc
+    - STEL_register --oa_variant acc
+    - SynthSTEL_register --oa_variant acc
     - corpus-of-diverse-styles --oa_variant acc
     - graded_formality --oa_variant acc
     - OneStopEnglishCorpus --oa_variant acc
     - wikipedia_politeness
     - stackexchange_politeness
     - ASSET --oa_variant acc
-    - stylePTB --oa_variant acc
 
 style_vs_content:
   description: "Judging which of two texts is more stylistically similar to a reference"
   datasets:
-    - STEL --oa_variant distractor --oa_only
-    - SynthSTEL --oa_variant distractor --oa_only
+    - STEL_register --oa_variant distractor --oa_only
+    - STEL_feature --oa_variant distractor --oa_only
+    - SynthSTEL_register --oa_variant distractor --oa_only
+    - SynthSTEL_feature --oa_variant distractor --oa_only
     - corpus-of-diverse-styles --oa_variant distractor --oa_only
     - graded_formality --oa_variant distractor --oa_only
     - OneStopEnglishCorpus --oa_variant distractor --oa_only
@@ -152,6 +153,17 @@ feature_probing:
     - probing_blog
     - probing_reddit
     - probing_stackexchange
+
+predefined_features:
+  description: "Judging which of two texts exhibits a target predefined / surface-level feature (LIWC-style categories, syntactic transforms, lexical markers)"
+  datasets:
+    - probing_amazon
+    - probing_blog
+    - probing_reddit
+    - probing_stackexchange
+    - StylePTB --oa_variant acc
+    - STEL_feature --oa_variant acc
+    - SynthSTEL_feature --oa_variant acc
 
 dialect:
   description: "Recognising English dialects across world Englishes"
