@@ -102,7 +102,7 @@ genre:
     - the_pile
 
 register:
-  description: "Judging which of two texts shares a target sociolinguistic register (formality, politeness, emotional tone, etc.)"
+  description: "Judging which of two texts shares a target register (formality, politeness, etc.)"
   datasets:
     - STEL_register --oa_variant acc
     - SynthSTEL_register --oa_variant acc
