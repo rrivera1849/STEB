@@ -233,7 +233,7 @@ def extract_pairs_from_row(
 
 
 # STEL style_types split into the two STEB subset groups.
-# register: sociolinguistic-register dimensions (formal/informal, simple/elaborated).
+# register: register dimensions (formal/informal, simple/elaborated).
 # feature:  surface character-level features (contractions, emotives, leet-style substitutions).
 STEL_TYPES_BY_GROUP: Dict[str, frozenset] = {
     "register": frozenset({"formality", "simplicity"}),
@@ -247,10 +247,7 @@ def load_stel(data_dir: str) -> List[Dict[str, Any]]:
 
     If the trailing component of `data_dir` is one of the keys of
     STEL_TYPES_BY_GROUP (i.e. "register" or "feature"), the loader strips it
-    from the path and filters records to that subset group. This mirrors the
-    pastel split pattern and lets a single shared loader back two
-    dataset directories (`STEL_register/`, `STEL_feature/`) without changing
-    the dataset-loader contract.
+    from the path and filters records to that subset group.
 
     Returns:
         List of records with 'text' (ordered pair) and 'label' (style type) fields.
