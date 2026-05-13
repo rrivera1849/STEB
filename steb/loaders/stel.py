@@ -232,13 +232,32 @@ def extract_pairs_from_row(
     return pairs
 
 
+# STEL style_types split into the two STEB subset groups.
+# register: register dimensions (formal/informal, simple/elaborated).
+# feature:  surface character-level features (contractions, emotives, leet-style substitutions).
+STEL_TYPES_BY_GROUP: Dict[str, frozenset] = {
+    "register": frozenset({"formality", "simplicity"}),
+    "feature": frozenset({"contraction", "emotives", "nbr_substitution"}),
+}
+
+
 def load_stel(data_dir: str) -> List[Dict[str, Any]]:
     """
     Load STEL dataset from TSV files in characteristics and dimensions directories.
 
+    If the trailing component of `data_dir` is one of the keys of
+    STEL_TYPES_BY_GROUP (i.e. "register" or "feature"), the loader strips it
+    from the path and filters records to that subset group.
+
     Returns:
         List of records with 'text' (ordered pair) and 'label' (style type) fields.
     """
+    basename = os.path.basename(data_dir.rstrip(os.sep))
+    label_filter: Optional[frozenset] = None
+    if basename in STEL_TYPES_BY_GROUP:
+        label_filter = STEL_TYPES_BY_GROUP[basename]
+        data_dir = os.path.dirname(data_dir.rstrip(os.sep))
+
     # Handle nested STEL directory structure
     stel_path = os.path.join(data_dir, "Data", "STEL")
     if not os.path.exists(stel_path):
@@ -287,6 +306,9 @@ def load_stel(data_dir: str) -> List[Dict[str, Any]]:
                                 'text': [most_style, least_style],
                                 'label': style_type
                             })
+
+    if label_filter is not None:
+        records = [r for r in records if r["label"] in label_filter]
 
     return records
 
