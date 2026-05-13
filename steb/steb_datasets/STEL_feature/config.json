@@ -2,7 +2,7 @@
   "dataset_name": "STEL_feature",
   "type": "custom",
   "data_dir": "STEL/feature",
-  "loader_module": "steb.steb_datasets.STEL.loader",
+  "loader_module": "steb.loaders.stel",
   "loader_function": "load_stel",
   "record_handler": {
     "text_getter": "text",
