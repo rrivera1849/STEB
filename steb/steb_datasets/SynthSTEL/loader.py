@@ -11,13 +11,20 @@ def synthstel_record_handler(example: Dict[str, Any]) -> Optional[Dict[str, Any]
     SynthSTEL fields (HF): positive, negative, feature, feature_clean
       - positive: text exhibiting the style feature (=> most_style)
       - negative: text lacking the style feature (=> least_style)
-      - feature_clean (fallback: feature): style feature label
+      - feature (fallback: feature_clean): style feature label
+
+    Uses `feature` rather than `feature_clean` so the 40 raw contrastive
+    labels from the SynthSTEL/StyleDistance paper are preserved. The
+    cleaned variant collapses three self-focused contrasts (vs. inclusive,
+    vs. you-focused, vs. third-person singular) into a single
+    "usage of self-focused perspective or words" label, dropping the
+    count from 40 to 38.
     """
     texts: List[str] = []
 
     most_style = example.get("positive")
     least_style = example.get("negative")
-    style_feature = example.get("feature_clean") or example.get("feature")
+    style_feature = example.get("feature") or example.get("feature_clean")
 
     if isinstance(most_style, str):
         most_style = most_style.strip()

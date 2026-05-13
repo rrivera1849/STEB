@@ -7,20 +7,24 @@ from steb.steb_datasets.SynthSTEL.loader import synthstel_record_handler
 from steb.utils import CACHE_DIR
 
 
-# SynthSTEL feature_clean values that we treat as sociolinguistic register
-# (formality, politeness, emotional tone, sarcasm, humor, certain-tone,
-# offensiveness, positive sentiment, complex-sentence-structure as the parallel
-# to STEL simplicity). Every other SynthSTEL feature is treated as a surface /
-# LIWC-style "feature".
+# SynthSTEL `feature` (raw contrastive) values that we treat as
+# sociolinguistic register (formality, politeness, emotional tone, sarcasm,
+# humor, certain-tone, offensiveness, positive sentiment, complex-vs-simple
+# as the parallel to STEL simplicity). Every other SynthSTEL feature is
+# treated as a surface / LIWC-style "feature".
+#
+# Strings match the upstream `feature` column (40 distinct values in the
+# StyleDistance/synthstel HF dataset) rather than `feature_clean` (38
+# values, which collapses three self-focused contrasts into one label).
 SYNTHSTEL_REGISTER_FEATURES: frozenset = frozenset({
-    "complex sentence structure",
-    "incorporation of humor",
-    "positive sentiment expression",
-    "usage of certain tone (lack of uncertain words/phrases like 'i think', 'might', 'seems')",
-    "usage of formal tone",
-    "usage of offensive language",
-    "usage of polite tone",
-    "usage of sarcasm",
+    "certain / uncertain",
+    "complex / simple",
+    "formal / informal",
+    "offensive / non-offensive",
+    "polite / impolite",
+    "positive / negative",
+    "with humor / without humor",
+    "with sarcasm / without sarcasm",
 })
 
 SYNTHSTEL_GROUPS: frozenset = frozenset({"register", "feature"})
