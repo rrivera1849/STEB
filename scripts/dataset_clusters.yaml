@@ -100,13 +100,13 @@ genre:
     - x_genre
     - masc_text_genre
     - the_pile
+    - corpus-of-diverse-styles
 
 register:
   description: "Judging which of two texts shares a target register (formality, politeness, etc.)"
   datasets:
     - STEL_register --oa_variant acc
     - SynthSTEL_register --oa_variant acc
-    - corpus-of-diverse-styles --oa_variant acc
     - graded_formality --oa_variant acc
     - OneStopEnglishCorpus --oa_variant acc
     - wikipedia_politeness
