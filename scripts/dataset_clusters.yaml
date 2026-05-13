@@ -97,6 +97,7 @@ speaker_attribution:
 genre:
   description: "Classifying texts by genre"
   datasets:
+    - core
     - x_genre
     - masc_text_genre
     - the_pile
