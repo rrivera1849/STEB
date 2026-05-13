@@ -100,7 +100,7 @@ genre:
     - x_genre
     - masc_text_genre
     - the_pile
-    - corpus-of-diverse-styles
+    - corpus-of-diverse-styles --oa_variant acc
 
 register:
   description: "Judging which of two texts shares a target register (formality, politeness, etc.)"
