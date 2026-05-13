@@ -1,7 +1,8 @@
 {
-  "dataset_name": "STEL",
+  "dataset_name": "STEL_register",
   "type": "custom",
-  "data_dir": "STEL",
+  "data_dir": "STEL/register",
+  "loader_module": "steb.steb_datasets.STEL.loader",
   "loader_function": "load_stel",
   "record_handler": {
     "text_getter": "text",
