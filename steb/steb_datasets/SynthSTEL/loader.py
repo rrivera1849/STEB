@@ -11,7 +11,7 @@ def synthstel_record_handler(example: Dict[str, Any]) -> Optional[Dict[str, Any]
     SynthSTEL fields (HF): positive, negative, feature, feature_clean
       - positive: text exhibiting the style feature (=> most_style)
       - negative: text lacking the style feature (=> least_style)
-      - feature (fallback: feature_clean): style feature label
+      - feature: style feature label
 
     Uses `feature` rather than `feature_clean` so the 40 raw contrastive
     labels from the SynthSTEL/StyleDistance paper are preserved. The
@@ -24,7 +24,7 @@ def synthstel_record_handler(example: Dict[str, Any]) -> Optional[Dict[str, Any]
 
     most_style = example.get("positive")
     least_style = example.get("negative")
-    style_feature = example.get("feature") or example.get("feature_clean")
+    style_feature = example.get("feature")
 
     if isinstance(most_style, str):
         most_style = most_style.strip()

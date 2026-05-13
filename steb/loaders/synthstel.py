@@ -8,10 +8,10 @@ from steb.utils import CACHE_DIR
 
 
 # SynthSTEL `feature` (raw contrastive) values that we treat as
-# sociolinguistic register (formality, politeness, emotional tone, sarcasm,
+# register (formality, politeness, emotional tone, sarcasm,
 # humor, certain-tone, offensiveness, positive sentiment, complex-vs-simple
 # as the parallel to STEL simplicity). Every other SynthSTEL feature is
-# treated as a surface / LIWC-style "feature".
+# treated as a single manipulated linguistic feature.
 #
 # Strings match the upstream `feature` column (40 distinct values in the
 # StyleDistance/synthstel HF dataset) rather than `feature_clean` (38
@@ -38,17 +38,13 @@ def load_synthstel(
 
     The trailing component of `data_dir` selects the subset group:
 
-      - ``register`` keeps records whose ``feature_clean`` label is in
+      - ``register`` keeps records whose ``feature`` label is in
         :data:`SYNTHSTEL_REGISTER_FEATURES` (formality, politeness, emotional
         tone, sarcasm, humor, certain-tone, offensiveness, positive sentiment,
         complex sentence structure).
       - ``feature`` keeps every other SynthSTEL feature (surface /
-        LIWC-style categories such as contractions, emojis, function-word
+        linguistic categories such as contractions, emojis, function-word
         usage, pronoun usage, etc.).
-
-    This mirrors the pastel split pattern and lets a single shared loader
-    back two dataset directories (``SynthSTEL_register/``,
-    ``SynthSTEL_feature/``) without changing the dataset-loader contract.
 
     Args:
         data_dir: Path whose basename is a member of :data:`SYNTHSTEL_GROUPS`.
