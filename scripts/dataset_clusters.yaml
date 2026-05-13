@@ -159,3 +159,45 @@ dialect:
     - endive
     - twitter_aave_sae
     - eWAVE
+
+idiolect:
+  description: "Recognising an individual author's linguistic fingerprint across writing and speech"
+  datasets:
+    # From authorship_verification
+    - pan13_authorship_verification_english_test
+    - pan14_authorship_verification_corpus1_english_essays_test
+    - pan14_authorship_verification_corpus1_english_novels_test
+    - pan14_authorship_verification_corpus2_english_essays_test
+    - pan14_authorship_verification_corpus2_english_novels_test
+    - pan15_authorship_verification_english_test
+    - pan20_authorship_verification_test
+    - pan21_authorship_verification_test
+    - pan18_style_change
+    - pan22_style_change_basic
+    - pan22_style_change_sentence
+    - pan22_style_change_advanced
+    - pan23_style_change_easy
+    - pan23_style_change_medium
+    - pan23_style_change_hard
+    - pan24_style_change_easy
+    - pan24_style_change_medium
+    - pan24_style_change_hard
+    - pan25_style_change_easy
+    - pan25_style_change_medium
+    - pan25_style_change_hard
+    - pan26_style_change_easy
+    - pan26_style_change_medium
+    - pan26_style_change_hard
+    - enron_authorship_corpus
+    # From authorship_retrieval
+    - pan18_cross_domain_authorship_attribution_english
+    - amazon
+    - fanfiction
+    - stackexchange_retrieval
+    # From speaker_attribution (Fisher only; radiotalk excluded for content-entanglement)
+    - fisher_speaker_attribution_bbn_base
+    - fisher_speaker_attribution_bbn_hard
+    - fisher_speaker_attribution_bbn_harder
+    - fisher_speaker_attribution_ldc_base
+    - fisher_speaker_attribution_ldc_hard
+    - fisher_speaker_attribution_ldc_harder
