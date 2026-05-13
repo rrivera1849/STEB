@@ -167,7 +167,7 @@ predefined_features:
     - probing_blog
     - probing_reddit
     - probing_stackexchange
-    - stylePTB --oa_variant acc
+    - styleptb --oa_variant acc
     - STEL_contraction --oa_variant acc
     - STEL_emotives --oa_variant acc
     - STEL_nbr_substitution --oa_variant acc
