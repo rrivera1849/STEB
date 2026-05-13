@@ -60,7 +60,13 @@ def load_synthstel(
             f"expected one of {sorted(SYNTHSTEL_GROUPS)}"
         )
 
-    ds = load_dataset("StyleDistance/synthstel", split="train", cache_dir=CACHE_DIR)
+    # Load both upstream splits and concatenate. The train/test split in the
+    # StyleDistance/synthstel release reflects the original embedding-training
+    # protocol; STEB uses SynthSTEL only as an evaluation benchmark for
+    # order_alignment, so all 40 features x (90 train + 10 test) = 4000 pairs
+    # are equally valid evaluation data and combining them reduces per-label
+    # variance (100 rows per feature instead of 90).
+    ds = load_dataset("StyleDistance/synthstel", split="train+test", cache_dir=CACHE_DIR)
 
     records: List[Dict[str, Any]] = []
     for example in ds:
