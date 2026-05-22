@@ -127,6 +127,7 @@ style_vs_content:
     - parallel_shakespeare --oa_variant distractor --oa_only
     - ASSET --oa_variant distractor --oa_only
     - StylePTB --oa_variant distractor --oa_only
+    - twitter_aave_sae --oa_variant distractor --oa_only
 
 time:
   description: "Recognising temporal/historical English register (e.g. Early Modern Shakespearean vs. Modern English)"
