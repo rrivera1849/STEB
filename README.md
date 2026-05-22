@@ -53,16 +53,6 @@ raw_datasets_dir = /path/to/your/raw_datasets
 
 ## Usage
 
-### Programmatic
-
-```python
-import steb
-
-model = steb.get_model("rrivera1849/LUAR-MUD")
-datasets = steb.get_supported_datasets(task_name="clustering")
-steb.evaluate(model, datasets=datasets, task_name="clustering")
-```
-
 ### CLI
 
 ```bash
