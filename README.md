@@ -146,6 +146,11 @@ STEB supports three model types:
 - **Encoder models** (`HFModel`): Bidirectional transformers (BERT, RoBERTa, etc.) using mean pooling.
 - **Causal models** (`CausalModel`): Auto-regressive LMs (GPT-2, Llama, Mistral, etc.) using last-token pooling.
 - **LUAR models** (`LUARModel`): Dedicated support for LUAR-CRUD and LUAR-MUD.
+- **LFTK models** (`LFTKModel`): Stylometric feature models using features from the LFTK toolkit.
+- **TF-IDF n-gram models** (`TFIDFNGModel`): TF-IDF-weighted character, token, and POS tag n-grams.
+- **Function word model** (`FunctionWordFreqModel`): Frequencies of function words and function phrases.
+- **NeuroBiber model** (`NeurobiberModel`): NeuroBiber model based on 96 Biber features.
+
 
 Model type is auto-detected from the HuggingFace config. Encoder vs. causal routing happens automatically in `get_model()`.
 
