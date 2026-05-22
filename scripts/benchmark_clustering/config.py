@@ -103,7 +103,7 @@ LOW_CONFIDENCE_THRESHOLD = 10
 # Format: (sheet_name, [manual_cluster_name, ...])
 AGGREGATE_SHEETS: List[Tuple[str, List[str]]] = [
     ("summary_tasks", ["machine_text_detection", "machine_text_detection_adversarial", "authorship_verification", "authorship_retrieval"]),
-    ("summary_features", ["genre", "register", "style_vs_content", "time", "demographics", "feature_probing", "predefined_features", "dialect"]),
+    ("summary_features", ["genre", "register", "style_vs_content", "time", "demographics", "predefined_features", "dialect", "idiolect"]),
 ]
 
 # Model categories for ranking plot. Models not listed get "other" styling.
