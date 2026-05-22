@@ -24,6 +24,8 @@ The script skips datasets that have already been downloaded. Use `--purge` to fo
 
 > **Note:** `download_datasets.sh` invokes Python tools (`gdown`, etc.) declared in `requirements.txt`, so run it with the project's environment active (i.e. after `pip install -r requirements.txt` in the venv you intend to use). Otherwise these helpers won't be importable and the script will fail.
 
+There is also a special dataset download option for datasets requiring licenses or subscriptions, such as datasets from the Linguistic Data Consortium (e.g., Fisher for testing models on the modality of speech transcripts).
+
 ## Configuration
 
 By default, STEB looks for raw datasets in `./raw_datasets` relative to the working directory. To run from another directory, set the `STEB_RAW_DATASETS_DIR` environment variable:
