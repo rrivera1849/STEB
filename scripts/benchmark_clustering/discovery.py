@@ -66,7 +66,7 @@ def _resolve_metric_for_entry(
     assert metric is not None, f"Unknown task {task!r} (not in TASK_METRICS)"
     return metric
 
-# RRS - This is for the Auto Clustering Path
+#   This is for the Auto Clustering Path
 def discover_scores(
     results_dir: str,
     task_name: str,
@@ -134,7 +134,7 @@ def discover_scores(
 
     return pd.DataFrame(scores).T.rename_axis("model")
 
-# RRS - This is for the Manual Clustering Path
+#   This is for the Manual Clustering Path
 def discover_all_scores(
     results_dir: str,
     include_excluded: bool = False,

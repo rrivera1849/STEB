@@ -113,7 +113,7 @@ class CausalModel(STEBModel):
                 return_tensors="pt",
             ).to(self.device)
             features = self.model(**tokenized_batch)
-            # RRS - We can technically just take the last index, since we're doing left-padding
+            #   We can technically just take the last index, since we're doing left-padding
             features = last_token_pooling(features, tokenized_batch["attention_mask"])
             features = features.detach().cpu().float().numpy()
             all_embeddings.append(features)
