@@ -143,13 +143,13 @@ Trains a logistic regression probe on frozen embeddings to evaluate what linguis
 
 ### Supported Models
 
-STEB supports three model types:
+STEB supports several model types:
 
 - **Encoder models** (`HFModel`): Bidirectional transformers (BERT, RoBERTa, etc.) using mean pooling.
 - **Causal models** (`CausalModel`): Auto-regressive LMs (GPT-2, Llama, Mistral, etc.) using last-token pooling.
 - **LUAR models** (`LUARModel`): Dedicated support for LUAR-CRUD and LUAR-MUD.
-- **LFTK models** (`LFTKModel`): Stylometric feature models using features from the LFTK toolkit.
-- **TF-IDF n-gram models** (`TFIDFNGModel`): TF-IDF-weighted character, token, and POS tag n-grams.
+- **LFTK models** (`LFTKModel`): Stylometric feature models using features from the LFTK toolkit. Model name requires including the config file of features to be included, e.g., lftk:/STEB/configs/lftk/surface_pos.yaml.
+- **TF-IDF n-gram models** (`TFIDFNGModel`): TF-IDF-weighted character, token, and POS tag n-grams. Model name requires including the TF-IDF fitted vectorizer, e.g., tfidfngrams:/STEB/models/tfidfngrams_mud_subset_1-2grams.pkl.
 - **Function word model** (`FunctionWordFreqModel`): Frequencies of function words and function phrases.
 - **NeuroBiber model** (`NeurobiberModel`): NeuroBiber model based on 96 Biber features.
 
