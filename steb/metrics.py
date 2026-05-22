@@ -81,15 +81,28 @@ def calculate_clustering_metrics(
     labels: List[Any],
     n_clusters: Optional[int] = None,
     random_state: int = 42,
+    distance_mode: str = "euclidean",
 ) -> Dict[str, float]:
     """
     Trains a K-Means model and evaluates its performance using V-measure.
     """
+    if distance_mode not in {"euclidean", "l1_diff"}:
+        raise ValueError(
+            f"Unsupported distance_mode for clustering: {distance_mode}. "
+            "Expected 'euclidean' or 'l1_diff'."
+        )
+
     if embeddings.ndim == 1:
         embeddings = np.array(embeddings).reshape(-1, 1)
 
     if n_clusters is None:
         n_clusters = len(set(labels))
+
+    # K-Means is Euclidean by design. For "l1_diff", apply an absolute-value
+    # transform to better align with L1-style embedding differences while
+    # keeping the same clustering backend.
+    if distance_mode == "l1_diff":
+        embeddings = np.abs(embeddings)
 
     kmeans = MiniBatchKMeans(
         n_clusters=n_clusters,

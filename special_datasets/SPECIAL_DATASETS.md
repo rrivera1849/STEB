@@ -58,7 +58,7 @@ Result: 6 files (3 for the BBN transcription, 3 for the LDC transcription; 1 for
 - ldc_test_harder_trials.npy
 
 ### Step 5: Integrate with STEB
-Now the trials are ready for STEB and can be used to evaluate your models following the directions on the [STEB GitHub](https://github.com/rrivera1849/STEB/).
+Now the trials are ready for STEB and can be used to evaluate your models following the directions on the [STEB GitHub](https://github.com/rrivera1849/STEB/). Manually add them to a folder under raw_datasets (e.g., fisher_speaker_attribution/) or point your config data_dir to where they live.
 
 
 ---
