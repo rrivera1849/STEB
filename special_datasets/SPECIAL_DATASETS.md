@@ -5,7 +5,7 @@ This document provides instructions for downloading datasets that require specia
 # 1. Fisher Speech Transcript Dataset
 
 ## Overview
-The Fisher Speech Transcript Dataset is used for speaker attribution tasks. It consists of conversational speech transcripts from the Fisher English Training Speech Transcript corpus.
+The Fisher Speech Transcript Dataset is used for speaker attribution tasks. It consists of conversational speech transcripts from the Fisher English Training Speech Transcript corpus. Note that speech transcripts are a different modality (spoken language) from the other STEB datasets, which are written language. However, Aggazzotti et al. (2024) found authorship models to perform fairly well out-of-the-box. Another advantage of this dataset beyond testing model generalizability to another modality is the levels of topic control (base/hard/harder) to help encourage reliance on more invariant speaker style features.
 
 ## Requirements
 - **LDC Subscription**: You need a subscription to the Linguistic Data Consortium (LDC) to access these datasets
