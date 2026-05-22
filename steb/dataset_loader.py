@@ -206,7 +206,7 @@ class DatasetLoader:
                 continue
             dataset[record["label"]].append(record["text"])
 
-        # RRS - Unsure if this is necessary at this point, we should've ensured that
+        #   Unsure if this is necessary at this point, we should've ensured that
         # everything is the same size
         if self.episode_size != -1:
             dataset = {k: v for k, v in dataset.items() if len(v) == N}
