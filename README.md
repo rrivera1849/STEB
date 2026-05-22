@@ -1,7 +1,5 @@
 # STEB: Style Text Embedding Benchmark
 
-**[Documentation](https://rrivera1849.github.io/STEB/)**
-
 STEB is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is modular and extensible, making it straightforward to add new models, datasets, and evaluation tasks.
 
 ## Installation
