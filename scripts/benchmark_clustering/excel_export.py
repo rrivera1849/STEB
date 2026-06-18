@@ -196,19 +196,38 @@ def export_excel(
         # Aggregate sheets: combine columns from multiple manual cluster tables
         if manual_cluster_tables and AGGREGATE_SHEETS:
             italic_font = Font(italic=True, size=BASE_FONT_SIZE)
-            for agg_sheet_name, source_clusters in AGGREGATE_SHEETS:
+            for entry in AGGREGATE_SHEETS:
+                # Accept (name, avg_cols) or (name, avg_cols, extra_cols)
+                if len(entry) == 2:
+                    agg_sheet_name, avg_clusters = entry
+                    extra_clusters: List[str] = []
+                else:
+                    agg_sheet_name, avg_clusters, extra_clusters = entry
+
                 avg_series = {}
-                for cluster_name in source_clusters:
+                extra_series = {}
+                for cluster_name in avg_clusters:
                     mc_df = manual_cluster_tables.get(cluster_name)
                     if mc_df is None:
                         print(f"  Warning: aggregate sheet '{agg_sheet_name}' references "
                               f"missing cluster '{cluster_name}', skipping it.")
                         continue
                     avg_series[cluster_name] = mc_df.mean(axis=1)
-                if not avg_series:
+                for cluster_name in extra_clusters:
+                    mc_df = manual_cluster_tables.get(cluster_name)
+                    if mc_df is None:
+                        print(f"  Warning: aggregate sheet '{agg_sheet_name}' references "
+                              f"missing extra cluster '{cluster_name}', skipping it.")
+                        continue
+                    extra_series[cluster_name] = mc_df.mean(axis=1)
+                if not avg_series and not extra_series:
                     continue
+                # Average only over the avg_clusters columns; extras are
+                # added afterwards for display.
                 agg_df = pd.DataFrame(avg_series)
-                agg_df["average"] = agg_df.mean(axis=1)
+                agg_df["average"] = agg_df.mean(axis=1) if not agg_df.empty else float("nan")
+                for col_name, series in extra_series.items():
+                    agg_df[col_name] = series
                 agg_df = agg_df.round(4)
                 sheet_name = agg_sheet_name[:31]
                 agg_df.to_excel(writer, sheet_name=sheet_name)
@@ -289,7 +308,7 @@ def export_excel(
         n_sheets += len(manual_cluster_tables)
     if manual_cluster_tables and AGGREGATE_SHEETS:
         n_sheets += sum(
-            1 for _, sources in AGGREGATE_SHEETS
-            if any(s in manual_cluster_tables for s in sources)
+            1 for entry in AGGREGATE_SHEETS
+            if any(s in manual_cluster_tables for s in entry[1])
         )
     print(f"Exported {len(scores_df)} rows × {len(model_cols)} models ({n_sheets} sheets) to {output_path}")

@@ -100,10 +100,15 @@ LOW_CONFIDENCE_THRESHOLD = 10
 
 # Aggregate sheets: each entry defines a new Excel sheet that concatenates
 # columns from multiple manual cluster tables side by side.
-# Format: (sheet_name, [manual_cluster_name, ...])
-AGGREGATE_SHEETS: List[Tuple[str, List[str]]] = [
-    ("summary_tasks", ["machine_text_detection", "machine_text_detection_adversarial", "authorship_verification", "authorship_retrieval"]),
-    ("summary_features", ["genre", "register", "style_vs_content", "time", "demographics", "predefined_features", "dialect", "idiolect"]),
+# Format: (sheet_name, [avg_cluster, ...]) or
+#         (sheet_name, [avg_cluster, ...], [extra_cluster, ...])
+# Clusters listed in avg contribute to the `average` column; extras are
+# shown in the sheet but excluded from that average.
+AGGREGATE_SHEETS: List[Tuple] = [
+    ("summary_tasks",
+     ["machine_text_detection", "machine_text_detection_adversarial", "authorship_verification", "authorship_retrieval"],
+     ["authorship_verification_easy", "authorship_verification_medium", "authorship_verification_hard"]),
+    ("summary_features", ["genre", "register", "style_vs_content", "time", "demographics", "feature_probing", "predefined_features", "dialect"]),
 ]
 
 # Model categories for ranking plot. Models not listed get "other" styling.

@@ -73,7 +73,7 @@ def load_m4(
         if not rows or "human_text" not in rows[0]:
             continue
 
-        model = rows[0].get("model", fname) #   One model per file
+        model = rows[0].get("model", fname) 
         is_list_domain = domain in _LIST_VALUED_DOMAINS
 
         for row in rows:

@@ -81,8 +81,10 @@ def discover_scores(
         results_dir: Path to the root results directory.
         task_name: The CLI task name (e.g. 'clustering').
         primary_metric: The metric to extract from metrics.json.
-        episode_params: Episode params filter like '1_50'. If None, picks the
-            first episode params found per dataset-model pair.
+        episode_params: Episode params filter like '1_50'. If the value
+            ends with '_' (e.g. '1_') it is treated as a prefix filter on
+            episode size. If None, picks the first episode params found
+            per dataset-model pair.
         include_excluded: If True, include semantic and non-English datasets.
         allowed_models: If provided, only include models in this set.
 
@@ -117,8 +119,12 @@ def discover_scores(
             for ep_dir in sorted(model_dir.iterdir()):
                 if not ep_dir.is_dir():
                     continue
-                if episode_params and ep_dir.name != episode_params:
-                    continue
+                if episode_params:
+                    if episode_params.endswith("_"):
+                        if not ep_dir.name.startswith(episode_params):
+                            continue
+                    elif ep_dir.name != episode_params:
+                        continue
 
                 metrics_file = ep_dir / task_name / "metrics.json"
                 if not metrics_file.exists():

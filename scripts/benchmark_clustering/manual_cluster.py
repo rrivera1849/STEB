@@ -154,7 +154,13 @@ def build_manual_cluster_tables(
             for each task (so manual cluster tables stay deterministic
             instead of silently mixing every ep_config that exists on
             disk).
-        include_excluded: If True, include semantic and non-English datasets.
+        include_excluded: If True, include semantic and non-English datasets
+            in the auto-cluster path. Ignored here — manual clusters always
+            see every dataset, because cluster entries explicitly list which
+            datasets contribute. Only datasets named in a cluster appear in
+            its table, so previously-excluded datasets (e.g. non-English PAN)
+            can be analyzed via dedicated clusters without leaking into other
+            clusters or the auto-cluster path.
         complete_datasets: If True, within each cluster column (a
             ``task (metric)`` slot), drop datasets that not all models
             have results for.
@@ -167,7 +173,8 @@ def build_manual_cluster_tables(
           - A dict mapping cluster name to a dict of column name to
             list of dataset names included in that column.
     """
-    all_scores = discover_all_scores(results_dir, include_excluded, allowed_models)
+    del include_excluded
+    all_scores = discover_all_scores(results_dir, True, allowed_models)
     if not all_scores:
         return {}, {}
 
