@@ -100,10 +100,12 @@ def get_model(
     """
     Loads a STEB model.
 
-    Dispatches to a registered model class by matching the prefix of
-    ``model_name_or_path`` (the part before ``":"``) against each class's
-    ``supported_models`` list. Falls back to :class:`HFModel` when nothing
-    matches.
+    Dispatches in three stages:
+      1. Match the prefix of ``model_name_or_path`` (the part before ``":"``)
+         against each registered class's ``supported_models`` list.
+      2. If nothing matched, inspect the HuggingFace config and route
+         auto-regressive LMs to :class:`CausalModel`.
+      3. Otherwise fall back to :class:`HFModel`.
 
     Args:
         model_name_or_path: The name or path of the model to load.
@@ -121,14 +123,14 @@ def get_model(
     # Allow models to be referenced with prefixes, e.g. "lftk:config.yaml" or
     # "tfidfngrams:/path/to/vectorizers.pkl" by matching on the part before ":".
     prefix = model_name_or_path.split(":", 1)[0]
-    model_class = None
     for model_cls in registry.values():
         if prefix in getattr(model_cls, "supported_models", []):
-            model_class = model_cls
-            break
-    if model_class is None:
-        model_class = registry["hf"]
-    return model_class(model_name_or_path, **kwargs)
+            return model_cls(model_name_or_path, **kwargs)
+
+    if _is_causal_model(model_name_or_path):
+        return registry["causal"](model_name_or_path, **kwargs)
+
+    return registry["hf"](model_name_or_path, **kwargs)
 
 
 def get_all_datasets() -> List[str]:

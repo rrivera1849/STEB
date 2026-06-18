@@ -154,8 +154,8 @@ STEB supports several model types:
 - **Causal models** (`CausalModel`): Auto-regressive LMs (GPT-2, Llama, Mistral, etc.) using last-token pooling.
 - **LUAR models** (`LUARModel`): Dedicated support for LUAR-CRUD and LUAR-MUD.
 - **LISA models** (`LISAModel`): Dedicated support for LISA-family checkpoints.
-- **LFTK models** (`LFTKModel`): Stylometric feature models using features from the LFTK toolkit. Model name requires including the config file of features to be included, e.g., lftk:/STEB/configs/lftk/surface_pos.yaml.
-- **TF-IDF n-gram models** (`TFIDFNGModel`): TF-IDF-weighted character, token, and POS tag n-grams. Model name requires including the TF-IDF fitted vectorizer, e.g., tfidfngrams:/STEB/models/tfidfngrams_mud_subset_1-2grams.pkl.
+- **LFTK models** (`LFTKModel`): Stylometric feature models using features from the LFTK toolkit. Model name requires including the config file of features to be included, e.g., `lftk:configs/lftk/surface_pos.yaml`.
+- **TF-IDF n-gram models** (`TFIDFNGModel`): TF-IDF-weighted character, token, and POS tag n-grams. Model name requires including the TF-IDF fitted vectorizer, e.g., `tfidfngrams:models/tfidfngrams_mud_subset_1-2grams.pkl`.
 - **Function word model** (`FunctionWordFreqModel`): Frequencies of function words and function phrases.
 - **NeuroBiber model** (`NeurobiberModel`): NeuroBiber model based on 96 Biber features.
 - **Random baseline** (`RandomModel`): Returns random vectors per episode; useful as a chance-level baseline. Invoke with `steb random`.
@@ -166,7 +166,7 @@ Model type is auto-detected from the HuggingFace config. Encoder vs. causal rout
 
 1. Create a new file in `steb/models/` (e.g., `steb/models/my_model.py`).
 2. Inherit from `STEBModel` and implement `embed_multiple`.
-3. Register in `steb/models/__init__.py` by adding to `MODEL_REGISTRY`.
+3. Register in `steb/models/__init__.py` by adding it to the dict built inside `get_model_registry()`.
 
 ### Adding a New Dataset
 
