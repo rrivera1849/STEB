@@ -6,7 +6,7 @@ and returns them as embeddings for evaluation.
 
 import json
 import os
-from typing import List, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import spacy
@@ -91,13 +91,24 @@ class LFTKModel(STEBModel):
 
     supported_models = ["lftk"]
 
-    def __init__(self, model_name_or_path: str, spacy_model: str = "en_core_web_sm", batch_size: int = 200):
+    def __init__(
+        self,
+        model_name_or_path: str,
+        truncate: bool = False,
+        max_tokens: Optional[int] = None,
+        spacy_model: str = "en_core_web_sm",
+        batch_size: int = 200,
+    ):
         """
         Args:
             model_name_or_path: "lftk" for default features, or "lftk:path/to/config.yaml" for custom.
+            truncate: Accepted for API compatibility; ignored (LFTK reads the
+                full text via spaCy and does not use a token cap).
+            max_tokens: Accepted for API compatibility; ignored.
             spacy_model: spaCy pipeline for tokenization/parsing (used by LFTK).
             batch_size: Batch size for spaCy nlp.pipe when processing texts.
         """
+        del truncate, max_tokens
         self.model_name_or_path = model_name_or_path
         self._feature_keys = _resolve_feature_keys(model_name_or_path)
         self._spacy_model = spacy_model

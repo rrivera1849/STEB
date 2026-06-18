@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -20,6 +20,8 @@ class RandomModel(STEBModel):
     def __init__(
         self,
         model_name_or_path: str,
+        truncate: bool = False,
+        max_tokens: Optional[int] = None,
     ):
         """
         Initializes the RandomModel.
@@ -27,7 +29,11 @@ class RandomModel(STEBModel):
         Args:
             model_name_or_path: The model identifier; expected to be "random".
                 Stored so result paths are derived consistently with other models.
+            truncate: Accepted for API compatibility; ignored (RandomModel
+                does not tokenize input).
+            max_tokens: Accepted for API compatibility; ignored.
         """
+        del truncate, max_tokens
         self.model_name_or_path = model_name_or_path
 
     def embed_multiple(

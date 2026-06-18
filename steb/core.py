@@ -92,31 +92,43 @@ def _is_causal_model(model_name_or_path: str) -> bool:
     return False
 
 
-def get_model(model_name_or_path: str):
+def get_model(
+    model_name_or_path: str,
+    truncate: bool = False,
+    max_tokens: Optional[int] = None,
+):
     """
     Loads a STEB model.
 
-    Checks the supported_models lists first, then auto-detects whether the
-    model is a causal LM or an encoder model, and loads accordingly.
+    Dispatches to a registered model class by matching the prefix of
+    ``model_name_or_path`` (the part before ``":"``) against each class's
+    ``supported_models`` list. Falls back to :class:`HFModel` when nothing
+    matches.
 
     Args:
         model_name_or_path: The name or path of the model to load.
+        truncate: If True, truncate each text to the token cap instead of
+            chunking and mean-pooling. No-op for non-tokenizer models.
+        max_tokens: Optional per-text token cap, capped at the model's
+            native maximum. No-op for non-tokenizer models.
 
     Returns:
         An instance of a STEBModel.
     """
-    model_class = None
+    kwargs = {"truncate": truncate, "max_tokens": max_tokens}
+
     registry = get_model_registry()
     # Allow models to be referenced with prefixes, e.g. "lftk:config.yaml" or
     # "tfidfngrams:/path/to/vectorizers.pkl" by matching on the part before ":".
     prefix = model_name_or_path.split(":", 1)[0]
+    model_class = None
     for model_cls in registry.values():
         if prefix in getattr(model_cls, "supported_models", []):
             model_class = model_cls
             break
     if model_class is None:
         model_class = registry["hf"]
-    return model_class(model_name_or_path)
+    return model_class(model_name_or_path, **kwargs)
 
 
 def get_all_datasets() -> List[str]:
@@ -257,7 +269,6 @@ def _evaluate_submetrics(
             if y in label_set
         ]
 
-        #   Removing for now, but we want something more intelligent here.
         # I think Order Alignment is the only task where you can have one label.
         # unique_labels = set(y for _, y in filtered)
         # if len(unique_labels) < 2:
@@ -585,12 +596,20 @@ def evaluate(
             model_str = os.path.basename(os.path.dirname(model.model_name_or_path))
         dset_str = os.path.basename(dataset_name)
 
+        tokens_suffix = (
+            f"tokens_{model.effective_max_tokens}"
+            if getattr(model, "effective_max_tokens", None) is not None
+            else None
+        )
+
         # When n_episodes is not "auto", we can check for existing results early
         if resolved_n_episodes != "auto":
             scores_path = os.path.join(
                 output_folder, dset_str, model_str,
                 f"{episode_size}_{resolved_n_episodes}", current_task_name,
             )
+            if tokens_suffix is not None:
+                scores_path = os.path.join(scores_path, tokens_suffix)
             metrics_path = os.path.join(scores_path, "metrics.json")
             if (
                 not force_rerun
@@ -642,6 +661,8 @@ def evaluate(
                 output_folder, dset_str, model_str,
                 f"{episode_size}_{actual_n_episodes}", current_task_name,
             )
+            if tokens_suffix is not None:
+                scores_path = os.path.join(scores_path, tokens_suffix)
             metrics_path = os.path.join(scores_path, "metrics.json")
 
             # Check for existing results after resolving "auto"
