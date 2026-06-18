@@ -18,8 +18,8 @@ git clone https://github.com/rrivera1849/STEB.git
 cd STEB
 pip install -e .
 
-# Run an evaluation
-steb clustering "rrivera1849/LUAR-MUD" --dataset corpus-of-diverse-styles -e 5
+# Run the standard STEB benchmark (the configuration reported in the paper)
+steb "rrivera1849/LUAR-MUD"
 ```
 
 ```python

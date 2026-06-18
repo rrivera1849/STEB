@@ -10,6 +10,19 @@ from steb.presets import PRESETS, resolve_preset
 from steb.utils import RESULTS_DIR
 from steb.validation import validate_all_configs
 
+DEFAULT_PRESET = "benchmark"
+UTILITY_SUBCOMMANDS = {"validate", "new-dataset", "preview"}
+TASK_SUBCOMMANDS = {
+    "all",
+    "clustering",
+    "all_to_all_pair_classification",
+    "pre_defined_pair_classification",
+    "order_alignment",
+    "retrieval",
+    "probing",
+}
+KNOWN_SUBCOMMANDS = UTILITY_SUBCOMMANDS | TASK_SUBCOMMANDS
+
 
 def add_common_arguments(parser):
     """Adds common arguments to the parser."""
@@ -21,6 +34,8 @@ def add_common_arguments(parser):
     parser.add_argument("--force-rerun-oa", default=False, action="store_true", help="Re-run the order_alignment task only.")
     parser.add_argument("--progress-bar", default=False, action="store_true", help="Show a progress bar.")
     parser.add_argument("--seed", type=int, default=42, help="The random seed to use.")
+    parser.add_argument("--truncate", default=False, action="store_true", help="Truncate each text to the token cap instead of chunking and mean-pooling.")
+    parser.add_argument("--max-tokens", type=int, default=None, help="Per-text token cap. Capped at the model's native max. Default: model max.")
 
 
 def add_iteration_arguments(parser):
@@ -269,6 +284,18 @@ def main():
         run_preview()
         return
 
+    # If the first positional is not a known subcommand (and not a flag),
+    # treat it as a model name and default to the benchmark preset. This
+    # makes `steb <MODEL_NAME>` equivalent to `steb <MODEL_NAME> --preset benchmark`.
+    if (
+        len(sys.argv) >= 2
+        and sys.argv[1] not in KNOWN_SUBCOMMANDS
+        and not sys.argv[1].startswith("-")
+        and "--preset" not in sys.argv
+    ):
+        sys.argv.insert(1, "--preset")
+        sys.argv.insert(2, DEFAULT_PRESET)
+
     if "--preset" in sys.argv:
         parser = create_preset_parser()
         args = parser.parse_args()
@@ -276,7 +303,7 @@ def main():
         if not args.model_name_or_path:
             parser.error("the following arguments are required: model_name_or_path")
 
-        model = get_model(args.model_name_or_path)
+        model = get_model(args.model_name_or_path, truncate=args.truncate, max_tokens=args.max_tokens)
 
         try:
             preset_config = resolve_preset(args.preset)
@@ -372,7 +399,7 @@ def main():
     if not args.model_name_or_path:
         parser.error("the following arguments are required: model_name_or_path")
 
-    model = get_model(args.model_name_or_path)
+    model = get_model(args.model_name_or_path, truncate=args.truncate, max_tokens=args.max_tokens)
 
     if args.task == "all":
         datasets = get_all_datasets() if not args.dataset else [args.dataset]
