@@ -2,6 +2,18 @@
 
 STEB is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is modular and extensible, making it straightforward to add new models, datasets, and evaluation tasks.
 
+## Quick Start
+
+```bash
+git clone https://github.com/rrivera1849/STEB.git
+cd STEB
+pip install -e .
+./download_datasets.sh
+steb "rrivera1849/LUAR-MUD"
+```
+
+The final command runs the standard STEB benchmark — the configuration reported in the paper. See [Usage](#usage) for other run modes, or the sections below for installation, dataset, and configuration details.
+
 ## Installation
 
 ```bash
@@ -122,7 +134,7 @@ steb pre_defined_pair_classification rrivera1849/LUAR-MUD --dataset pan15_author
 
 Evaluates how well embeddings preserve the ordering of graded stylistic dimensions (e.g., formality levels). Given two text sets ordered by style intensity, the [Hungarian algorithm](https://en.wikipedia.org/wiki/Hungarian_algorithm) finds the optimal alignment between positions. This generalizes the STEL task.
 
-The task includes a **distractor variant** where items from one set are injected into another, testing robustness to style distractors. See the [Hungarian algorithm documentation](documentation/hungarian-algorithm.md) for details.
+The task includes a **distractor variant** where items from one set are injected into another, testing robustness to style distractors. See the [Hungarian algorithm documentation](docs/tasks/hungarian-algorithm.md) for details.
 
 **Metrics:** `acc_mean` (baseline alignment accuracy), `distractor_acc_mean` (accuracy with distractors).
 
