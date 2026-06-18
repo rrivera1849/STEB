@@ -14,6 +14,7 @@ from transformers.models.auto.modeling_auto import (
 
 from .dataset_loader import DatasetLoader
 from .models import get_model_registry
+from .models.lisa_model import is_lisa_model
 from .processors.base import Processor
 from .steb_datasets import DATASET_REGISTRY
 from .utils import RESULTS_DIR
@@ -100,12 +101,14 @@ def get_model(
     """
     Loads a STEB model.
 
-    Dispatches in three stages:
+    Dispatches in four stages:
       1. Match the prefix of ``model_name_or_path`` (the part before ``":"``)
          against each registered class's ``supported_models`` list.
-      2. If nothing matched, inspect the HuggingFace config and route
+      2. If the path points at a LISA checkpoint directory (detected via
+         :func:`is_lisa_model`), route to :class:`LISAModel`.
+      3. If nothing matched, inspect the HuggingFace config and route
          auto-regressive LMs to :class:`CausalModel`.
-      3. Otherwise fall back to :class:`HFModel`.
+      4. Otherwise fall back to :class:`HFModel`.
 
     Args:
         model_name_or_path: The name or path of the model to load.
@@ -126,6 +129,9 @@ def get_model(
     for model_cls in registry.values():
         if prefix in getattr(model_cls, "supported_models", []):
             return model_cls(model_name_or_path, **kwargs)
+
+    if is_lisa_model(model_name_or_path):
+        return registry["lisa"](model_name_or_path, **kwargs)
 
     if _is_causal_model(model_name_or_path):
         return registry["causal"](model_name_or_path, **kwargs)
