@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 import pickle
-from typing import List, Union, Tuple
+from typing import List, Optional, Tuple, Union
 import numpy as np
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -45,6 +45,8 @@ class TFIDFNGModel(STEBModel):
     def __init__(
         self,
         model_name_or_path: str,
+        truncate: bool = False,
+        max_tokens: Optional[int] = None,
         spacy_model: str = "en_core_web_sm",
         batch_size: int = 200,
         char_ngram_range: Tuple[int, int] = (3, 5),
@@ -56,6 +58,11 @@ class TFIDFNGModel(STEBModel):
             model_name_or_path:
                 The identifier used by STEB (e.g. `"tfidfngrams"` or
                 `"tfidfngrams:/path/to/vectorizers.pkl"`).
+            truncate:
+                Accepted for API compatibility; ignored (TF-IDF n-grams are
+                computed over the full text and do not use a token cap).
+            max_tokens:
+                Accepted for API compatibility; ignored.
             spacy_model:
                 spaCy pipeline for tokenization and POS tagging.
             batch_size:
@@ -63,6 +70,7 @@ class TFIDFNGModel(STEBModel):
             char_ngram_range, tok_ngram_range, pos_ngram_range:
                 n-gram ranges for the three TF-IDF vectorizers.
         """
+        del truncate, max_tokens
         self.model_name_or_path = model_name_or_path
 
         self._spacy_model = spacy_model

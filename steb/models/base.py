@@ -1,11 +1,30 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from termcolor import colored
 from transformers import AutoModel, AutoTokenizer
 
 DEFAULT_MAX_LENGTH = 512
+
+
+def resolve_token_limit(
+    model_max: int,
+    max_tokens: Optional[int],
+) -> int:
+    """Compute the effective per-text token cap.
+
+    Args:
+        model_max: The model's native maximum sequence length.
+        max_tokens: User-specified cap, or None to use the model's max.
+
+    Returns:
+        ``min(max_tokens, model_max)`` when ``max_tokens`` is set, else
+        ``model_max``.
+    """
+    if max_tokens is None:
+        return model_max
+    return min(max_tokens, model_max)
 
 
 def get_model_max_length(
@@ -56,7 +75,15 @@ def get_model_max_length(
 class STEBModel(ABC):
     """
     Abstract base class for text embedding models.
+
+    Subclasses that tokenize input may set ``effective_max_tokens`` in
+    their constructor to the resolved per-text token cap when the user
+    has opted into truncation mode or specified an explicit ``max_tokens``
+    cap. ``None`` means default chunk-and-pool behavior with no tagging.
     """
+
+    effective_max_tokens: Optional[int] = None
+
     @abstractmethod
     def embed_multiple(
         self,

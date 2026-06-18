@@ -8,12 +8,12 @@ Embeddings are sigmoid probabilities per feature, aggregated across 512-token
 
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 from tqdm import tqdm
 
-from .base import STEBModel
+from .base import STEBModel, resolve_token_limit
 
 DEFAULT_NEUROBIBER_ID = "Blablablab/neurobiber"
 CHUNK_WORDS = 512
@@ -45,7 +45,22 @@ class NeurobiberModel(STEBModel):
 
     supported_models = ["neurobiber", "Blablablab/neurobiber"]
 
-    def __init__(self, model_name_or_path: str):
+    def __init__(
+        self,
+        model_name_or_path: str,
+        truncate: bool = False,
+        max_tokens: Optional[int] = None,
+    ):
+        """
+        Args:
+            model_name_or_path: ``"neurobiber"``, ``"neurobiber:ORG/name"``, or a full HF id.
+            truncate: Accepted for API compatibility; Neurobiber always truncates
+                at the tokenizer cap, so this flag has no effect on its own.
+            max_tokens: Optional override for the per-chunk tokenizer cap. Capped at
+                ``TOKENIZER_MAX_LENGTH``. When set, tagged in the results path via
+                ``effective_max_tokens``.
+        """
+        del truncate
         if model_name_or_path.startswith("neurobiber:"):
             _, hf_id = model_name_or_path.split(":", 1)
             hf_id = hf_id.strip() or DEFAULT_NEUROBIBER_ID
@@ -65,7 +80,9 @@ class NeurobiberModel(STEBModel):
         self.model.eval()
         self._num_labels = int(self.model.config.num_labels)
         self._chunk_words = CHUNK_WORDS
-        self._max_length = TOKENIZER_MAX_LENGTH
+        self._max_length = resolve_token_limit(TOKENIZER_MAX_LENGTH, max_tokens)
+        if max_tokens is not None:
+            self.effective_max_tokens = self._max_length
 
     def _predict_proba_for_strings(
         self,

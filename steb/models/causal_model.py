@@ -1,11 +1,11 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import torch
 from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
 
-from .base import STEBModel, get_model_max_length
+from .base import STEBModel, get_model_max_length, resolve_token_limit
 from .chunking import chunk_text
 from .hf_model import _aggregate_chunks
 
@@ -47,12 +47,21 @@ class CausalModel(STEBModel):
     """
     supported_models = []
 
-    def __init__(self, model_name_or_path: str):
+    def __init__(
+        self,
+        model_name_or_path: str,
+        truncate: bool = False,
+        max_tokens: Optional[int] = None,
+    ):
         """
         Initializes the CausalModel.
 
         Args:
             model_name_or_path: The name or path of the causal language model.
+            truncate: If True, truncate each text to the token cap instead
+                of chunking and mean-pooling.
+            max_tokens: Optional per-text token cap. Capped at the model's
+                native maximum (and at ``MAX_CAUSAL_LENGTH``).
         """
         self.model_name_or_path = model_name_or_path
         self.model = AutoModel.from_pretrained(model_name_or_path, trust_remote_code=True)
@@ -65,6 +74,13 @@ class CausalModel(STEBModel):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.model.eval()
+
+        self.truncate = truncate
+        self.max_tokens = max_tokens
+        model_max = min(get_model_max_length(self.model, self.tokenizer), MAX_CAUSAL_LENGTH)
+        self._resolved_max_length = resolve_token_limit(model_max, max_tokens)
+        if truncate or max_tokens is not None:
+            self.effective_max_tokens = self._resolved_max_length
 
     @torch.inference_mode()
     def embed_multiple(
@@ -90,14 +106,18 @@ class CausalModel(STEBModel):
         lengths = [len(x) for x in episodes]
         texts = [text for episode in episodes for text in episode]
 
-        max_length = min(get_model_max_length(self.model, self.tokenizer), MAX_CAUSAL_LENGTH)
+        max_length = self._resolved_max_length
 
-        all_chunks = []
-        chunks_per_text = []
-        for text in texts:
-            chunks = chunk_text(text, self.tokenizer, max_length)
-            all_chunks.extend(chunks)
-            chunks_per_text.append(len(chunks))
+        if self.truncate:
+            all_chunks = list(texts)
+            chunks_per_text = [1] * len(texts)
+        else:
+            all_chunks = []
+            chunks_per_text = []
+            for text in texts:
+                chunks = chunk_text(text, self.tokenizer, max_length)
+                all_chunks.extend(chunks)
+                chunks_per_text.append(len(chunks))
 
         iterator = range(0, len(all_chunks), batch_size)
         if show_progress:

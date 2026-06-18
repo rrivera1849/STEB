@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
@@ -31,7 +31,19 @@ class FunctionWordFreqModel(STEBModel):
 
     supported_models = ["functionwordfreq"]
 
-    def __init__(self, model_name_or_path: str) -> None:
+    def __init__(
+        self,
+        model_name_or_path: str,
+        truncate: bool = False,
+        max_tokens: Optional[int] = None,
+    ) -> None:
+        """
+        Args:
+            model_name_or_path: The model identifier; expected to be "functionwordfreq".
+            truncate: Accepted for API compatibility; ignored (no tokenizer cap).
+            max_tokens: Accepted for API compatibility; ignored.
+        """
+        del truncate, max_tokens
         self.model_name_or_path = model_name_or_path
         prefix = model_name_or_path.split(":", 1)[0]
         if prefix != "functionwordfreq":
