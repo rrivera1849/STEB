@@ -252,6 +252,9 @@ def analyze_task(
     df.to_csv(scores_path)
     print(f"  Saved score matrix: {scores_path}")
 
+    if len(df.columns) == 0:
+        print(f"  No complete datasets for this task. Skipping.")
+        return None
     if len(df.columns) < 2:
         print(f"  Only {len(df.columns)} dataset(s). Skipping clustering, using raw scores.")
         task_score = df.iloc[:, 0]
@@ -376,8 +379,52 @@ def _get_bar_color(
 # Short display names for models with long identifiers.
 _DISPLAY_NAMES: Dict[str, str] = {
     "e5-mistral-7b-instruct": "e5-mistral-7b",
-    "lisa_checkpoint": "LISA"
+    "lisa_checkpoint": "LISA",
+    "Style-Embedding": "CISR",
+    "multilingual-style-representation": "MSR",
+    "styledistance": "StyleDistance",
+    "mstyledistance": "mStyleDistance",
+    "star": "STAR",
+    "e5-base-v2": "E5-base-v2",
+    "e5-large-v2": "E5-large-v2",
+    "gte-large-en-v1.5": "GTE-large-en-v1.5",
+    "gte-base-en-v1.5": "GTE-base-en-v1.5",
+    "jina-embeddings-v3": "Jina-embeddings-v3",
+    "bge-large-en-v1.5": "BGE-large-en-v1.5",
+    "bge-base-en-v1.5": "BGE-base-en-v1.5",
 }
+
+
+def _count_rendered_rows(
+    steb_scores: pd.Series,
+    grouped: bool,
+) -> float:
+    """Count vertical rows the ranking plot will actually render.
+
+    Mirrors the filtering and gap logic in `_plot_ranking_bars` so figure
+    height can be sized to the rendered output rather than the input model
+    count. In grouped mode, "other"-category models are dropped and a
+    half-row gap is inserted between each pair of adjacent groups.
+
+    Args:
+        steb_scores: Series of STEB scores indexed by model name.
+        grouped: Whether the grouped layout will be used.
+
+    Returns:
+        The number of rendered rows (may be fractional due to gaps).
+    """
+    if not grouped:
+        return float(len(steb_scores))
+
+    categories_map = {m: _get_display_category(m) for m in steb_scores.index}
+    sizes = [
+        sum(1 for m in steb_scores.index if categories_map[m] == cat)
+        for cat in _DISPLAY_ORDER
+    ]
+    non_empty = [s for s in sizes if s > 0]
+    if not non_empty:
+        return 0.0
+    return sum(non_empty) + 0.5 * (len(non_empty) - 1)
 
 
 def _plot_ranking_bars(
@@ -430,10 +477,10 @@ def _plot_ranking_bars(
                 label = _DISPLAY_NAMES.get(model, model)
                 ax.text(
                     x_min + 0.005, y_pos[i], label,
-                    va="center", ha="left", fontsize=14, fontweight="bold",
+                    va="center", ha="left", fontsize=10, fontweight="bold",
                     color="white",
                 )
-                ax.text(val + 0.005, y_pos[i], f"{val:.3f}", va="center", fontsize=14)
+                ax.text(val + 0.005, y_pos[i], f"{val * 100:.2f}", va="center", fontsize=10)
 
             # Vertical line at the best score in this category
             best_val = scores.max()
@@ -444,7 +491,7 @@ def _plot_ranking_bars(
 
             y_ticks.extend(y_pos)
             y_labels.extend([""] * n)
-            y_offset += n + 1
+            y_offset += n + 0.5
 
         ax.set_yticks(y_ticks)
         ax.set_yticklabels(y_labels)
@@ -460,21 +507,21 @@ def _plot_ranking_bars(
             label = _DISPLAY_NAMES.get(model, model)
             ax.text(
                 x_min + 0.005, i, label,
-                va="center", ha="left", fontsize=14, fontweight="bold",
+                va="center", ha="left", fontsize=10, fontweight="bold",
                 color="white",
             )
-            ax.text(val + 0.005, i, f"{val:.3f}", va="center", fontsize=14)
+            ax.text(val + 0.005, i, f"{val * 100:.2f}", va="center", fontsize=10)
         ax.set_yticks(y_pos)
         ax.set_yticklabels([""] * n)
         present = sorted(set(categories))
 
-    ax.set_xlabel("STEB Score", fontsize=18)
-    ax.set_title("STEB Score", fontsize=20)
-    ax.tick_params(axis="x", labelsize=14)
+    ax.set_xlabel("STEB Score", fontsize=12)
+    ax.set_title("STEB Score", fontsize=14)
+    ax.tick_params(axis="x", labelsize=10)
 
     legend_handles = [Patch(facecolor=_CATEGORY_COLORS[c], label=c) for c in present]
-    ax.legend(handles=legend_handles, loc="lower right", fontsize=14)
-    ax.set_xlim(x_min, steb_scores.max() * 1.12)
+    ax.legend(handles=legend_handles, loc="lower right", fontsize=10)
+    ax.set_xlim(x_min, steb_scores.max() * 1.06)
 
 
 def plot_model_ranking(
@@ -492,11 +539,11 @@ def plot_model_ranking(
     """
     os.makedirs(output_dir, exist_ok=True)
     paths = []
-    n = len(steb_scores)
 
     for grouped, filename in [(False, "ranking.png"), (True, "ranking_grouped.png")]:
+        rendered_rows = _count_rendered_rows(steb_scores, grouped=grouped)
         path = os.path.join(output_dir, filename)
-        fig, ax = plt.subplots(figsize=(10, max(4, n * 0.45)))
+        fig, ax = plt.subplots(figsize=(7, max(4, rendered_rows * 0.45)))
         _plot_ranking_bars(steb_scores, ax, grouped=grouped)
         fig.tight_layout()
         fig.savefig(path, dpi=150)

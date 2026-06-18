@@ -3,6 +3,7 @@ rrivera1849/LUAR-MUD
 rrivera1849/LUAR-CRUD
 StyleDistance/styledistance
 StyleDistance/mstyledistance
+StyleDistance/styledistance_synthetic_only
 Blablablab/multilingual-style-representation
 AnnaWegmann/Style-Embedding
 AIDA-UPM/star
@@ -10,13 +11,10 @@ lisa_checkpoint
 
 # General Sentence Embedders (Semantic)
 sentence-transformers/all-mpnet-base-v2
-Alibaba-NLP/gte-base-en-v1.5
-Alibaba-NLP/gte-large-en-v1.5
 intfloat/e5-base-v2
 intfloat/e5-large-v2
 BAAI/bge-base-en-v1.5
 BAAI/bge-large-en-v1.5
-jinaai/jina-embeddings-v3
 Qwen/Qwen3-Embedding-8B
 
 # MLM Models
@@ -35,3 +33,12 @@ Qwen/Qwen3-0.6B-Base
 Qwen/Qwen3.5-0.8B-Base
 Qwen/Qwen3.5-2B-Base
 Qwen/Qwen3.5-4B-Base
+
+# Baselines
+neurobiber
+surface_pos.yaml
+tfidfngrams_fineweb_sample10bt_1-2grams.pkl
+tfidfngrams_fineweb_sample10bt_1-3grams.pkl
+tfidfngrams_mud_subset_1-2grams.pkl
+tfidfngrams_mud_subset_1-3grams.pkl
+functionwordfreq
