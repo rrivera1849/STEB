@@ -57,7 +57,7 @@ steb.evaluate(
     datasets=["corpus-of-diverse-styles"],
     episode_sizes=[1, 5],
     task_name="clustering",         # None to run all tasks
-    n_episodes_per_class=50,
+    n_episodes_per_class=None,      # None uses per-task default; or pass an int / "auto"
     batch_size=32,
     force_reload=False,
     progress_bar=True,
@@ -66,4 +66,12 @@ steb.evaluate(
 )
 ```
 
-Results are saved as JSON to `{output_folder}/{dataset}/{model}/{episode_size}_{n_episodes_per_class}/{task}/metrics.json`.
+When `episode_sizes` or `n_episodes_per_class` is `None`, the per-task defaults defined in `steb.core.TASK_DEFAULTS` are used.
+
+Results are saved as JSON to:
+
+```
+{output_folder}/{dataset}/{model_basename}/{episode_size}_{n_episodes_per_class}/{task}/metrics.json
+```
+
+A per-run log is also written to `{output_folder}/logs/`.

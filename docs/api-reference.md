@@ -12,6 +12,8 @@
 
 ::: steb.core.evaluate
 
+::: steb.core.preview
+
 ## Base Model
 
 ::: steb.models.base.STEBModel

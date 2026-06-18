@@ -58,21 +58,26 @@ raw_datasets_dir = /path/to/your/raw_datasets
 ### CLI
 
 ```bash
-# List datasets for a task
-steb clustering --list-datasets
+# Run the standard STEB benchmark (the configuration reported in the paper)
+steb "rrivera1849/LUAR-MUD"
 
-# Run all tasks on all datasets (uses per-task defaults)
-steb all "rrivera1849/LUAR-MUD"
+# Run with a different preset
+steb --preset fast "rrivera1849/LUAR-MUD"
 
 # Run a specific task on a specific dataset
 steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam"
 
+# Run all tasks on all datasets (uses per-task defaults)
+steb all "rrivera1849/LUAR-MUD"
+
 # Override episode size (clustering, all_to_all_pair_classification, order_alignment)
 steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam" -e 1 2 5
 
-# Run with a preset configuration
-steb --preset fast "rrivera1849/LUAR-MUD"
+# List datasets for a task
+steb clustering --list-datasets
 ```
+
+`steb <MODEL>` with no task is equivalent to `steb <MODEL> --preset benchmark`, the canonical configuration reported in the paper.
 
 ### Utility Commands
 
@@ -148,11 +153,12 @@ STEB supports several model types:
 - **Encoder models** (`HFModel`): Bidirectional transformers (BERT, RoBERTa, etc.) using mean pooling.
 - **Causal models** (`CausalModel`): Auto-regressive LMs (GPT-2, Llama, Mistral, etc.) using last-token pooling.
 - **LUAR models** (`LUARModel`): Dedicated support for LUAR-CRUD and LUAR-MUD.
+- **LISA models** (`LISAModel`): Dedicated support for LISA-family checkpoints.
 - **LFTK models** (`LFTKModel`): Stylometric feature models using features from the LFTK toolkit. Model name requires including the config file of features to be included, e.g., lftk:/STEB/configs/lftk/surface_pos.yaml.
 - **TF-IDF n-gram models** (`TFIDFNGModel`): TF-IDF-weighted character, token, and POS tag n-grams. Model name requires including the TF-IDF fitted vectorizer, e.g., tfidfngrams:/STEB/models/tfidfngrams_mud_subset_1-2grams.pkl.
 - **Function word model** (`FunctionWordFreqModel`): Frequencies of function words and function phrases.
 - **NeuroBiber model** (`NeurobiberModel`): NeuroBiber model based on 96 Biber features.
-
+- **Random baseline** (`RandomModel`): Returns random vectors per episode; useful as a chance-level baseline. Invoke with `steb random`.
 
 Model type is auto-detected from the HuggingFace config. Encoder vs. causal routing happens automatically in `get_model()`.
 
