@@ -11,4 +11,7 @@
 #   run_command: steb "rrivera1849/LUAR-MUD"
 #   contributor: rrivera1849
 
-[]
+- short_name: validation-test-model
+  hf_id: steb-tests/validation-test-model
+  run_command: steb "steb-tests/validation-test-model"
+  contributor: rrivera1849
