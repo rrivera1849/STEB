@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 from datasets import load_dataset
 from termcolor import colored
 
-from .utils import CACHE_DIR, PROCESSED_DATA_DIR, RAW_DATASETS_DIR
+from .utils import PROCESSED_DATA_DIR, RAW_DATASETS_DIR
 
 
 def record_handler(
@@ -125,7 +125,6 @@ class DatasetLoader:
 
         if self.config["type"] == "huggingface":
             loader_kwargs = dict(self.config["loader_kwargs"])
-            loader_kwargs["cache_dir"] = CACHE_DIR
             dataset_iter = load_dataset(**loader_kwargs)
         elif self.config["type"] == "custom":
             loader_module = importlib.import_module(loader_module_name)

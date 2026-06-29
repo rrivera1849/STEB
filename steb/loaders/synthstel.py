@@ -3,8 +3,6 @@ from typing import Any, Dict, List, Optional
 
 from datasets import load_dataset
 
-from steb.utils import CACHE_DIR
-
 
 def synthstel_record_handler(example: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
@@ -113,7 +111,7 @@ def load_synthstel(
 
     # Load both upstream splits and concatenate.
     # All 40 features x (90 train + 10 test) = 4000 pairs
-    ds = load_dataset("StyleDistance/synthstel", split="train+test", cache_dir=CACHE_DIR)
+    ds = load_dataset("StyleDistance/synthstel", split="train+test")
 
     records: List[Dict[str, Any]] = []
     for example in ds:

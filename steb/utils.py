@@ -1,6 +1,9 @@
 """
 This module reads the application's configuration from environment variables,
-config files, or defaults, and sets up global variables for the cache and processed data directories.
+config files, or defaults, and sets up global variables for the processed data,
+results, and raw datasets directories. The HuggingFace ``load_dataset`` cache is
+left to HuggingFace itself (configurable via the standard ``HF_DATASETS_CACHE``
+and ``HF_HOME`` environment variables).
 """
 import os
 import configparser
@@ -8,7 +11,6 @@ from pathlib import Path
 from termcolor import cprint
 
 # Defaults
-DEFAULT_CACHE_DIR = os.path.join(Path.home(), ".cache", "steb")
 DEFAULT_PROCESSED_DATA_DIR = os.path.join(Path.home(), ".local", "share", "steb", "processed_datasets")
 DEFAULT_RESULTS_DIR = "results" # Relative to CWD
 # DEFAULT_RAW_DATASETS_DIR is relative to CWD (repository root), matching the README expectation of ./raw_datasets
@@ -43,13 +45,10 @@ def get_config_value(
 
     return default
 
-CACHE_DIR = get_config_value("STEB_CACHE_DIR", "Application_Paths", "cache_dir", DEFAULT_CACHE_DIR)
 PROCESSED_DATA_DIR = get_config_value("STEB_PROCESSED_DATA_DIR", "Application_Paths", "processed_dataset_dir", DEFAULT_PROCESSED_DATA_DIR)
 RESULTS_DIR = get_config_value("STEB_RESULTS_DIR", "Application_Paths", "results_dir", DEFAULT_RESULTS_DIR)
 RAW_DATASETS_DIR = get_config_value("STEB_RAW_DATASETS_DIR", "Application_Paths", "raw_datasets_dir", DEFAULT_RAW_DATASETS_DIR)
 
-cprint("Cache directory: ", "blue", end="")
-cprint(CACHE_DIR, "white", "on_blue")
 cprint("Processed data directory: ", "blue", end="")
 cprint(PROCESSED_DATA_DIR, "white", "on_blue")
 cprint("Results directory: ", "blue", end="")
@@ -58,6 +57,5 @@ cprint("Raw datasets directory: ", "blue", end="")
 cprint(RAW_DATASETS_DIR, "white", "on_blue")
 
 # Ensure directories exist (except valid raw_datasets which must be provided by user or exist)
-os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
 # We don't verify RAW_DATASETS_DIR here as it might not be needed for all commands (e.g. if dataset is already processed)
