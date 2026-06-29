@@ -111,6 +111,31 @@ AGGREGATE_SHEETS: List[Tuple] = [
     ("summary_features", ["genre", "register", "style_vs_content", "time", "demographics", "feature_probing", "predefined_features", "dialect"]),
 ]
 
+# Definitional STEB score (Wegmann et al. 2026, cf. paper §3.3 + appendix
+# `tab:dataset-style-score` / `tab:attribute-clusters`). Mirrors the paper's
+# table column-for-column: the six Object of Study sub-clusters as their own
+# columns, then their average, then Linguistic Features, Content Independence,
+# and the final Definitional score (average of the three axis-level columns).
+#
+# Each entry is ``(column_name, kind, payload)`` where ``kind`` is:
+#   "cluster"  – column = mean over the named manual cluster's datasets
+#   "subaxes"  – column = mean of the listed columns already computed above
+DEFINITIONAL_SHEET_NAME = "STEB_definitional"
+DEFINITIONAL_COLUMNS: List[Tuple[str, str, object]] = [
+    ("Genre", "cluster", "genre"),
+    ("Register", "cluster", "register"),
+    ("Time", "cluster", "time"),
+    ("Demographics", "cluster", "demographics"),
+    ("Dialect", "cluster", "dialect"),
+    ("Idiolect", "cluster", "idiolect"),
+    ("Object of Study", "subaxes",
+     ["Genre", "Register", "Time", "Demographics", "Dialect", "Idiolect"]),
+    ("Linguistic Features", "cluster", "predefined_features"),
+    ("Content Independence", "cluster", "style_vs_content"),
+    ("Definitional score", "subaxes",
+     ["Object of Study", "Linguistic Features", "Content Independence"]),
+]
+
 # Model categories for ranking plot. Models not listed get "other" styling.
 MODEL_CATEGORIES: Dict[str, List[str]] = {
     "style": [

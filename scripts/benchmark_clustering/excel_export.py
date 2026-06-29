@@ -3,7 +3,13 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from .config import AGGREGATE_SHEETS, OA_VARIANT_METRICS, TASK_METRICS
+from .config import (
+    AGGREGATE_SHEETS,
+    DEFINITIONAL_COLUMNS,
+    DEFINITIONAL_SHEET_NAME,
+    OA_VARIANT_METRICS,
+    TASK_METRICS,
+)
 from .discovery import _warn_missing_metric, discover_all_scores
 
 
@@ -64,8 +70,17 @@ def export_excel(
     Sheets:
       - "scores": one row per (dataset, task, episode_config) with per-model
         metric values. Best per row is bold, second best is underlined.
-      - "summary": cluster-aware aggregated scores per model per task
-        (if --task or --all-tasks was used). Includes a "# datasets" row.
+      - "STEB_operational": cluster-aware aggregated scores per model per
+        task — the Operational STEB score (if --task or --all-tasks was
+        used). Includes a "# datasets" row.
+      - "STEB_definitional": the Definitional STEB score column-for-column
+        as in the paper. Six Object-of-Study sub-clusters (Genre, Register,
+        Time, Demographics, Dialect, Idiolect), the Object-of-Study average,
+        Linguistic Features, Content Independence, and the overall
+        Definitional score. No "# datasets" row (the paper's row counts
+        dataset families like "Blog" or "PASTEL"; the YAML enumerates their
+        per-split entries instead, so a faithful row would mismatch the
+        paper and confuse readers comparing to it).
       - "ranking": embedded model ranking plot (if ranking_plot_path provided).
       - One sheet per cluster named "mc_{cluster}" with manual cluster
         averages (if --manual-clusters was used). Best per column is bold,
@@ -171,10 +186,10 @@ def export_excel(
             n_datasets_df.index.name = "model"
             summary_df = pd.concat([n_datasets_df, summary_df])
 
-            summary_df.to_excel(writer, sheet_name="summary")
+            summary_df.to_excel(writer, sheet_name="STEB_operational")
 
             # Bold best, underline second best per column (skip # datasets row)
-            ws_summary = writer.sheets["summary"]
+            ws_summary = writer.sheets["STEB_operational"]
             # Data starts at row 3 (row 1 = header, row 2 = # datasets)
             for col_idx in range(2, len(summary_df.columns) + 2):  # skip index col
                 vals = []
@@ -183,6 +198,55 @@ def export_excel(
                     if isinstance(cell.value, (int, float)):
                         vals.append((cell.value, row_idx))
                 _highlight_best_cells(ws_summary, vals, bold_font, underline_font, "col", col_idx)
+
+        # Definitional STEB score sheet. Mirrors the paper's
+        # `tab:attribute-clusters` column-for-column: six Object-of-Study
+        # sub-clusters, then the Object-of-Study average, Linguistic
+        # Features, Content Independence, and the final Definitional score.
+        if manual_cluster_tables:
+            col_series: Dict[str, pd.Series] = {}
+            missing_clusters: List[Tuple[str, str]] = []
+
+            for col_name, kind, payload in DEFINITIONAL_COLUMNS:
+                if kind == "cluster":
+                    cluster_name = payload
+                    mc_df = manual_cluster_tables.get(cluster_name)
+                    if mc_df is None:
+                        missing_clusters.append((col_name, cluster_name))
+                        continue
+                    col_series[col_name] = mc_df.mean(axis=1)
+                elif kind == "subaxes":
+                    sub_names = [c for c in payload if c in col_series]
+                    if not sub_names:
+                        continue
+                    sub_df = pd.concat([col_series[c] for c in sub_names], axis=1)
+                    col_series[col_name] = sub_df.mean(axis=1)
+                else:
+                    raise ValueError(f"Unknown DEFINITIONAL_COLUMNS kind: {kind!r}")
+
+            if missing_clusters:
+                for col_name, cluster_name in missing_clusters:
+                    print(f"  Warning: '{DEFINITIONAL_SHEET_NAME}' column "
+                          f"'{col_name}' references missing cluster "
+                          f"'{cluster_name}', skipping it.")
+
+            if col_series:
+                def_df = pd.DataFrame(col_series)
+                def_df.index.name = "model"
+                def_df = def_df.round(4)
+
+                sheet_name = DEFINITIONAL_SHEET_NAME[:31]
+                def_df.to_excel(writer, sheet_name=sheet_name)
+
+                ws_def = writer.sheets[sheet_name]
+                # Bold best, underline second best per column.
+                for col_idx in range(2, len(def_df.columns) + 2):
+                    vals = []
+                    for row_idx in range(2, len(def_df) + 2):
+                        cell = ws_def.cell(row=row_idx, column=col_idx)
+                        if isinstance(cell.value, (int, float)):
+                            vals.append((cell.value, row_idx))
+                    _highlight_best_cells(ws_def, vals, bold_font, underline_font, "col", col_idx)
 
         # Embed ranking plots as sheets
         if ranking_plot_paths:
@@ -306,6 +370,12 @@ def export_excel(
         n_sheets += len(ranking_plot_paths)
     if manual_cluster_tables:
         n_sheets += len(manual_cluster_tables)
+        # Definitional sheet is also driven by manual_cluster_tables
+        if any(
+            kind == "cluster" and payload in manual_cluster_tables
+            for _name, kind, payload in DEFINITIONAL_COLUMNS
+        ):
+            n_sheets += 1
     if manual_cluster_tables and AGGREGATE_SHEETS:
         n_sheets += sum(
             1 for entry in AGGREGATE_SHEETS

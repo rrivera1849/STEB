@@ -75,6 +75,33 @@ authorship_verification:
     - pan26_style_change_hard
     - enron_authorship_corpus
 
+authorship_verification_easy:
+  description: "AV on possible content-entangled pairs."
+  datasets:
+    - pan22_style_change_basic
+    - pan23_style_change_easy
+    - pan24_style_change_easy
+    - pan25_style_change_easy
+    - pan26_style_change_easy
+
+authorship_verification_medium:
+  description: "AV on less content-entangled pairs."
+  datasets:
+    - pan22_style_change_advanced
+    - pan23_style_change_medium
+    - pan24_style_change_medium
+    - pan25_style_change_medium
+    - pan26_style_change_medium
+
+authorship_verification_hard:
+  description: "AV on least content-entangled pairs."
+  datasets:
+    - pan22_style_change_sentence
+    - pan23_style_change_hard
+    - pan24_style_change_hard
+    - pan25_style_change_hard
+    - pan26_style_change_hard
+
 authorship_retrieval:
   description: "Retrieving texts by the same author"
   datasets:
