@@ -1,0 +1,28 @@
+name: Validate model submission
+
+on:
+  pull_request:
+    paths:
+      - "SUBMISSIONS.yaml"
+      - "submitted_results/**"
+      - "scripts/models_all.txt"
+      - "scripts/validate_submission.py"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal deps
+        run: pip install pyyaml
+
+      - name: Run submission validator
+        run: python scripts/validate_submission.py
