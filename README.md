@@ -2,17 +2,7 @@
 
 STEB is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is modular and extensible, making it straightforward to add new models, datasets, and evaluation tasks.
 
-## Quick Start
-
-```bash
-git clone https://github.com/rrivera1849/STEB.git
-cd STEB
-pip install -e .
-./download_datasets.sh
-steb "rrivera1849/LUAR-MUD"
-```
-
-The final command runs the standard STEB benchmark — the configuration reported in the paper. See [Usage](#usage) for other run modes, or the sections below for installation, dataset, and configuration details.
+**[Leaderboard](https://rrivera1849.github.io/STEB/leaderboard/)** — current results for every benchmarked model under both the Operational and Definitional STEB scores. New submissions land here automatically when a contributor's PR merges; see [Submitting your model](#submitting-your-model) below.
 
 ## Installation
 
@@ -22,212 +12,121 @@ cd STEB
 python3 -m venv venv
 source venv/bin/activate
 pip install -e .
-```
-
-## Downloading Datasets
-
-Some datasets need to be downloaded before use. The `download_datasets.sh` script handles this:
-
-```bash
 ./download_datasets.sh
 ```
 
-The script skips datasets that have already been downloaded. Use `--purge` to force a clean re-download.
+The `download_datasets.sh` script invokes Python tools (`gdown`, etc.) declared in `requirements.txt`, so the venv must be active when running it. Use `--purge` to force a clean re-download.
 
-> **Note:** `download_datasets.sh` invokes Python tools (`gdown`, etc.) declared in `requirements.txt`, so run it with the project's environment active (i.e. after `pip install -r requirements.txt` in the venv you intend to use). Otherwise these helpers won't be importable and the script will fail.
+To download to a non-default location, pass the target directory as an argument. You then need to tell STEB where to look — either via the `STEB_RAW_DATASETS_DIR` environment variable or via `config.ini` (see [Configuration](#configuration)):
 
-There is also a special dataset download option for datasets requiring licenses or subscriptions, such as datasets from the Linguistic Data Consortium (e.g., Fisher for testing models on the modality of speech transcripts).
+```bash
+./download_datasets.sh /path/to/raw_datasets
+export STEB_RAW_DATASETS_DIR=/path/to/raw_datasets
+```
+
+Some datasets require licenses or subscriptions (e.g., LDC's Fisher corpus for speech transcripts) and have separate instructions in the [documentation](https://rrivera1849.github.io/STEB/).
+
+## Quick Start
+
+Run the standard STEB benchmark — the configuration reported in the paper:
+
+```bash
+steb "rrivera1849/LUAR-MUD"
+```
+
+Faster variants for smaller-scope runs:
+
+```bash
+steb --preset fast "rrivera1849/LUAR-MUD"
+steb --preset sanity "rrivera1849/LUAR-MUD"   # smoke test on dummy datasets
+```
+
+Run a specific task on a specific dataset — for example, the canonical PAN13 authorship verification benchmark:
+
+```bash
+steb pre_defined_pair_classification "rrivera1849/LUAR-MUD" \
+    --dataset pan13_authorship_verification_english_test
+```
+
+The same task is available in Greek and Spanish (`pan13_authorship_verification_greek_test`, `pan13_authorship_verification_spanish_test`), with broader coverage in PAN14 across multiple genres (Dutch and English essays, Dutch and English reviews, English novels, Greek articles, Spanish articles).
 
 ## Configuration
 
-By default, STEB looks for raw datasets in `./raw_datasets` relative to the working directory. To run from another directory, set the `STEB_RAW_DATASETS_DIR` environment variable:
+STEB resolves four directory paths from environment variables, a `config.ini` file, and built-in defaults. Resolution order is:
+
+1. Environment variable
+2. `./config.ini` (in the current working directory)
+3. `~/.steb/config.ini` (per-user fallback)
+4. Built-in default
+
+| Variable | `config.ini` key | Default | Description |
+|---|---|---|---|
+| `STEB_RAW_DATASETS_DIR` | `raw_datasets_dir` | `./raw_datasets` | Raw downloaded datasets |
+| `STEB_RESULTS_DIR` | `results_dir` | `./results` | Evaluation results |
+| `STEB_PROCESSED_DATA_DIR` | `processed_dataset_dir` | `~/.local/share/steb/processed_datasets` | Processed dataset cache |
+
+The HuggingFace `load_dataset` cache (used for HF-format datasets in the suite) is managed by HuggingFace itself; set `HF_DATASETS_CACHE` or `HF_HOME` to relocate it.
+
+### Environment variables
 
 ```bash
-export STEB_RAW_DATASETS_DIR="/path/to/your/raw_datasets"
+export STEB_RAW_DATASETS_DIR=/path/to/raw_datasets
+export STEB_RESULTS_DIR=/path/to/results
+export STEB_PROCESSED_DATA_DIR=/path/to/processed
 ```
 
-Other configurable paths (via environment variables or `config.ini`):
+### `config.ini`
 
-| Variable | Default | Description |
-|---|---|---|
-| `STEB_RESULTS_DIR` | `./results` | Where evaluation results are saved |
-| `STEB_CACHE_DIR` | `~/.cache/steb` | Embedding cache directory |
-| `STEB_PROCESSED_DATA_DIR` | `~/.local/share/steb/processed_datasets` | Processed dataset cache |
-| `STEB_RAW_DATASETS_DIR` | `./raw_datasets` | Raw downloaded datasets |
-
-These can also be set in a `config.ini` file (in the current directory or `~/.steb/config.ini`):
+Equivalent setup via `./config.ini` (project-local) or `~/.steb/config.ini` (user-wide):
 
 ```ini
 [Application_Paths]
-cache_dir = /path/to/your/cache
-processed_dataset_dir = /path/to/your/processed_datasets
-results_dir = /path/to/your/results
-raw_datasets_dir = /path/to/your/raw_datasets
+raw_datasets_dir = /path/to/raw_datasets
+results_dir = /path/to/results
+processed_dataset_dir = /path/to/processed_datasets
 ```
 
-## Usage
+## Documentation
 
-### CLI
+For the full reference — CLI flags, task descriptions, supported model types, dataset config schema, and guides for adding new models or datasets — see:
+
+**[STEB Documentation](https://rrivera1849.github.io/STEB/)** *(also browsable as Markdown under [`docs/`](docs/))*
+
+## Submitting your model
+
+To get your model on the [public leaderboard](https://rrivera1849.github.io/STEB/leaderboard/), the short version is:
 
 ```bash
-# Run the standard STEB benchmark (the configuration reported in the paper)
-steb "rrivera1849/LUAR-MUD"
-
-# Run with a different preset
-steb --preset fast "rrivera1849/LUAR-MUD"
-
-# Run a specific task on a specific dataset
-steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam"
-
-# Run all tasks on all datasets (uses per-task defaults)
-steb all "rrivera1849/LUAR-MUD"
-
-# Override episode size (clustering, all_to_all_pair_classification, order_alignment)
-steb clustering "rrivera1849/LUAR-MUD" --dataset "sms_spam" -e 1 2 5
-
-# List datasets for a task
-steb clustering --list-datasets
+./scripts/download_results.sh                                   # 1. fetch canonical baselines (~10 MB)
+STEB_RESULTS_DIR=./submitted_results steb "<org/your-model>"    # 2. run STEB into the community tree
+python -m scripts.benchmark_clustering                          # 3. regenerate scores.xlsx, see your model
+# 4. append a 4-key entry to SUBMISSIONS.yaml, add yourself to scripts/models_all.txt
+python scripts/validate_submission.py                           # 5. validate, then open the PR
 ```
 
-`steb <MODEL>` with no task is equivalent to `steb <MODEL> --preset benchmark`, the canonical configuration reported in the paper.
+The `SUBMISSIONS.yaml` entry is:
 
-### Utility Commands
-
-```bash
-# Validate all dataset config.json files
-steb validate
-
-# Scaffold a new dataset
-steb new-dataset my_dataset --type huggingface
-steb new-dataset my_dataset --type custom
+```yaml
+- short_name: <your-short-name>
+  hf_id: <org/your-model>
+  run_command: steb "<org/your-model>"
+  contributor: <your-github-handle>
 ```
 
-## Tasks
+Full reference (rationale, the auto-merge semantics with the maintainer-owned `results/` tree, the decisions log, what's intentionally not yet in scope): [`SUBMISSION.md`](SUBMISSION.md).
 
-### Clustering
+## Citation
 
-Evaluates how well embeddings form clusters that align with style-based class labels. Episodes are embedded and K-Means clustering is applied. Quality is measured using [V-measure](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.v_measure_score.html).
+If you use STEB in your research, please cite:
 
-```bash
-steb clustering rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles
-```
-
-### All-to-All Pair Classification
-
-Evaluates whether embeddings can distinguish same-class vs. different-class text groups using cosine similarity across all pairs.
-
-**Metrics:** EER (lower is better), AUC (higher is better), AUC@FPR at thresholds 0.01, 0.05, 0.10, 0.20, 0.30, 0.50.
-
-```bash
-steb all_to_all_pair_classification rrivera1849/LUAR-MUD --dataset corpus-of-diverse-styles
-```
-
-### Pre-defined Pair Classification
-
-Same as all-to-all, but operates on datasets with pre-defined pairs (e.g., authorship verification). Episode size and episodes-per-class are set automatically.
-
-```bash
-steb pre_defined_pair_classification rrivera1849/LUAR-MUD --dataset pan15_authorship_verification_english_test
-```
-
-### Order Alignment
-
-Evaluates how well embeddings preserve the ordering of graded stylistic dimensions (e.g., formality levels). Given two text sets ordered by style intensity, the [Hungarian algorithm](https://en.wikipedia.org/wiki/Hungarian_algorithm) finds the optimal alignment between positions. This generalizes the STEL task.
-
-The task includes a **distractor variant** where items from one set are injected into another, testing robustness to style distractors. See the [Hungarian algorithm documentation](docs/tasks/hungarian-algorithm.md) for details.
-
-**Metrics:** `acc_mean` (baseline alignment accuracy), `distractor_acc_mean` (accuracy with distractors).
-
-### Retrieval
-
-Evaluates how well embeddings retrieve style-matched texts. Given query and target sets, measures how well the correct target is ranked.
-
-**Metrics:** MRR, Mean Rank, Recall@K (K = 1, 8, 16, 32, 64, 128).
-
-```bash
-steb retrieval rrivera1849/LUAR-MUD --dataset <dataset_name>
-```
-
-For datasets with the standard JSONL format (`text`, `label`, `is_query` fields), use the default retrieval loader in `steb/loaders/retrieval.py`. See `steb/steb_datasets/dummy_retrieval/config.json` for an example.
-
-### Probing
-
-Trains a logistic regression probe on frozen embeddings to evaluate what linguistic properties are encoded. Uses train/val/test splits defined per-sample in the dataset.
-
-**Metrics:** Per-feature accuracy (e.g., `n_adj`, `n_adp`, ...) and `average` accuracy across all probing features.
-
-## Developer Guide
-
-### Supported Models
-
-STEB supports several model types:
-
-- **Encoder models** (`HFModel`): Bidirectional transformers (BERT, RoBERTa, etc.) using mean pooling.
-- **Causal models** (`CausalModel`): Auto-regressive LMs (GPT-2, Llama, Mistral, etc.) using last-token pooling.
-- **LUAR models** (`LUARModel`): Dedicated support for LUAR-CRUD and LUAR-MUD.
-- **LISA models** (`LISAModel`): Dedicated support for LISA-family checkpoints.
-- **LFTK models** (`LFTKModel`): Stylometric feature models using features from the LFTK toolkit. Model name requires including the config file of features to be included, e.g., `lftk:configs/lftk/surface_pos.yaml`.
-- **TF-IDF n-gram models** (`TFIDFNGModel`): TF-IDF-weighted character, token, and POS tag n-grams. Model name requires including the TF-IDF fitted vectorizer, e.g., `tfidfngrams:models/tfidfngrams_mud_subset_1-2grams.pkl`.
-- **Function word model** (`FunctionWordFreqModel`): Frequencies of function words and function phrases.
-- **NeuroBiber model** (`NeurobiberModel`): NeuroBiber model based on 96 Biber features.
-- **Random baseline** (`RandomModel`): Returns random vectors per episode; useful as a chance-level baseline. Invoke with `steb random`.
-
-Model type is auto-detected from the HuggingFace config. Encoder vs. causal routing happens automatically in `get_model()`.
-
-### Adding a New Model
-
-1. Create a new file in `steb/models/` (e.g., `steb/models/my_model.py`).
-2. Inherit from `STEBModel` and implement `embed_multiple`.
-3. Register in `steb/models/__init__.py` by adding it to the dict built inside `get_model_registry()`.
-
-### Adding a New Dataset
-
-The fastest way to add a dataset:
-
-```bash
-# Scaffold the directory and config
-steb new-dataset my_dataset --type huggingface
-
-# Edit the generated config.json (set path, split, tasks, etc.)
-
-# Validate your config
-steb validate
-```
-
-This creates `steb/steb_datasets/my_dataset/config.json` (and a stub `loader.py` for custom datasets). The dataset is automatically discovered once the config exists.
-
-#### Config Schema
-
-```json
-{
-  "dataset_name": "my_dataset",
-  "type": "huggingface",
-  "record_handler": {
-    "text_getter": "text",
-    "label_getter": "label"
-  },
-  "loader_kwargs": {
-    "path": "huggingface/dataset-id",
-    "split": "train"
-  },
-  "tasks": {
-    "clustering": {},
-    "all_to_all_pair_classification": {}
-  }
+```bibtex
+@article{TODO,
+  title  = {STEB: A Style Text Embedding Benchmark},
+  author = {Rivera Soto, Rafael A. and Wegmann, Anna and Aggazzotti, Cristina},
+  year   = {2025}
 }
 ```
 
-For custom datasets, replace `loader_kwargs` with `data_dir` and `loader_function`. See existing configs in `steb/steb_datasets/` for examples.
+## License
 
-**Loader location convention:**
-- Shared loaders (used by multiple datasets): `steb/loaders/`
-- Dataset-specific loaders: `steb/steb_datasets/<name>/loader.py`
-
-### Running Tests
-
-```bash
-pip install pytest
-python -m pytest tests/ -v
-```
-
-The test suite includes unit tests and integration tests that run every task type end-to-end on dummy datasets.
+STEB is released under the [Apache License 2.0](LICENSE).
