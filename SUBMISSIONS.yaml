@@ -1,0 +1,14 @@
+# STEB model submissions.
+#
+# Append your model as a new list entry with the four required keys. See
+# SUBMISSION.md for the full contribution flow. Order does not matter;
+# this list is append-only.
+#
+# Example entry (uncomment and adapt):
+#
+# - short_name: LUAR-MUD
+#   hf_id: rrivera1849/LUAR-MUD
+#   run_command: steb "rrivera1849/LUAR-MUD"
+#   contributor: rrivera1849
+
+[]

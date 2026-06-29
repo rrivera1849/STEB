@@ -6,11 +6,16 @@ top-level scalar metrics keyed by (dataset, task, episode_config) used
 by the manual-cluster and Excel-export paths. Two small consumer
 helpers (`_warn_missing_metric`, `_resolve_metric_for_entry`) live
 here too because they're shared between those downstream paths.
+
+Both discovery functions also scan a sibling ``submitted_results/`` tree
+at the repository root when it exists, merging community submissions
+into the same matrix. Maintainer-owned results win on collisions, so
+``submitted_results/`` can only add coverage, never overwrite it.
 """
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
@@ -23,6 +28,25 @@ from .config import (
     OA_VARIANT_METRICS,
     TASK_METRICS,
 )
+
+# Location of the community-submitted results tree, relative to the repo
+# root. ``benchmark_clustering`` auto-ingests this directory when it
+# exists; see SUBMISSION.md for the contribution flow.
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_SUBMITTED_RESULTS_DIR = _PROJECT_ROOT / "submitted_results"
+
+
+def _results_dirs_to_scan(results_dir: str) -> List[Path]:
+    """Return the ordered list of roots discovery should scan.
+
+    The maintainer-supplied ``results_dir`` comes first so it wins on any
+    (dataset, model, episode_config, task) collision with the
+    community-submitted tree.
+    """
+    roots = [Path(results_dir)]
+    if _SUBMITTED_RESULTS_DIR.exists() and _SUBMITTED_RESULTS_DIR != roots[0]:
+        roots.append(_SUBMITTED_RESULTS_DIR)
+    return roots
 
 
 def _warn_missing_metric(
@@ -93,51 +117,56 @@ def discover_scores(
     """
     supported_datasets = set(get_supported_datasets(task_name))
     scores: Dict[str, Dict[str, float]] = {}
-    results_path = Path(results_dir)
 
-    if not results_path.exists():
-        return pd.DataFrame()
-
-    for dataset_dir in sorted(results_path.iterdir()):
-        if not dataset_dir.is_dir():
+    for results_path in _results_dirs_to_scan(results_dir):
+        if not results_path.exists():
             continue
 
-        dataset_name = dataset_dir.name
-        if dataset_name not in supported_datasets:
-            continue
-        if not include_excluded and dataset_name in EXCLUDED_DATASETS:
-            continue
-
-        for model_dir in sorted(dataset_dir.iterdir()):
-            if not model_dir.is_dir():
-                continue
-            if model_dir.name in EXCLUDED_MODELS:
-                continue
-            if allowed_models is not None and model_dir.name not in allowed_models:
+        for dataset_dir in sorted(results_path.iterdir()):
+            if not dataset_dir.is_dir():
                 continue
 
-            for ep_dir in sorted(model_dir.iterdir()):
-                if not ep_dir.is_dir():
+            dataset_name = dataset_dir.name
+            if dataset_name not in supported_datasets:
+                continue
+            if not include_excluded and dataset_name in EXCLUDED_DATASETS:
+                continue
+
+            for model_dir in sorted(dataset_dir.iterdir()):
+                if not model_dir.is_dir():
                     continue
-                if episode_params:
-                    if episode_params.endswith("_"):
-                        if not ep_dir.name.startswith(episode_params):
+                if model_dir.name in EXCLUDED_MODELS:
+                    continue
+                if allowed_models is not None and model_dir.name not in allowed_models:
+                    continue
+
+                # First-write-wins on collision: a maintainer-supplied
+                # (model, dataset) score is not overwritten by a later root.
+                if scores.get(model_dir.name, {}).get(dataset_name) is not None:
+                    continue
+
+                for ep_dir in sorted(model_dir.iterdir()):
+                    if not ep_dir.is_dir():
+                        continue
+                    if episode_params:
+                        if episode_params.endswith("_"):
+                            if not ep_dir.name.startswith(episode_params):
+                                continue
+                        elif ep_dir.name != episode_params:
                             continue
-                    elif ep_dir.name != episode_params:
+
+                    metrics_file = ep_dir / task_name / "metrics.json"
+                    if not metrics_file.exists():
                         continue
 
-                metrics_file = ep_dir / task_name / "metrics.json"
-                if not metrics_file.exists():
-                    continue
+                    with open(metrics_file) as f:
+                        metrics = json.load(f)
 
-                with open(metrics_file) as f:
-                    metrics = json.load(f)
+                    if primary_metric not in metrics:
+                        continue
 
-                if primary_metric not in metrics:
-                    continue
-
-                scores.setdefault(model_dir.name, {})[dataset_name] = metrics[primary_metric]
-                break  # Take first matching episode params
+                    scores.setdefault(model_dir.name, {})[dataset_name] = metrics[primary_metric]
+                    break  # Take first matching episode params
 
     if not scores:
         return pd.DataFrame()
@@ -168,10 +197,6 @@ def discover_all_scores(
         A dict mapping (dataset, task, episode_config) to a dict mapping
         model name to that run's flat (scalar-only) metrics dict.
     """
-    results_path = Path(results_dir)
-    if not results_path.exists():
-        return {}
-
     # Build a map of dataset -> set of tasks it supports
     dataset_tasks: Dict[str, set] = {}
     for task_name in TASK_METRICS:
@@ -181,43 +206,52 @@ def discover_all_scores(
     # Collect: (dataset, task, episode_config) -> {model: metrics_dict}
     rows: Dict[Tuple[str, str, str], Dict[str, Dict[str, Any]]] = {}
 
-    for dataset_dir in sorted(results_path.iterdir()):
-        if not dataset_dir.is_dir():
+    for results_path in _results_dirs_to_scan(results_dir):
+        if not results_path.exists():
             continue
 
-        dataset_name = dataset_dir.name
-        if dataset_name not in dataset_tasks:
-            continue
-        if not include_excluded and dataset_name in EXCLUDED_DATASETS:
-            continue
-
-        for model_dir in sorted(dataset_dir.iterdir()):
-            if not model_dir.is_dir():
-                continue
-            if model_dir.name in EXCLUDED_MODELS:
-                continue
-            if allowed_models is not None and model_dir.name not in allowed_models:
+        for dataset_dir in sorted(results_path.iterdir()):
+            if not dataset_dir.is_dir():
                 continue
 
-            for ep_dir in sorted(model_dir.iterdir()):
-                if not ep_dir.is_dir():
+            dataset_name = dataset_dir.name
+            if dataset_name not in dataset_tasks:
+                continue
+            if not include_excluded and dataset_name in EXCLUDED_DATASETS:
+                continue
+
+            for model_dir in sorted(dataset_dir.iterdir()):
+                if not model_dir.is_dir():
+                    continue
+                if model_dir.name in EXCLUDED_MODELS:
+                    continue
+                if allowed_models is not None and model_dir.name not in allowed_models:
                     continue
 
-                for task_name in dataset_tasks[dataset_name]:
-                    metrics_file = ep_dir / task_name / "metrics.json"
-                    if not metrics_file.exists():
+                for ep_dir in sorted(model_dir.iterdir()):
+                    if not ep_dir.is_dir():
                         continue
 
-                    with open(metrics_file) as f:
-                        metrics = json.load(f)
+                    for task_name in dataset_tasks[dataset_name]:
+                        metrics_file = ep_dir / task_name / "metrics.json"
+                        if not metrics_file.exists():
+                            continue
 
-                    # Strip nested values (e.g. _per_label, submetrics) — only
-                    # top-level scalar metrics are needed by current consumers.
-                    top_level_metrics = {
-                        k: v for k, v in metrics.items() if not isinstance(v, dict)
-                    }
+                        key = (dataset_name, task_name, ep_dir.name)
+                        # First-write-wins: a maintainer-supplied score for
+                        # this (key, model) is not overwritten by a later root.
+                        if rows.get(key, {}).get(model_dir.name) is not None:
+                            continue
 
-                    key = (dataset_name, task_name, ep_dir.name)
-                    rows.setdefault(key, {})[model_dir.name] = top_level_metrics
+                        with open(metrics_file) as f:
+                            metrics = json.load(f)
+
+                        # Strip nested values (e.g. _per_label, submetrics) — only
+                        # top-level scalar metrics are needed by current consumers.
+                        top_level_metrics = {
+                            k: v for k, v in metrics.items() if not isinstance(v, dict)
+                        }
+
+                        rows.setdefault(key, {})[model_dir.name] = top_level_metrics
 
     return rows
