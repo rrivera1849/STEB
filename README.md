@@ -84,10 +84,11 @@ For the full reference — CLI flags, task descriptions, supported model types, 
 To get your model on the [public leaderboard](https://rrivera1849.github.io/STEB/leaderboard/), the short version is:
 
 ```bash
-./scripts/download_results.sh                                   # 1. fetch canonical baselines (~10 MB)
-STEB_RESULTS_DIR=./submitted_results steb "<org/your-model>"    # 2. run STEB into the community tree
-python -m scripts.benchmark_clustering                          # 3. regenerate scores.xlsx, see your model
-# 4. append a 4-key entry to SUBMISSIONS.yaml, add yourself to scripts/models_all.txt
+./scripts/download_results.sh                                   # 1. fetch the leaderboard raw scores
+STEB_RESULTS_DIR=./submitted_results steb "<org/your-model>"    # 2. run your STEB model
+python -m scripts.benchmark_clustering                          # 3. regenerate STEB scores
+# 4. open scores.xlsx, and see your models standing under the STEB_operational and STEB_definitional sheets
+# 5. append a 4-key entry to SUBMISSIONS.yaml, add yourself to scripts/models_all.txt
 python scripts/validate_submission.py                           # 5. validate, then open the PR
 ```
 
