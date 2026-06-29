@@ -8,7 +8,7 @@ import argparse
 
 import pandas as pd
 
-SHEET_NAME = "summary"
+SHEET_NAME = "STEB_operational"
 
 # LaTeX display name -> Excel model name
 # Models not in the Excel will show "--" for all cells.

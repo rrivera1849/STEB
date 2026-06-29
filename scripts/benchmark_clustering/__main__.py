@@ -15,6 +15,12 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+# Project-relative defaults that work regardless of the invoking CWD.
+_DEFAULT_MANUAL_CLUSTERS = str(_PROJECT_ROOT / "scripts" / "dataset_clusters.yaml")
+_DEFAULT_MODELS_FILE = str(_PROJECT_ROOT / "scripts" / "models_all.txt")
+_DEFAULT_EXPORT_EXCEL = "scores.xlsx"
+_DEFAULT_THRESHOLD = 0.5
+
 import pandas as pd
 
 from steb.utils import RESULTS_DIR
@@ -47,12 +53,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--task",
         choices=list(TASK_METRICS.keys()),
-        help="Task to analyze. If omitted with --all-tasks, analyzes all.",
+        help="Analyze only this task. When omitted, all tasks run unless --no-all-tasks is set.",
     )
     parser.add_argument(
         "--all-tasks",
-        action="store_true",
-        help="Run analysis for all task types.",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Run analysis for all task types (default: on). Pass --no-all-tasks to skip "
+             "task analysis entirely (e.g. for manual-clusters-only or episode-only runs). "
+             "Overridden by --task <name> when both are present.",
     )
     parser.add_argument(
         "--metric",
@@ -81,40 +90,31 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--threshold",
         type=float,
-        default=1.0,
+        default=_DEFAULT_THRESHOLD,
         help="Distance threshold for flat clustering (default: %(default)s). "
              "Lower = more clusters (0.5 ≈ ρ≥0.5), higher = fewer (1.5 ≈ ρ≥-0.5).",
     )
     parser.add_argument(
-        "--complete-datasets",
-        action="store_true",
-        help="Instead of dropping models with missing datasets, drop datasets "
-             "that not all models have results for. Keeps all models.",
-    )
-    parser.add_argument(
         "--export-excel",
         metavar="PATH",
-        help="Export all scores to an Excel file. Sheet 1 has per-dataset "
-             "scores, sheet 2 has the cluster-aware summary (if --task or "
-             "--all-tasks is also provided).",
+        default=_DEFAULT_EXPORT_EXCEL,
+        help="Export all scores to an Excel file (default: %(default)s). Sheet 1 has "
+             "per-dataset scores, 'summary' is the Operational STEB score, "
+             "'STEB_definitional' is the Definitional STEB score.",
     )
     parser.add_argument(
         "--manual-clusters",
         metavar="PATH",
-        help="Path to a YAML file defining manual dataset clusters. "
-             "Produces one table per cluster showing average scores per task.",
-    )
-    parser.add_argument(
-        "--mc-complete-datasets",
-        action="store_true",
-        help="For manual clusters: within each (cluster, task) group, drop "
-             "datasets that not all models have results for.",
+        default=_DEFAULT_MANUAL_CLUSTERS,
+        help="Path to a YAML file defining manual dataset clusters "
+             "(default: scripts/dataset_clusters.yaml).",
     )
     parser.add_argument(
         "--models-file",
         metavar="PATH",
-        help="Path to a models file (one org/model per line). "
-             "Only models listed in this file will be included in analysis.",
+        default=_DEFAULT_MODELS_FILE,
+        help="Path to a models file, one org/model per line "
+             "(default: scripts/models_all.txt).",
     )
     parser.add_argument(
         "--episode-analysis",
@@ -154,34 +154,37 @@ def main() -> None:
     """Entry point for benchmark clustering analysis."""
     args = parse_args()
 
+    # `--complete-datasets` and `--mc-complete-datasets` are no longer optional:
+    # benchmark clustering only operates with complete-dataset filtering on, both
+    # for auto-discovered clusters and for manual clusters. The flags were
+    # removed from the CLI; argparse will hard-error on the old spellings.
+    complete_datasets = True
+    mc_complete_datasets = True
+
     allowed_models: Optional[Set[str]] = None
     if args.models_file:
         allowed_models = parse_models_file(args.models_file)
         print(f"Filtering to {len(allowed_models)} models from {args.models_file}")
 
-    if (
-        not args.task
-        and not args.all_tasks
-        and not args.export_excel
-        and not args.manual_clusters
-        and not args.episode_analysis
-    ):
-        print(
-            "Error: specify --task <name>, --all-tasks, --export-excel, "
-            "--manual-clusters, or --episode-analysis."
-        )
-        sys.exit(1)
+    # Task selection: explicit --task <name> wins; otherwise --all-tasks
+    # (default on) runs every task; --no-all-tasks with no --task skips
+    # task analysis entirely.
+    if args.task:
+        tasks: List[str] = [args.task]
+    elif args.all_tasks:
+        tasks = list(TASK_METRICS.keys())
+    else:
+        tasks = []
 
     task_scores: Dict[str, pd.Series] = {}
     task_n_datasets: Dict[str, int] = {}
     effective_metrics: Dict[str, str] = {}
     ranking_plot_paths: Optional[List[str]] = None
 
-    if args.task or args.all_tasks:
-        tasks = list(TASK_METRICS.keys()) if args.all_tasks else [args.task]
-
+    if tasks:
+        is_single_task = args.task is not None and len(tasks) == 1
         for task in tasks:
-            metric = args.metric if not args.all_tasks else TASK_METRICS[task]
+            metric = args.metric if is_single_task else TASK_METRICS[task]
             if metric is None:
                 metric = TASK_METRICS[task]
             effective_metrics[task] = metric
@@ -195,7 +198,7 @@ def main() -> None:
                 args.min_models,
                 args.include_excluded,
                 args.threshold,
-                args.complete_datasets,
+                complete_datasets,
                 allowed_models,
             )
             if result is not None:
@@ -231,7 +234,7 @@ def main() -> None:
             clusters,
             args.episode_params,
             args.include_excluded,
-            args.mc_complete_datasets,
+            mc_complete_datasets,
             allowed_models,
         )
         print_manual_cluster_tables(manual_cluster_tables, manual_cluster_datasets, args.output_dir)
@@ -243,7 +246,7 @@ def main() -> None:
             args.include_excluded,
             args.threshold,
             args.min_models,
-            args.complete_datasets,
+            complete_datasets,
             allowed_models,
         )
 
