@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 DEFAULT_RESULTS_DIR = "results"
-DEFAULT_MODELS_FILE = "scripts/models.txt"
+DEFAULT_MODELS_FILE = "scripts/models_all.txt"
 
 
 def parse_models_file(
