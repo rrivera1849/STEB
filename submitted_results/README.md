@@ -19,4 +19,4 @@ The standard `python -m scripts.benchmark_clustering` invocation auto-merges thi
 
 ## How to contribute
 
-See [`SUBMISSION.md`](../SUBMISSION.md) at the repo root.
+See the [Submitting your model](../README.md#submitting-your-model) section of the project README.

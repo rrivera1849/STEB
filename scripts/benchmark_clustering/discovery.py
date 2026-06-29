@@ -31,7 +31,8 @@ from .config import (
 
 # Location of the community-submitted results tree, relative to the repo
 # root. ``benchmark_clustering`` auto-ingests this directory when it
-# exists; see SUBMISSION.md for the contribution flow.
+# exists; see the "Submitting your model" section of the project README
+# for the contribution flow.
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _SUBMITTED_RESULTS_DIR = _PROJECT_ROOT / "submitted_results"
 

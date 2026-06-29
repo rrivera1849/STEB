@@ -1,8 +1,8 @@
 # STEB model submissions.
 #
 # Append your model as a new list entry with the four required keys. See
-# SUBMISSION.md for the full contribution flow. Order does not matter;
-# this list is append-only.
+# the "Submitting your model" section of README.md for the full
+# contribution flow. Order does not matter; this list is append-only.
 #
 # Example entry (uncomment and adapt):
 #

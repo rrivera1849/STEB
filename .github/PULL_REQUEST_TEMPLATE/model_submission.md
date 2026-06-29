@@ -1,6 +1,6 @@
 <!--
 PR template for community model submissions to STEB.
-See SUBMISSION.md at the repo root for the full flow.
+See the "Submitting your model" section of README.md for the full flow.
 -->
 
 ## Model submission

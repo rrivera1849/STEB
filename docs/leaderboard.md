@@ -7,7 +7,7 @@ There are two STEB scores, with different aggregation philosophies:
 - **Operational** mirrors how the field has historically organized style work: macro-average within auto-discovered redundancy clusters per task, then across tasks. See `STEB_operational` below.
 - **Definitional** scores embeddings against the style definition of Wegmann et al. (2026): the average of three axes — Object of Study (Genre, Register, Time, Demographics, Dialect, Idiolect), Linguistic Features, and Content Independence. See `STEB_definitional` below.
 
-To submit a new model, see [`SUBMISSION.md`](https://github.com/rrivera1849/STEB/blob/main/SUBMISSION.md).
+To submit a new model, see the [Submitting your model](https://github.com/rrivera1849/STEB/blob/main/README.md#submitting-your-model) section of the README.
 
 ## STEB (Operational)
 
