@@ -17,14 +17,12 @@ pip install -e .
 
 The `download_datasets.sh` script invokes Python tools (`gdown`, etc.) declared in `requirements.txt`, so the venv must be active when running it. Use `--purge` to force a clean re-download.
 
-To download to a non-default location, pass the target directory as an argument. You then need to tell STEB where to look — either via the `STEB_RAW_DATASETS_DIR` environment variable or via `config.ini` (see [Configuration](#configuration)):
+To download to a non-default location, pass the target directory as an argument. You then need to tell STEB where to look, either via the `STEB_RAW_DATASETS_DIR` environment variable or via `config.ini` (see [Configuration](#configuration)):
 
 ```bash
 ./download_datasets.sh /path/to/raw_datasets
 export STEB_RAW_DATASETS_DIR=/path/to/raw_datasets
 ```
-
-Some datasets require licenses or subscriptions (e.g., LDC's Fisher corpus for speech transcripts) and have separate instructions in the [documentation](https://rrivera1849.github.io/STEB/).
 
 ## Quick Start
 
@@ -34,21 +32,12 @@ Run the standard STEB benchmark — the configuration reported in the paper:
 steb "rrivera1849/LUAR-MUD"
 ```
 
-Faster variants for smaller-scope runs:
-
-```bash
-steb --preset fast "rrivera1849/LUAR-MUD"
-steb --preset sanity "rrivera1849/LUAR-MUD"   # smoke test on dummy datasets
-```
-
-Run a specific task on a specific dataset — for example, the canonical PAN13 authorship verification benchmark:
+Run a specific task on a specific dataset, for example, the PAN13 authorship verification benchmark:
 
 ```bash
 steb pre_defined_pair_classification "rrivera1849/LUAR-MUD" \
     --dataset pan13_authorship_verification_english_test
 ```
-
-The same task is available in Greek and Spanish (`pan13_authorship_verification_greek_test`, `pan13_authorship_verification_spanish_test`), with broader coverage in PAN14 across multiple genres (Dutch and English essays, Dutch and English reviews, English novels, Greek articles, Spanish articles).
 
 ## Configuration
 
@@ -64,8 +53,6 @@ STEB resolves four directory paths from environment variables, a `config.ini` fi
 | `STEB_RAW_DATASETS_DIR` | `raw_datasets_dir` | `./raw_datasets` | Raw downloaded datasets |
 | `STEB_RESULTS_DIR` | `results_dir` | `./results` | Evaluation results |
 | `STEB_PROCESSED_DATA_DIR` | `processed_dataset_dir` | `~/.local/share/steb/processed_datasets` | Processed dataset cache |
-
-The HuggingFace `load_dataset` cache (used for HF-format datasets in the suite) is managed by HuggingFace itself; set `HF_DATASETS_CACHE` or `HF_HOME` to relocate it.
 
 ### Environment variables
 
@@ -88,7 +75,7 @@ processed_dataset_dir = /path/to/processed_datasets
 
 ## Documentation
 
-For the full reference — CLI flags, task descriptions, supported model types, dataset config schema, and guides for adding new models or datasets — see:
+For the full reference — CLI flags, task descriptions, supported model types, dataset config schema, and guides for adding new models or datasets, see:
 
 **[STEB Documentation](https://rrivera1849.github.io/STEB/)** *(also browsable as Markdown under [`docs/`](docs/))*
 
@@ -112,8 +99,6 @@ The `SUBMISSIONS.yaml` entry is:
   run_command: steb "<org/your-model>"
   contributor: <your-github-handle>
 ```
-
-Full reference (rationale, the auto-merge semantics with the maintainer-owned `results/` tree, the decisions log, what's intentionally not yet in scope): [`SUBMISSION.md`](SUBMISSION.md).
 
 ## Citation
 
