@@ -70,16 +70,6 @@ else
     echo "Skipping jigsaw-toxic-comment-classification-challenge (already exists)"
 fi
 
-if [ ! -d "dummy_retrieval" ]; then
-    echo "Downloading dummy_retrieval..."
-    mkdir ./dummy_retrieval
-    cd ./dummy_retrieval
-    gdown https://drive.google.com/file/d/17HkJs9E5nnwuDfONiUy3sw0-Nj53SwvL/view?usp=sharing --fuzzy
-    cd ..
-else
-    echo "Skipping dummy_retrieval (already exists)"
-fi
-
 if [ ! -d "fanfiction_retrieval" ]; then
     echo "Downloading fanfiction_retrieval..."
     mkdir fanfiction_retrieval
