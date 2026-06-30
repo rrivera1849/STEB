@@ -106,10 +106,10 @@ The `SUBMISSIONS.yaml` entry is:
 If you use STEB in your research, please cite:
 
 ```bibtex
-@article{TODO,
+@article{rivera-soto-etal-2026-STEB,
   title  = {STEB: A Style Text Embedding Benchmark},
   author = {Rivera Soto, Rafael A. and Wegmann, Anna and Aggazzotti, Cristina},
-  year   = {2025}
+  year   = {2026}
 }
 ```
 
