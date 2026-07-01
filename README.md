@@ -1,6 +1,6 @@
 # STEB: Style Text Embedding Benchmark
 
-STEB is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is modular and extensible, making it straightforward to add new models, datasets, and evaluation tasks.
+STEB is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is modular and extensible, making it straightforward to add new models, datasets, and evaluation tasks. Read the paper [here](https://arxiv.org/abs/2606.31741).
 
 **[Leaderboard](https://rrivera1849.github.io/STEB/leaderboard/)** — current results for every benchmarked model under both the Operational and Definitional STEB scores. New submissions land here automatically when a contributor's PR merges; see [Submitting your model](#submitting-your-model) below.
 
@@ -106,11 +106,15 @@ The `SUBMISSIONS.yaml` entry is:
 If you use STEB in your research, please cite:
 
 ```bibtex
-@article{rivera-soto-etal-2026-STEB,
-  title  = {STEB: A Style Text Embedding Benchmark},
-  author = {Rivera Soto, Rafael A. and Wegmann, Anna and Aggazzotti, Cristina},
-  year   = {2026}
-}
+  @misc{rivera-soto-etal-2026-STEB,
+    title         = {STEB: A Style Text Embedding Benchmark},
+    author        = {Rivera Soto, Rafael A. and Wegmann, Anna and Aggazzotti, Cristina},
+    year          = {2026},
+    eprint        = {2606.31741},
+    archivePrefix = {arXiv},
+    primaryClass  = {cs.CL},
+    url           = {https://arxiv.org/abs/2606.31741}
+  }
 ```
 
 ## License
