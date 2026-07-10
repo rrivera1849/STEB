@@ -11,9 +11,10 @@ class RetrievalTask(Task):
     A task for evaluating retrieval performance.
     """
     def evaluate(
-        self, 
+        self,
         embeddings: np.ndarray,
         labels: List[Any],
+        return_per_query: bool = False,
     ) -> Dict[str, float]:
         """
         Evaluates retrieval performance.
@@ -21,7 +22,11 @@ class RetrievalTask(Task):
         Args:
             embeddings: Expected to be size of (num_embeddings, dim)
             labels: Expected to be size of (num_embeddings,)
-        
+            return_per_query: If True, include the per-query reciprocal
+                rank array in the returned dict (see
+                calculate_retrieval_metrics). Used for bootstrap-style
+                uncertainty analyses.
+
         NOTE:
             1. Labels need to follow the format "<ID>_query" and "<ID>_target",
                where <ID> is any string identifier. Fortunately, users don't need
@@ -63,5 +68,6 @@ class RetrievalTask(Task):
             embeddings_query=embeddings_query,
             embeddings_target=embeddings_target,
             query_labels=query_labels,
-            target_labels=target_labels
+            target_labels=target_labels,
+            return_per_query=return_per_query,
         )

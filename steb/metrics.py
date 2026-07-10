@@ -121,9 +121,17 @@ def calculate_retrieval_metrics(
     query_labels: np.ndarray,
     target_labels: np.ndarray,
     ks: Optional[List[int]] = None,
+    return_per_query: bool = False,
 ) -> Dict[str, float]:
     """
     Calculates retrieval metrics: MRR, Mean Rank, Recall@K.
+
+    Args:
+        return_per_query: If True, additionally include "per_query_rr" (the
+            per-query reciprocal rank, i.e. the array whose mean is "mrr")
+            in the returned dict. Off by default so normal evaluation runs
+            don't bloat metrics.json; intended for uncertainty analyses
+            (e.g. bootstrap confidence intervals) that need per-query data.
     """
     if ks is None:
         ks = [1, 8, 16, 32, 64, 128]
@@ -134,6 +142,7 @@ def calculate_retrieval_metrics(
     rank_sum = 0.0
     recall_at_k = defaultdict(float)
     n_queries = query_labels.shape[0]
+    per_query_rr = np.empty(n_queries) if return_per_query else None
 
     for i in range(n_queries):
         query_label = query_labels[i]
@@ -145,8 +154,11 @@ def calculate_retrieval_metrics(
         if ranks.size == 0:
             raise ValueError(f"No true matches found for query {i}")
 
-        mrr_sum += np.mean(1.0 / ranks)
+        query_rr = np.mean(1.0 / ranks)
+        mrr_sum += query_rr
         rank_sum += np.mean(ranks)
+        if return_per_query:
+            per_query_rr[i] = query_rr
 
         for k in ks:
             valid = np.where(ranks <= k)[0]
@@ -159,5 +171,7 @@ def calculate_retrieval_metrics(
     }
     for k in ks:
         metrics[f"recall@{k}"] = recall_at_k[k] / n_queries
+    if return_per_query:
+        metrics["per_query_rr"] = per_query_rr.tolist()
 
     return metrics

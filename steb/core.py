@@ -467,6 +467,7 @@ def evaluate(
     output_folder: str = RESULTS_DIR,
     seed: int = 42,
     run_name: Optional[str] = None,
+    retrieval_return_per_query: bool = False,
 ) -> Dict[str, Any]:
     """
     Evaluates a model on a list of datasets for a given task.
@@ -495,6 +496,10 @@ def evaluate(
         seed: The random seed to use.
         run_name: An optional label for this run (e.g. preset name).
             Used in the log filename alongside the model name.
+        retrieval_return_per_query: If True, retrieval task metrics.json
+            files additionally include "per_query_rr" (the per-query
+            reciprocal rank array). Off by default; used for bootstrap-style
+            uncertainty analyses, not by normal evaluation runs.
 
     Returns:
         A dictionary with "successes", "failures", and "log_path" keys.
@@ -709,6 +714,8 @@ def evaluate(
             elif current_task_name == "clustering":
                 distance_mode = "l1_diff" if is_lftk else "euclidean"
                 metrics = task.evaluate(*processed_data, distance_mode=distance_mode)
+            elif current_task_name == "retrieval" and retrieval_return_per_query:
+                metrics = task.evaluate(*processed_data, return_per_query=True)
             else:
                 metrics = task.evaluate(*processed_data)
 
