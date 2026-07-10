@@ -27,7 +27,6 @@ from steb.utils import RESULTS_DIR
 
 from .auto_cluster import analyze_task, plot_model_ranking, print_summary_table
 from .config import TASK_METRICS
-from .episode_analysis import run_episode_analysis
 from .excel_export import export_excel
 from .manual_cluster import (
     build_manual_cluster_tables,
@@ -115,13 +114,6 @@ def parse_args() -> argparse.Namespace:
         default=_DEFAULT_MODELS_FILE,
         help="Path to a models file, one org/model per line "
              "(default: scripts/models_all.txt).",
-    )
-    parser.add_argument(
-        "--episode-analysis",
-        action="store_true",
-        help="Compute per-model STEB scores at episode sizes 1/2/3 on "
-             "all-to-all + clustering and produce line plots showing how "
-             "the score scales with episode size.",
     )
     return parser.parse_args()
 
@@ -238,17 +230,6 @@ def main() -> None:
             allowed_models,
         )
         print_manual_cluster_tables(manual_cluster_tables, manual_cluster_datasets, args.output_dir)
-
-    if args.episode_analysis:
-        run_episode_analysis(
-            args.results_dir,
-            args.output_dir,
-            args.include_excluded,
-            args.threshold,
-            args.min_models,
-            complete_datasets,
-            allowed_models,
-        )
 
     if args.export_excel:
         export_excel(
