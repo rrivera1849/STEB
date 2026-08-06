@@ -8,6 +8,7 @@ Blablablab/multilingual-style-representation
 AnnaWegmann/Style-Embedding
 AIDA-UPM/star
 lisa_checkpoint
+rrivera1849/LUSR
 
 # General Sentence Embedders (Semantic)
 sentence-transformers/all-mpnet-base-v2
