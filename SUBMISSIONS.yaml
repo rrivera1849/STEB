@@ -11,4 +11,7 @@
 #   run_command: steb "rrivera1849/LUAR-MUD"
 #   contributor: rrivera1849
 
-[]
+- short_name: LUSR
+  hf_id: rrivera1849/LUSR
+  run_command: steb "rrivera1849/LUSR"
+  contributor: rrivera1849

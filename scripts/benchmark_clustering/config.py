@@ -145,6 +145,7 @@ MODEL_CATEGORIES: Dict[str, List[str]] = {
         "star",
         "styledistance",
         "lisa_checkpoint",
+        "LUSR",
     ],
     "multilingual": [
         "mstyledistance",
