@@ -1,14 +1,15 @@
 # Adding Models
 
-STEB supports five model types out of the box:
+STEB supports six model types out of the box:
 
 - **Encoder models** (`HFModel`): Bidirectional transformers (BERT, RoBERTa, etc.) using mean pooling.
 - **Causal models** (`CausalModel`): Auto-regressive LMs (GPT-2, Llama, Mistral, etc.) using last-token pooling.
+- **Sentence-transformers models** (`SentenceTransformerModel`): Checkpoints in the sentence-transformers-only format (a `modules.json` without a top-level `config.json`, e.g. PEFT adapter repos) that `AutoModel` cannot load directly.
 - **LUAR models** (`LUARModel`): Dedicated support for LUAR-CRUD and LUAR-MUD.
 - **LISA models** (`LISAModel`): Dedicated support for LISA-family checkpoints.
 - **Random baseline** (`RandomModel`): Returns random vectors per episode; useful as a chance-level baseline. Invoke with `steb random`.
 
-Model type is auto-detected from the HuggingFace config. Encoder vs. causal routing happens automatically in `get_model()`.
+Model type is auto-detected from the HuggingFace config. Encoder vs. causal vs. sentence-transformers routing happens automatically in `get_model()`.
 
 ## Adding a New Model
 

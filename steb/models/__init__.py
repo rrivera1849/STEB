@@ -20,12 +20,14 @@ def get_model_registry() -> Dict[str, Any]:
         from .luar_model import LUARModel
         from .neurobiber_model import NeurobiberModel
         from .random_model import RandomModel
+        from .sentence_transformer_model import SentenceTransformerModel
         from .tfidf_ngram_model import TFIDFNGModel
 
         _registry = {
             "hf": HFModel,
             "causal": CausalModel,
             "lisa": LISAModel,
+            "sentence_transformer": SentenceTransformerModel,
             "luar": LUARModel,
             "random": RandomModel,
             "lftk": LFTKModel,
