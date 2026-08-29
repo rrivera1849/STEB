@@ -5,6 +5,7 @@ StyleDistance/styledistance
 StyleDistance/mstyledistance
 StyleDistance/styledistance_synthetic_only
 Blablablab/multilingual-style-representation
+Blablablab/multilingual-style-representation-Llama-3.2
 AnnaWegmann/Style-Embedding
 AIDA-UPM/star
 lisa_checkpoint
