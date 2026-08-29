@@ -15,6 +15,7 @@ from transformers.models.auto.modeling_auto import (
 from .dataset_loader import DatasetLoader
 from .models import get_model_registry
 from .models.lisa_model import is_lisa_model
+from .models.sentence_transformer_model import is_sentence_transformer_model
 from .processors.base import Processor
 from .steb_datasets import DATASET_REGISTRY
 from .utils import RESULTS_DIR
@@ -74,9 +75,14 @@ def _is_causal_model(model_name_or_path: str) -> bool:
         model_name_or_path: The name or path of the model.
 
     Returns:
-        True if the model is a causal LM, False otherwise.
+        True if the model is a causal LM, False otherwise. Models without a
+        loadable HuggingFace config (e.g. adapter-only repos) return False
+        instead of raising.
     """
-    config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+    try:
+        config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+    except (OSError, ValueError):
+        return False
     causal_only_types = _get_causal_only_model_types()
 
     model_type = getattr(config, "model_type", "")
@@ -106,9 +112,13 @@ def get_model(
          against each registered class's ``supported_models`` list.
       2. If the path points at a LISA checkpoint directory (detected via
          :func:`is_lisa_model`), route to :class:`LISAModel`.
-      3. If nothing matched, inspect the HuggingFace config and route
+      3. If the checkpoint is in the sentence-transformers-only format
+         (``modules.json`` without a top-level ``config.json``, detected via
+         :func:`is_sentence_transformer_model`), route to
+         :class:`SentenceTransformerModel`.
+      4. If nothing matched, inspect the HuggingFace config and route
          auto-regressive LMs to :class:`CausalModel`.
-      4. Otherwise fall back to :class:`HFModel`.
+      5. Otherwise fall back to :class:`HFModel`.
 
     Args:
         model_name_or_path: The name or path of the model to load.
@@ -132,6 +142,9 @@ def get_model(
 
     if is_lisa_model(model_name_or_path):
         return registry["lisa"](model_name_or_path, **kwargs)
+
+    if is_sentence_transformer_model(model_name_or_path):
+        return registry["sentence_transformer"](model_name_or_path, **kwargs)
 
     if _is_causal_model(model_name_or_path):
         return registry["causal"](model_name_or_path, **kwargs)
