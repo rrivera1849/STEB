@@ -22,6 +22,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 _SUBMISSIONS_YAML = _REPO_ROOT / "SUBMISSIONS.yaml"
 _SUBMITTED_RESULTS_DIR = _REPO_ROOT / "submitted_results"
 _MODELS_FILE = _REPO_ROOT / "scripts" / "models_all.txt"
+_LEADERBOARD_MD = _REPO_ROOT / "docs" / "leaderboard.md"
 
 
 def load_submissions() -> List[Dict[str, Any]]:
@@ -93,6 +94,32 @@ def collect_models_in_models_file() -> Set[str]:
     return out
 
 
+def collect_models_in_leaderboard(path: Path = _LEADERBOARD_MD) -> Set[str]:
+    """Return the set of model names already published in docs/leaderboard.md.
+
+    Once a submission is merged into the canonical results tarball, its
+    subtree is cleared from ``submitted_results/``. Entries that already
+    appear in the leaderboard therefore need no on-disk results.
+
+    Args:
+        path: Path to the leaderboard Markdown file.
+
+    Returns:
+        Set of model names read from the first column of every table row.
+    """
+    names: Set[str] = set()
+    if not path.exists():
+        return names
+    with open(path) as f:
+        for line in f:
+            if not line.startswith("| "):
+                continue
+            first = line.split("|")[1].strip()
+            if first and first != "Model" and not set(first) <= {"-", ":"}:
+                names.add(first.strip("*"))
+    return names
+
+
 def check_entry_schema(
     entry: Any,
     idx: int,
@@ -162,6 +189,7 @@ def validate() -> int:
 
     short_names_on_disk = collect_short_names_in_results()
     models_in_file = collect_models_in_models_file()
+    models_in_leaderboard = collect_models_in_leaderboard()
 
     declared_short_names: Set[str] = set()
     for idx, entry in enumerate(entries):
@@ -171,7 +199,10 @@ def validate() -> int:
         short_name = entry["short_name"]
         declared_short_names.add(short_name)
 
-        if short_name not in short_names_on_disk:
+        if (
+            short_name not in short_names_on_disk
+            and short_name not in models_in_leaderboard
+        ):
             errors.append(
                 f"Entry '{short_name}': no matching directory under "
                 f"submitted_results/<dataset>/{short_name}/. Did you forget "

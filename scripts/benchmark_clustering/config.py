@@ -150,6 +150,7 @@ MODEL_CATEGORIES: Dict[str, List[str]] = {
     "multilingual": [
         "mstyledistance",
         "multilingual-style-representation",
+        "multilingual-style-representation-Llama-3.2",
     ],
     "semantic": [
         "Qwen3-Embedding-8B",

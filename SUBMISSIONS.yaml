@@ -15,3 +15,8 @@
   hf_id: rrivera1849/LUSR
   run_command: steb "rrivera1849/LUSR"
   contributor: rrivera1849
+
+- short_name: multilingual-style-representation-Llama-3.2
+  hf_id: Blablablab/multilingual-style-representation-Llama-3.2
+  run_command: steb "Blablablab/multilingual-style-representation-Llama-3.2"
+  contributor: rrivera1849
