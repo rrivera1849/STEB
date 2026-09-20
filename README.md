@@ -75,8 +75,6 @@ Every AuthBench dataset also reports **length-bucket** and **topic-controlled re
 
 `length_*` restricts which queries are scored to one of AuthBench's four token-length buckets (short/medium/long/extra_long) while keeping the full candidate pool, matching the paper's own per-bucket protocol. `topic_pool_*` restricts both queries and candidates to a single genre, isolating retrieval performance from topic/genre shortcuts. See `steb/steb_datasets/authbench_attribution_en/config.json` for how a dataset defines its own submetrics.
 
-Note: AuthBench's authorship-*verification* task is intentionally not included — the paper builds it dynamically by re-scoring the full query/candidate similarity matrix rather than shipping fixed pairs, which doesn't map onto STEB's pair-classification format.
-
 </details>
 
 ## Configuration
