@@ -332,7 +332,7 @@ _CATEGORY_COLORS = {
 
 # Multilingual models are style models but rendered in a different shade.
 # For grouping purposes they belong to "style".
-_MULTILINGUAL_MODELS = {"mstyledistance", "multilingual-style-representation"}
+_MULTILINGUAL_MODELS = {"mstyledistance", "multilingual-style-representation", "multilingual-style-representation-Llama-3.2"}
 
 # Display categories (bottom to top in grouped mode)
 _DISPLAY_ORDER = ["semantic", "style"]
@@ -382,6 +382,7 @@ _DISPLAY_NAMES: Dict[str, str] = {
     "lisa_checkpoint": "LISA",
     "Style-Embedding": "CISR",
     "multilingual-style-representation": "MSR",
+    "multilingual-style-representation-Llama-3.2": "MSR-Llama-3.2",
     "styledistance": "StyleDistance",
     "mstyledistance": "mStyleDistance",
     "star": "STAR",
