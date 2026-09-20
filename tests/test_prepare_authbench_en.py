@@ -9,6 +9,8 @@ from prepare_authbench_en import (
     build_query_author_map,
     build_retrieval_records,
     build_submetrics,
+    flatten_submetrics,
+    build_config,
 )
 
 
@@ -118,3 +120,26 @@ def test_build_submetrics_topic_pool_is_symmetric():
     # from the news topic pool.
     assert "a2_query" not in news_labels
     assert "a2_target" not in news_labels
+
+
+def test_flatten_submetrics_prefixes_names():
+    nested = {
+        "length_bucket": {"short": ["a1_query", "a1_target"]},
+        "topic_pool": {"news": ["a1_query", "a1_target"]},
+    }
+    flat = flatten_submetrics(nested)
+    assert flat == {
+        "length_short": ["a1_query", "a1_target"],
+        "topic_pool_news": ["a1_query", "a1_target"],
+    }
+
+
+def test_build_config_references_submetrics_by_filename():
+    """
+    config.json must not inline the (large) submetrics label lists -- it
+    should just point at the sibling file steb.core resolves at eval time.
+    """
+    config = build_config()
+    submetrics = config["tasks"]["retrieval"]["submetrics"]
+    assert isinstance(submetrics, str)
+    assert submetrics == "submetrics.json"

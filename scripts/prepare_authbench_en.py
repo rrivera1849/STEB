@@ -217,12 +217,42 @@ def write_jsonl(records: List[Dict[str, Any]], path: str) -> None:
             f.write(json.dumps(record) + "\n")
 
 
-def build_config(submetrics: Dict[str, Dict[str, List[str]]]) -> Dict[str, Any]:
+SUBMETRICS_FILENAME = "submetrics.json"
+
+
+def flatten_submetrics(submetrics: Dict[str, Dict[str, List[str]]]) -> Dict[str, List[str]]:
     """
-    Builds the full config.json contents for authbench_attribution_en.
+    Flattens build_submetrics()'s nested output into the flat
+    {submetric_name: label_list} shape STEB's submetrics mechanism expects.
 
     Args:
         submetrics: Output of build_submetrics().
+
+    Returns:
+        A single dict mapping submetric name (e.g. "length_short",
+        "topic_pool_news") to its label list.
+    """
+    return {
+        **{
+            f"length_{name}": labels
+            for name, labels in submetrics["length_bucket"].items()
+        },
+        **{
+            f"topic_pool_{genre}": labels
+            for genre, labels in submetrics["topic_pool"].items()
+        },
+    }
+
+
+def build_config() -> Dict[str, Any]:
+    """
+    Builds the config.json contents for authbench_attribution_en.
+
+    The submetrics label lists are not inlined here: with ~9.7k
+    author-ID-keyed labels per submetric, inlining them would make
+    config.json unreviewable. Instead "submetrics" is a filename, resolved
+    by steb.core._resolve_submetrics_config relative to the dataset's raw
+    data directory at eval time (see write_submetrics_file()).
 
     Returns:
         The config dict, ready to be JSON-serialized.
@@ -240,19 +270,30 @@ def build_config(submetrics: Dict[str, Dict[str, List[str]]]) -> Dict[str, Any]:
         },
         "tasks": {
             "retrieval": {
-                "submetrics": {
-                    **{
-                        f"length_{name}": labels
-                        for name, labels in submetrics["length_bucket"].items()
-                    },
-                    **{
-                        f"topic_pool_{genre}": labels
-                        for genre, labels in submetrics["topic_pool"].items()
-                    },
-                }
+                "submetrics": SUBMETRICS_FILENAME,
             }
         },
     }
+
+
+def write_submetrics_file(submetrics: Dict[str, Dict[str, List[str]]], raw_data_dir: str) -> str:
+    """
+    Writes the flattened submetrics label lists to a JSON file alongside
+    the raw JSONL, so config.json can reference it by filename instead of
+    inlining it.
+
+    Args:
+        submetrics: Output of build_submetrics().
+        raw_data_dir: The dataset's raw data directory.
+
+    Returns:
+        The path the submetrics file was written to.
+    """
+    path = os.path.join(raw_data_dir, SUBMETRICS_FILENAME)
+    os.makedirs(raw_data_dir, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(flatten_submetrics(submetrics), f)
+    return path
 
 
 def fetch_authbench_test_split(debug: bool, logger: logging.Logger):
@@ -399,11 +440,14 @@ def main():
     write_jsonl(records, out_path)
     logger.info("Wrote %d records to %s", len(records), out_path)
 
+    submetrics_path = write_submetrics_file(submetrics, args.raw_data_dir)
+    logger.info("Wrote submetrics to %s", submetrics_path)
+
     if args.skip_config:
         logger.info("--skip-config set: leaving %s untouched", CONFIG_PATH)
         return
 
-    config = build_config(submetrics)
+    config = build_config()
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
     with open(CONFIG_PATH, "w") as f:
         json.dump(config, f, indent=2)
