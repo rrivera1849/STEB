@@ -8,12 +8,13 @@ writes JSONL records compatible with
 ``steb.loaders.retrieval.default_retrieval_loader`` /
 ``default_retrieval_record_handler``.
 
-It also computes two sets of "submetrics" label lists (length-bucket and
-primary-genre) and writes them into the dataset's config.json, so that a
-single `authbench_attribution_en` dataset can report length-bucket and
-topic-controlled retrieval breakdowns via STEB's existing submetrics
-mechanism (see steb/core.py:_evaluate_submetrics), without needing separate
-datasets per bucket/genre.
+It also attaches per-record metadata (genre, primary_genre, length_bucket)
+that default_retrieval_record_handler passes through automatically, and
+writes predicate-based "submetrics" specs into the dataset's config.json
+(see steb/core.py:_matches_submetric_predicate), so a single
+`authbench_attribution_en` dataset can report length-bucket and
+topic-controlled retrieval breakdowns without needing separate datasets
+per bucket/genre, and without inlining large label lists.
 
 Usage:
     python scripts/prepare_authbench_en.py [--debug] [--log-file PATH]
@@ -150,57 +151,48 @@ def build_retrieval_records(
     return records
 
 
-def build_submetrics(records: List[Dict[str, Any]]) -> Dict[str, Dict[str, List[str]]]:
+def build_submetrics_config(records: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """
-    Builds submetrics label lists for length-bucket and topic-controlled
-    (primary-genre) retrieval breakdowns.
+    Builds predicate-based submetrics for length-bucket and topic-controlled
+    (primary-genre) retrieval breakdowns (see
+    steb.core._matches_submetric_predicate).
 
-    Length-bucket submetrics are asymmetric: only queries in the target
-    bucket are included, but every candidate is kept, so retrieval is
-    still scored against the full candidate pool (matching AuthBench's own
-    per-bucket evaluation, which restricts which queries are scored while
-    keeping the full candidate pool).
+    Length-bucket submetrics use "sides": "query" -- only queries in the
+    target bucket are scored, but every candidate stays in the pool
+    (matching AuthBench's own per-bucket evaluation, which restricts which
+    queries are scored while keeping the full candidate pool).
 
-    Primary-genre (topic-controlled) submetrics are symmetric: both queries
-    and candidates are restricted to the same genre, which is what limits
-    the candidate pool to same-topic documents.
+    Primary-genre (topic-controlled) submetrics use "sides": "both" -- both
+    queries and candidates are restricted to the same genre, which is what
+    limits the candidate pool to same-topic documents. The set of genres is
+    read off the actual records (not hardcoded), so this stays correct if
+    AuthBench's genre taxonomy changes.
+
+    Unlike the earlier (label-list) implementation, each spec is a handful
+    of bytes referencing the "length_bucket"/"primary_genre" metadata
+    fields that default_retrieval_record_handler already attaches to every
+    record -- no generated sidecar file needed.
 
     Args:
-        records: The full list of retrieval records, each with "label",
-            "is_query", "primary_genre", and "length_bucket".
+        records: The full list of retrieval records (only used to read off
+            the set of primary genres present).
 
     Returns:
-        A dict with two keys, "length_bucket" and "topic_pool", each
-        mapping a submetric name to a list of labels to keep.
+        A dict mapping submetric name to its predicate spec, ready to go
+        straight into config.json's "submetrics".
     """
-    def suffixed_label(record: Dict[str, Any]) -> str:
-        suffix = "_query" if record["is_query"] else "_target"
-        return f"{record['label']}{suffix}"
-
-    all_target_labels = [
-        suffixed_label(r) for r in records if not r["is_query"]
-    ]
-
-    length_bucket_submetrics: Dict[str, List[str]] = {}
-    for bucket_name, _, _ in LENGTH_BUCKETS:
-        bucket_query_labels = [
-            suffixed_label(r) for r in records
-            if r["is_query"] and r["length_bucket"] == bucket_name
-        ]
-        length_bucket_submetrics[bucket_name] = bucket_query_labels + all_target_labels
-
-    genres = sorted({r["primary_genre"] for r in records})
-    topic_pool_submetrics: Dict[str, List[str]] = {}
-    for genre in genres:
-        genre_labels = [
-            suffixed_label(r) for r in records if r["primary_genre"] == genre
-        ]
-        topic_pool_submetrics[genre] = genre_labels
-
-    return {
-        "length_bucket": length_bucket_submetrics,
-        "topic_pool": topic_pool_submetrics,
+    submetrics: Dict[str, Dict[str, Any]] = {
+        f"length_{bucket_name}": {
+            "field": "length_bucket", "value": bucket_name, "sides": "query",
+        }
+        for bucket_name, _, _ in LENGTH_BUCKETS
     }
+    genres = sorted({r["primary_genre"] for r in records})
+    for genre in genres:
+        submetrics[f"topic_pool_{genre}"] = {
+            "field": "primary_genre", "value": genre, "sides": "both",
+        }
+    return submetrics
 
 
 def write_jsonl(records: List[Dict[str, Any]], path: str) -> None:
@@ -217,42 +209,17 @@ def write_jsonl(records: List[Dict[str, Any]], path: str) -> None:
             f.write(json.dumps(record) + "\n")
 
 
-SUBMETRICS_FILENAME = "submetrics.json"
-
-
-def flatten_submetrics(submetrics: Dict[str, Dict[str, List[str]]]) -> Dict[str, List[str]]:
-    """
-    Flattens build_submetrics()'s nested output into the flat
-    {submetric_name: label_list} shape STEB's submetrics mechanism expects.
-
-    Args:
-        submetrics: Output of build_submetrics().
-
-    Returns:
-        A single dict mapping submetric name (e.g. "length_short",
-        "topic_pool_news") to its label list.
-    """
-    return {
-        **{
-            f"length_{name}": labels
-            for name, labels in submetrics["length_bucket"].items()
-        },
-        **{
-            f"topic_pool_{genre}": labels
-            for genre, labels in submetrics["topic_pool"].items()
-        },
-    }
-
-
-def build_config() -> Dict[str, Any]:
+def build_config(records: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Builds the config.json contents for authbench_attribution_en.
 
-    The submetrics label lists are not inlined here: with ~9.7k
-    author-ID-keyed labels per submetric, inlining them would make
-    config.json unreviewable. Instead "submetrics" is a filename, resolved
-    by steb.core._resolve_submetrics_config relative to the dataset's raw
-    data directory at eval time (see write_submetrics_file()).
+    Submetrics are predicate specs (see build_submetrics_config), not
+    literal label lists, so they're small enough to inline directly --
+    no generated sidecar file needed.
+
+    Args:
+        records: The full list of retrieval records, passed through to
+            build_submetrics_config() to read off the set of genres.
 
     Returns:
         The config dict, ready to be JSON-serialized.
@@ -270,30 +237,10 @@ def build_config() -> Dict[str, Any]:
         },
         "tasks": {
             "retrieval": {
-                "submetrics": SUBMETRICS_FILENAME,
+                "submetrics": build_submetrics_config(records),
             }
         },
     }
-
-
-def write_submetrics_file(submetrics: Dict[str, Dict[str, List[str]]], raw_data_dir: str) -> str:
-    """
-    Writes the flattened submetrics label lists to a JSON file alongside
-    the raw JSONL, so config.json can reference it by filename instead of
-    inlining it.
-
-    Args:
-        submetrics: Output of build_submetrics().
-        raw_data_dir: The dataset's raw data directory.
-
-    Returns:
-        The path the submetrics file was written to.
-    """
-    path = os.path.join(raw_data_dir, SUBMETRICS_FILENAME)
-    os.makedirs(raw_data_dir, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(flatten_submetrics(submetrics), f)
-    return path
 
 
 def fetch_authbench_test_split(debug: bool, logger: logging.Logger):
@@ -425,11 +372,8 @@ def main():
     n_candidates = len(records) - n_queries
     logger.info("Built %d records (%d queries, %d candidates)", len(records), n_queries, n_candidates)
 
-    submetrics = build_submetrics(records)
-    logger.info(
-        "Computed submetrics: %d length buckets, %d primary genres",
-        len(submetrics["length_bucket"]), len(submetrics["topic_pool"]),
-    )
+    submetrics_config = build_submetrics_config(records)
+    logger.info("Computed %d predicate-based submetrics", len(submetrics_config))
 
     if args.debug:
         logger.info("[debug] skipping writes to raw_datasets/ and config.json")
@@ -440,14 +384,11 @@ def main():
     write_jsonl(records, out_path)
     logger.info("Wrote %d records to %s", len(records), out_path)
 
-    submetrics_path = write_submetrics_file(submetrics, args.raw_data_dir)
-    logger.info("Wrote submetrics to %s", submetrics_path)
-
     if args.skip_config:
         logger.info("--skip-config set: leaving %s untouched", CONFIG_PATH)
         return
 
-    config = build_config()
+    config = build_config(records)
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
     with open(CONFIG_PATH, "w") as f:
         json.dump(config, f, indent=2)

@@ -295,18 +295,107 @@ def _resolve_submetrics_config(
     return submetrics_config
 
 
-def _evaluate_submetrics(
-    submetrics_config: Dict[str, List[str]],
-    processed_data: Any,
-    task: Any,
-) -> Dict[str, Any]:
+def _get_dataset_data_dir(dataset_name: str) -> Optional[str]:
     """
-    Evaluates submetrics by filtering processed data to label subsets.
+    Reads a dataset's "data_dir" config value directly from its config.json,
+    without constructing a full DatasetLoader. Used to resolve a
+    file-reference submetrics config before deciding whether the loader
+    needs to be constructed with include_metadata=True.
 
     Args:
-        submetrics_config: Mapping of submetric name to list of labels to keep.
+        dataset_name: The dataset's name (steb_datasets subdirectory).
+
+    Returns:
+        The "data_dir" value, or None if the config has none (e.g. plain
+        huggingface-type datasets, which never use file-reference or
+        predicate-based submetrics today).
+    """
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(package_dir, "steb_datasets", dataset_name, "config.json")
+    with open(config_path) as f:
+        config = json.load(f)
+    return config.get("data_dir")
+
+
+def _submetrics_need_metadata(submetrics_config: Union[Dict[str, Any], str], data_dir: str) -> bool:
+    """
+    Checks whether any submetric in this config is predicate-based, i.e.
+    needs per-record metadata rather than a literal label list. Resolves a
+    file-reference config (a string) first, since the file itself may mix
+    literal label lists and predicate specs.
+
+    Args:
+        submetrics_config: A task's raw "submetrics" config value.
+        data_dir: The dataset's "data_dir" config value, used to resolve a
+            file-reference submetrics config.
+
+    Returns:
+        True if metadata should be requested from DatasetLoader.
+    """
+    if not submetrics_config:
+        return False
+    resolved = _resolve_submetrics_config(submetrics_config, data_dir)
+    return any(isinstance(spec, dict) for spec in resolved.values())
+
+
+def _matches_submetric_predicate(metadata: Optional[Dict[str, Any]], spec: Dict[str, Any]) -> bool:
+    """
+    Checks whether one record's metadata satisfies a predicate-based
+    submetric spec.
+
+    A spec has "field" and "value" (the metadata key/value a record must
+    match) and optional "sides" ("both" (default), "query", or "target").
+    "sides" only restricts one side of a retrieval-style record (using its
+    metadata "is_query" flag) while always keeping the other side, so the
+    candidate pool can stay full while only some queries are scored (e.g.
+    AuthBench's length-bucket breakdown). "both" restricts symmetrically
+    (e.g. a topic-controlled pool, where both queries and candidates are
+    limited to one genre).
+
+    Args:
+        metadata: The record's metadata dict (or None if it has none).
+        spec: The predicate spec, e.g. {"field": "genre", "value": "news"}.
+
+    Returns:
+        True if the record should be kept for this submetric.
+    """
+    if metadata is None:
+        return False
+
+    field = spec["field"]
+    value = spec["value"]
+    sides = spec.get("sides", "both")
+    matches_value = metadata.get(field) == value
+
+    if sides == "both":
+        return matches_value
+    if sides in ("query", "target"):
+        is_query = metadata.get("is_query")
+        is_restricted_side = is_query if sides == "query" else not is_query
+        return matches_value if is_restricted_side else True
+    raise ValueError(f"Unknown submetric 'sides' value: {sides!r}")
+
+
+def _evaluate_submetrics(
+    submetrics_config: Dict[str, Union[List[str], Dict[str, Any]]],
+    processed_data: Any,
+    task: Any,
+    metadata: Optional[List[Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Evaluates submetrics by filtering processed data to label subsets or,
+    for predicate-based submetrics, to records matching a metadata
+    predicate.
+
+    Args:
+        submetrics_config: Mapping of submetric name to either a list of
+            labels to keep (literal), or a predicate spec dict (see
+            _matches_submetric_predicate) requiring per-record metadata.
         processed_data: Tuple of (X, y) from the processor.
         task: The task instance to call evaluate() on.
+        metadata: Optional list of per-record metadata, aligned 1:1 with
+            processed_data's (X, y). Required only for predicate-based
+            submetrics; ignored otherwise.
 
     Returns:
         A dict mapping submetric names to their metric dicts.
@@ -314,12 +403,29 @@ def _evaluate_submetrics(
     all_X, all_y = processed_data
     submetrics = {}
 
-    for sub_name, label_subset in submetrics_config.items():
-        label_set = set(label_subset)
-        filtered = [
-            (x, y) for x, y in zip(all_X, all_y)
-            if y in label_set
-        ]
+    for sub_name, spec in submetrics_config.items():
+        is_predicate = isinstance(spec, dict)
+
+        if is_predicate and metadata is None:
+            error_msg = (
+                f"submetric '{sub_name}' is predicate-based but no metadata was "
+                "loaded for this dataset (needs DatasetLoader(include_metadata=True))"
+            )
+            print(colored(f"    FAILED submetric '{sub_name}': {error_msg}", "red"))
+            submetrics[sub_name] = {"error": error_msg}
+            continue
+
+        if is_predicate:
+            filtered = [
+                (x, y) for x, y, m in zip(all_X, all_y, metadata)
+                if _matches_submetric_predicate(m, spec)
+            ]
+        else:
+            label_set = set(spec)
+            filtered = [
+                (x, y) for x, y in zip(all_X, all_y)
+                if y in label_set
+            ]
 
         # I think Order Alignment is the only task where you can have one label.
         # unique_labels = set(y for _, y in filtered)
@@ -581,6 +687,7 @@ def evaluate(
         n_episodes_per_class,
         batch_size,
         show_progress=False,
+        metadata_by_label=None,
     ):
         """
         Extracts features from the dataset using the specified model.
@@ -591,21 +698,43 @@ def evaluate(
                 episodes, then organized by position (most X, ..., least X).
             Others: {"label": [[text_1, ..., text_N], [text_1, ..., text_M], ...]}
 
+        Args:
+            metadata_by_label: Optional Dict[label, List[metadata]], aligned
+                1:1 with dataset[label]'s text list (see
+                DatasetLoader(include_metadata=True)). When given, the
+                return value gains a third element: one metadata dict per
+                episode (the first underlying document's metadata, when an
+                episode groups more than one document -- e.g. episode_size
+                > 1, or pre_defined_pair_classification's pairs).
+
+        Returns:
+            (X, y), or (X, y, episode_metadata) when metadata_by_label is
+            given.
         """
         episodes_by_label = {}
+        episode_metadata_by_label = {} if metadata_by_label is not None else None
         for label, text_list in dataset.items():
             # Validate nested list format
             assert text_list and isinstance(text_list[0], list), \
                 f"Dataset for label '{label}' must be a list of lists"
+
+            label_metadata = metadata_by_label.get(label, []) if metadata_by_label is not None else None
 
             seq_len = len(text_list[0])
             if episode_size == -1:
                 if current_task_name == "pre_defined_pair_classification":
                     # Keep each text list as its own episode so pairs remain separate
                     episodes_by_label[label] = [[lst] for lst in text_list]
+                    if label_metadata is not None:
+                        episode_metadata_by_label[label] = [
+                            label_metadata[i] if i < len(label_metadata) else None
+                            for i in range(len(text_list))
+                        ]
                 else:
                     # Group all sequences into a single large episode
                     episodes_by_label[label] = [[[sublist for lst in text_list for sublist in lst]]]
+                    if label_metadata is not None:
+                        episode_metadata_by_label[label] = [label_metadata[0] if label_metadata else None]
             else:
                 # Group sequences into episodes, organize by position
                 episodes_by_label[label] = [
@@ -614,6 +743,11 @@ def evaluate(
                 ]
                 assert len(episodes_by_label[label]) == n_episodes_per_class
                 assert all(len(episode[0]) == episode_size for episode in episodes_by_label[label])
+                if label_metadata is not None:
+                    episode_metadata_by_label[label] = [
+                        label_metadata[i] if i < len(label_metadata) else None
+                        for i in range(0, len(text_list), episode_size)
+                    ]
         all_episodes = [episode for label, episodes in episodes_by_label.items() for episode in episodes]
         y = [label for label, episodes in episodes_by_label.items() for _ in episodes]
         num_positions = len(all_episodes[0])
@@ -626,11 +760,17 @@ def evaluate(
         flat_episodes = [position for episode in all_episodes for position in episode]
         X_flat = model.embed_multiple(flat_episodes, batch_size, show_progress=show_progress)
         X = [X_flat[i:i+num_positions] for i in range(0, len(X_flat), num_positions)]
+
+        if episode_metadata_by_label is not None:
+            episode_metadata = [
+                m for label, metas in episode_metadata_by_label.items() for m in metas
+            ]
+            return X, y, episode_metadata
         return X, y
 
     # Cache default embeddings by (dataset, episode_size, n_episodes_per_class)
     # so tasks sharing the same parameters reuse the same embeddings.
-    default_cache: Dict[Tuple[str, int, int], Tuple[Any, Any]] = {}
+    default_cache: Dict[Tuple[str, int, int, bool], Tuple[Any, Any, Any]] = {}
 
     for dataset_name, current_task_name, task_config, episode_size, resolved_n_episodes in _iter_task_configs(
         datasets, task_name, episode_sizes, n_episodes_per_class,
@@ -672,6 +812,12 @@ def evaluate(
                 successes.append((dataset_name, episode_size, current_task_name))
                 continue
 
+        raw_submetrics_config = task_config.get("submetrics", {})
+        needs_metadata = False
+        if raw_submetrics_config:
+            data_dir = _get_dataset_data_dir(dataset_name)
+            needs_metadata = _submetrics_need_metadata(raw_submetrics_config, data_dir)
+
         try:
             if "record_handler" in task_config:
                 task_loader = DatasetLoader(
@@ -681,13 +827,19 @@ def evaluate(
                     force_reload=force_reload,
                     seed=seed,
                     task_name=current_task_name,
+                    include_metadata=needs_metadata,
                 )
-                task_dataset = safe_load(task_loader, dataset_name, episode_size, current_task_name)
-                if task_dataset is None:
+                loaded = safe_load(task_loader, dataset_name, episode_size, current_task_name)
+                if loaded is None:
                     continue
+                task_dataset, metadata_by_label = loaded if needs_metadata else (loaded, None)
                 actual_n_episodes = task_loader.n_episodes_per_class
-                current_X, current_y = extract_features(
-                    task_dataset, episode_size, actual_n_episodes, batch_size, show_progress=progress_bar,
+                features = extract_features(
+                    task_dataset, episode_size, actual_n_episodes, batch_size,
+                    show_progress=progress_bar, metadata_by_label=metadata_by_label,
+                )
+                current_X, current_y, current_metadata = (
+                    features if needs_metadata else (*features, None)
                 )
             else:
                 dset_loader = DatasetLoader(
@@ -696,17 +848,24 @@ def evaluate(
                     n_episodes_per_class=resolved_n_episodes,
                     force_reload=force_reload,
                     seed=seed,
+                    include_metadata=needs_metadata,
                 )
-                dataset = safe_load(dset_loader, dataset_name, episode_size, current_task_name)
-                if dataset is None:
+                loaded = safe_load(dset_loader, dataset_name, episode_size, current_task_name)
+                if loaded is None:
                     continue
+                dataset, metadata_by_label = loaded if needs_metadata else (loaded, None)
                 actual_n_episodes = dset_loader.n_episodes_per_class
-                cache_key = (dataset_name, episode_size, actual_n_episodes)
+                # needs_metadata is part of the cache key so a later task on
+                # the same (dataset, episode_size, n_episodes) that *does*
+                # need metadata never reuses an entry cached without it.
+                cache_key = (dataset_name, episode_size, actual_n_episodes, needs_metadata)
                 if cache_key not in default_cache:
-                    default_cache[cache_key] = extract_features(
-                        dataset, episode_size, actual_n_episodes, batch_size, show_progress=progress_bar,
+                    features = extract_features(
+                        dataset, episode_size, actual_n_episodes, batch_size,
+                        show_progress=progress_bar, metadata_by_label=metadata_by_label,
                     )
-                current_X, current_y = default_cache[cache_key]
+                    default_cache[cache_key] = features if needs_metadata else (*features, None)
+                current_X, current_y, current_metadata = default_cache[cache_key]
                 task_loader = dset_loader
 
             # Resolve scores_path now that actual_n_episodes is known
@@ -762,10 +921,20 @@ def evaluate(
                 submetrics_config = _resolve_submetrics_config(
                     submetrics_config, task_loader.config["data_dir"],
                 )
+                if current_metadata is not None and len(current_metadata) != len(processed_data[1]):
+                    # Processors are expected to preserve order/length; this
+                    # would mean metadata silently drifted out of alignment.
+                    raise AssertionError(
+                        f"metadata length ({len(current_metadata)}) does not match "
+                        f"processed labels length ({len(processed_data[1])}) -- the "
+                        f"'{task_config.get('processor', 'default')}' processor may "
+                        "have filtered or reordered records"
+                    )
                 metrics["submetrics"] = _evaluate_submetrics(
                     submetrics_config,
                     processed_data,
                     task,
+                    metadata=current_metadata,
                 )
 
             os.makedirs(scores_path, exist_ok=True)

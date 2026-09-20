@@ -8,8 +8,7 @@ from prepare_authbench_en import (
     primary_genre,
     build_query_author_map,
     build_retrieval_records,
-    build_submetrics,
-    flatten_submetrics,
+    build_submetrics_config,
     build_config,
 )
 
@@ -88,58 +87,58 @@ def test_build_retrieval_records_fields():
     assert candidate_record["length_bucket"] == "long"
 
 
-def test_build_submetrics_length_bucket_keeps_full_candidate_pool():
+def test_build_submetrics_config_length_bucket_restricts_query_side_only():
     query_rows = _sample_query_rows()[:2]
     candidate_rows = _sample_candidate_rows()
     query_author = {"q1": "a1", "q2": "a2"}
     records = build_retrieval_records(query_rows, candidate_rows, query_author)
 
-    submetrics = build_submetrics(records)
+    submetrics = build_submetrics_config(records)
 
-    # "short" bucket has only q1 (token_length=5); both candidates (a1, a2)
-    # must still be present so the pool isn't shrunk.
-    short_labels = submetrics["length_bucket"]["short"]
-    assert "a1_query" in short_labels
-    assert "a2_query" not in short_labels
-    assert "a1_target" in short_labels
-    assert "a2_target" in short_labels
+    assert submetrics["length_short"] == {
+        "field": "length_bucket", "value": "short", "sides": "query",
+    }
 
 
-def test_build_submetrics_topic_pool_is_symmetric():
+def test_build_submetrics_config_topic_pool_restricts_both_sides():
     query_rows = _sample_query_rows()[:2]
     candidate_rows = _sample_candidate_rows()
     query_author = {"q1": "a1", "q2": "a2"}
     records = build_retrieval_records(query_rows, candidate_rows, query_author)
 
-    submetrics = build_submetrics(records)
+    submetrics = build_submetrics_config(records)
 
-    news_labels = submetrics["topic_pool"]["news"]
-    assert "a1_query" in news_labels
-    assert "a1_target" in news_labels
-    # a2's query/candidate are both blog/student, so they must be excluded
-    # from the news topic pool.
-    assert "a2_query" not in news_labels
-    assert "a2_target" not in news_labels
-
-
-def test_flatten_submetrics_prefixes_names():
-    nested = {
-        "length_bucket": {"short": ["a1_query", "a1_target"]},
-        "topic_pool": {"news": ["a1_query", "a1_target"]},
+    assert submetrics["topic_pool_news"] == {
+        "field": "primary_genre", "value": "news", "sides": "both",
     }
-    flat = flatten_submetrics(nested)
-    assert flat == {
-        "length_short": ["a1_query", "a1_target"],
-        "topic_pool_news": ["a1_query", "a1_target"],
+    assert submetrics["topic_pool_blog"] == {
+        "field": "primary_genre", "value": "blog", "sides": "both",
     }
 
 
-def test_build_config_references_submetrics_by_filename():
+def test_build_submetrics_config_reads_genres_off_records():
+    """Genre submetrics come from the actual records, not a hardcoded list."""
+    query_rows = _sample_query_rows()[:1]  # only "news" genre present
+    candidate_rows = []
+    query_author = {"q1": "a1"}
+    records = build_retrieval_records(query_rows, candidate_rows, query_author)
+
+    submetrics = build_submetrics_config(records)
+
+    topic_pool_keys = [k for k in submetrics if k.startswith("topic_pool_")]
+    assert topic_pool_keys == ["topic_pool_news"]
+
+
+def test_build_config_inlines_submetrics_as_predicates():
     """
-    config.json must not inline the (large) submetrics label lists -- it
-    should just point at the sibling file steb.core resolves at eval time.
+    Predicate specs are small enough to inline directly in config.json --
+    no generated sidecar file needed (unlike the earlier label-list
+    implementation).
     """
-    config = build_config()
+    records = build_retrieval_records(
+        _sample_query_rows()[:1], _sample_candidate_rows()[:1], {"q1": "a1"},
+    )
+    config = build_config(records)
     submetrics = config["tasks"]["retrieval"]["submetrics"]
-    assert isinstance(submetrics, str)
-    assert submetrics == "submetrics.json"
+    assert isinstance(submetrics, dict)
+    assert all(isinstance(spec, dict) for spec in submetrics.values())

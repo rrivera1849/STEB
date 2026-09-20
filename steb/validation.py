@@ -82,8 +82,22 @@ def validate_config(
                 elif not isinstance(submetrics, dict):
                     errors.append(f"Task '{task_name}' submetrics must be a dict or a filename string")
                 else:
-                    for sub_name, label_list in submetrics.items():
-                        if not isinstance(label_list, list) or len(label_list) < 2:
+                    for sub_name, spec in submetrics.items():
+                        if isinstance(spec, dict):
+                            # Predicate-based submetric, filtered against
+                            # per-record metadata at eval time (see
+                            # steb.core._matches_submetric_predicate).
+                            if "field" not in spec or "value" not in spec:
+                                errors.append(
+                                    f"Task '{task_name}' submetric '{sub_name}' predicate "
+                                    "must have 'field' and 'value'"
+                                )
+                            if spec.get("sides", "both") not in ("both", "query", "target"):
+                                errors.append(
+                                    f"Task '{task_name}' submetric '{sub_name}' has invalid "
+                                    f"'sides': {spec.get('sides')!r} (must be 'both', 'query', or 'target')"
+                                )
+                        elif not isinstance(spec, list) or len(spec) < 2:
                             errors.append(f"Task '{task_name}' submetric '{sub_name}' must be a list of at least 2 labels")
 
     # Type-specific validation
