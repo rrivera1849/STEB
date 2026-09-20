@@ -30,6 +30,12 @@ def default_retrieval_record_handler(example: Dict[str, Any]) -> Optional[Dict[s
     Extracts text and label, and appends _query or _target suffix to label based on is_query field.
 
     NOTE: We're assuming that we have dictionaries with the following fields: `text`, `label`, and `is_query`
+
+    Any other fields on the raw example (e.g. "genre", "length_bucket") are
+    passed through as "metadata" so predicate-based submetrics can filter on
+    them (see steb.core._evaluate_submetrics); DatasetLoader only picks this
+    up when constructed with include_metadata=True, so it's a no-op cost for
+    datasets/tasks that don't use it.
     """
     text = example.get("text")
     label = example.get("label")
@@ -38,4 +44,8 @@ def default_retrieval_record_handler(example: Dict[str, Any]) -> Optional[Dict[s
     label = str(label)
     suffix = "_query" if is_query else "_target"
 
-    return {"text": text, "label": f"{label}{suffix}"}
+    reserved = {"text", "label", "is_query"}
+    metadata = {k: v for k, v in example.items() if k not in reserved}
+    metadata["is_query"] = is_query
+
+    return {"text": text, "label": f"{label}{suffix}", "metadata": metadata}

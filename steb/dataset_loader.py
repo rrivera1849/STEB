@@ -30,7 +30,9 @@ def record_handler(
             returns None to skip the record, or a modified record with text_getter and label_getter keys.
 
     Returns:
-        A dictionary with "text" and "label" keys, or None if the text or label is missing.
+        A dictionary with "text", "label", and "metadata" keys ("metadata"
+        is whatever example.get("metadata") returns, usually None), or None
+        if the text or label is missing.
     """
     if custom_record_handler:
         example = custom_record_handler(example)
@@ -39,6 +41,7 @@ def record_handler(
 
     text = example[text_getter]
     label = example[label_getter]
+    metadata = example.get("metadata")
     if isinstance(label, list):
         label = label[0] if label else None
 
@@ -58,7 +61,7 @@ def record_handler(
     if len(text) == 0:
         return None
 
-    return {"text": text, "label": label}
+    return {"text": text, "label": label, "metadata": metadata}
 
 
 class DatasetLoader:
@@ -77,6 +80,7 @@ class DatasetLoader:
         force_reload: bool = False,
         seed: int = 42,
         task_name: Optional[str] = None,
+        include_metadata: bool = False,
     ):
         """
         Initializes the DatasetLoader.
@@ -93,6 +97,13 @@ class DatasetLoader:
                 record_handler in config.json, that handler overrides the
                 top-level record_handler. This also affects the cache key so
                 that tasks with different handlers get separate cached files.
+            include_metadata: If True, also collect each record's optional
+                "metadata" dict (e.g. genre, length_bucket -- anything a
+                record_handler attaches beyond text/label) and cache it in a
+                sibling file. Changes load()'s return value from just
+                ``dataset`` to ``(dataset, metadata)``. Off by default so
+                existing callers and cache files are unaffected; only
+                predicate-based submetrics (see steb.core) opt in.
         """
         self.dataset_name = dataset_name
         self.episode_size = episode_size
@@ -100,6 +111,7 @@ class DatasetLoader:
         self.force_reload = force_reload
         self.seed = seed
         self.task_name = task_name
+        self.include_metadata = include_metadata
         self.config_path, self.config = self._load_config()
 
     def _load_config(self):
@@ -165,14 +177,18 @@ class DatasetLoader:
         processing records, and saving the processed data to cache.
         When ``n_episodes_per_class`` is ``"auto"``, the value is resolved from
         the dataset before caching so the cache key reflects the actual count.
+
+        Returns:
+            ``dataset`` (Dict[label, List[text]]) when ``include_metadata`` is
+            False (the default). When True, a tuple ``(dataset, metadata)``,
+            where ``metadata`` is Dict[label, List[Optional[dict]]] aligned
+            1:1 with each label's text list.
         """
         # For non-auto mode, try cache first (before loading the dataset)
         if self.n_episodes_per_class != "auto":
-            dataset_path = self._get_dataset_path()
-            if os.path.exists(dataset_path) and not self.force_reload:
-                print(colored(f"Loading dataset from {dataset_path}", "green"))
-                with open(dataset_path, "r") as f:
-                    return json.loads(f.read())
+            cached = self._load_from_cache_if_present()
+            if cached is not None:
+                return cached
 
         dataset_iter, handler = self._load_source_and_handler()
         label_counts = self._count_labels(dataset_iter, handler)
@@ -182,11 +198,11 @@ class DatasetLoader:
             self.n_episodes_per_class = self._resolve_auto_episodes(label_counts)
 
         # Now that n_episodes_per_class is resolved, check cache
+        cached = self._load_from_cache_if_present()
+        if cached is not None:
+            return cached
+
         dataset_path = self._get_dataset_path()
-        if os.path.exists(dataset_path) and not self.force_reload:
-            print(colored(f"Loading dataset from {dataset_path}", "green"))
-            with open(dataset_path, "r") as f:
-                return json.loads(f.read())
 
         if self.episode_size == -1:
             N = 1
@@ -196,6 +212,7 @@ class DatasetLoader:
         valid_labels = self._get_valid_labels_from_counts(label_counts, N)
 
         dataset: Dict[str, List[List[str]]] = defaultdict(list)
+        metadata: Dict[str, List[Any]] = defaultdict(list)
 
         for example in dataset_iter:
             record = handler(example)
@@ -204,18 +221,60 @@ class DatasetLoader:
             elif self.episode_size != -1 and len(dataset[record["label"]]) >= N:
                 continue
             dataset[record["label"]].append(record["text"])
+            if self.include_metadata:
+                metadata[record["label"]].append(record.get("metadata"))
 
         # Unsure if this is necessary at this point, we should've ensured that
         # everything is the same size
         if self.episode_size != -1:
-            dataset = {k: v for k, v in dataset.items() if len(v) == N}
+            valid_final_labels = {k for k, v in dataset.items() if len(v) == N}
+            dataset = {k: v for k, v in dataset.items() if k in valid_final_labels}
+            metadata = {k: v for k, v in metadata.items() if k in valid_final_labels}
 
         os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
         with open(dataset_path, "w") as f:
             print(f"Saving dataset to {dataset_path}")
             f.write(json.dumps(dataset))
 
+        if self.include_metadata:
+            metadata_path = self._get_metadata_path()
+            with open(metadata_path, "w") as f:
+                print(f"Saving metadata to {metadata_path}")
+                f.write(json.dumps(metadata))
+            return dataset, dict(metadata)
+
         return dataset
+
+    def _load_from_cache_if_present(self):
+        """
+        Loads the dataset (and metadata, if include_metadata is True) from
+        cache if the relevant file(s) already exist and force_reload is not
+        set.
+
+        Returns:
+            The cached result (see load()'s return value), or None if not
+            cached (or force_reload is set).
+        """
+        if self.force_reload:
+            return None
+
+        dataset_path = self._get_dataset_path()
+        if not os.path.exists(dataset_path):
+            return None
+
+        print(colored(f"Loading dataset from {dataset_path}", "green"))
+        with open(dataset_path, "r") as f:
+            dataset = json.loads(f.read())
+
+        if not self.include_metadata:
+            return dataset
+
+        metadata_path = self._get_metadata_path()
+        if not os.path.exists(metadata_path):
+            return None  # stale cache from before include_metadata was used; regenerate both
+        with open(metadata_path, "r") as f:
+            metadata = json.loads(f.read())
+        return dataset, metadata
 
     def _get_effective_record_handler(self) -> Dict[str, Any]:
         """
@@ -269,6 +328,19 @@ class DatasetLoader:
         if self._has_task_specific_record_handler():
             base_str += f"_{self.task_name}"
         return os.path.join(PROCESSED_DATA_DIR, base_str + ".json")
+
+    def _get_metadata_path(self) -> str:
+        """
+        Generates the file path for the cached per-label metadata sidecar,
+        mirroring _get_dataset_path()'s cache key. Only written/read when
+        include_metadata is True.
+
+        Returns:
+            The file path for the cached metadata.
+        """
+        dataset_path = self._get_dataset_path()
+        base, ext = os.path.splitext(dataset_path)
+        return base + "_metadata" + ext
 
     def preview(self) -> Dict[str, Any]:
         """
