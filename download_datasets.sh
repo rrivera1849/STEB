@@ -109,15 +109,16 @@ else
 fi
 
 if [ ! -d "authbench_attribution_en" ]; then
-    echo "Downloading authbench_attribution_en (English test split of MaoXun/AuthBench)..."
-    # config.json's submetrics were generated once from this same frozen test
-    # split (see scripts/prepare_authbench_en.py --help), so this only
-    # regenerates the raw JSONL, not the committed config.json.
-    python3 "${SCRIPT_DIR}/scripts/prepare_authbench_en.py" \
-        --raw-data-dir "$(pwd)/authbench_attribution_en" \
-        --skip-config
+    echo "Downloading authbench_attribution_* (all 10 AuthBench test-split languages)..."
+    # Each language's config.json submetrics were generated once from this
+    # same frozen test split (see scripts/prepare_authbench.py --help), so
+    # this only regenerates the raw JSONL files, not the committed configs.
+    # One invocation with --all-langs downloads AuthBench's test split once
+    # and writes all 10 languages' raw_datasets/authbench_attribution_<lang>/
+    # directories, rather than re-downloading per language.
+    python3 "${SCRIPT_DIR}/scripts/prepare_authbench.py" --all-langs --skip-config
 else
-    echo "Skipping authbench_attribution_en (already exists)"
+    echo "Skipping authbench_attribution_* (already exists)"
 fi
 
 # Graded Formality GPT-5-mini
