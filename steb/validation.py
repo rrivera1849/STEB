@@ -71,10 +71,18 @@ def validate_config(
                     if key not in ("text_getter", "label_getter", "label_getter_function", "custom_record_handler_function"):
                         errors.append(f"Task '{task_name}' record_handler has unknown key: '{key}'")
             if "submetrics" in task_config:
-                if not isinstance(task_config["submetrics"], dict):
-                    errors.append(f"Task '{task_name}' submetrics must be a dict")
+                submetrics = task_config["submetrics"]
+                if isinstance(submetrics, str):
+                    # A filename, resolved relative to data_dir at eval time
+                    # (see steb.core._resolve_submetrics_config), for
+                    # submetrics too large to inline in config.json. Not
+                    # validated further here since raw data may not be
+                    # downloaded yet.
+                    pass
+                elif not isinstance(submetrics, dict):
+                    errors.append(f"Task '{task_name}' submetrics must be a dict or a filename string")
                 else:
-                    for sub_name, label_list in task_config["submetrics"].items():
+                    for sub_name, label_list in submetrics.items():
                         if not isinstance(label_list, list) or len(label_list) < 2:
                             errors.append(f"Task '{task_name}' submetric '{sub_name}' must be a list of at least 2 labels")
 

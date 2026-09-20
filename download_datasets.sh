@@ -4,6 +4,8 @@
 #   --purge      Remove all existing datasets before downloading
 #   output_dir   Directory to download datasets into (default: ./raw_datasets)
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 PURGE=false
 OUTPUT_DIR=""
 
@@ -104,6 +106,18 @@ if [ ! -d "stackexchange_retrieval" ]; then
     cd ..
 else
     echo "Skipping stackexchange_retrieval (already exists)"
+fi
+
+if [ ! -d "authbench_attribution_en" ]; then
+    echo "Downloading authbench_attribution_en (English test split of MaoXun/AuthBench)..."
+    # config.json's submetrics were generated once from this same frozen test
+    # split (see scripts/prepare_authbench_en.py --help), so this only
+    # regenerates the raw JSONL, not the committed config.json.
+    python3 "${SCRIPT_DIR}/scripts/prepare_authbench_en.py" \
+        --raw-data-dir "$(pwd)/authbench_attribution_en" \
+        --skip-config
+else
+    echo "Skipping authbench_attribution_en (already exists)"
 fi
 
 # Graded Formality GPT-5-mini
