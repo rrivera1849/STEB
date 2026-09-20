@@ -33,6 +33,12 @@ LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DEBUG_MAX_MODELS = 2
 DEBUG_MAX_DATASETS = 1
 
+# "dummy_*" are test-only fixtures with no real leaderboard entry, and
+# "fisher_*" requires licensed LDC audio transcripts most contributors don't
+# have, so neither ever gets a results directory. Excluded from
+# auto-discovery so they don't get treated as "new" on every run.
+EXCLUDED_DATASET_PREFIXES = ("dummy_", "fisher_")
+
 
 def parse_models_file(
     path: str,
@@ -65,6 +71,7 @@ def parse_models_file(
 def discover_new_datasets(
     all_datasets: List[str],
     results_dir: str,
+    exclude_prefixes: Tuple[str, ...] = EXCLUDED_DATASET_PREFIXES,
 ) -> List[str]:
     """
     Finds datasets that have no results directory yet.
@@ -72,15 +79,20 @@ def discover_new_datasets(
     Args:
         all_datasets: Every dataset name STEB knows about.
         results_dir: Root of the results tree (e.g. ``./results``).
+        exclude_prefixes: Dataset name prefixes to skip regardless of
+            whether they have results (e.g. test-only or license-gated
+            datasets that never get real results).
 
     Returns:
         The subset of ``all_datasets`` with no matching subdirectory under
-        ``results_dir``, in the same order they were given.
+        ``results_dir`` and no excluded prefix, in the same order they were
+        given.
     """
     return [
         dataset_name
         for dataset_name in all_datasets
-        if not os.path.isdir(os.path.join(results_dir, os.path.basename(dataset_name)))
+        if not dataset_name.startswith(exclude_prefixes)
+        and not os.path.isdir(os.path.join(results_dir, os.path.basename(dataset_name)))
     ]
 
 

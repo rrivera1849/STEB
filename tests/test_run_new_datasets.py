@@ -39,6 +39,16 @@ def test_discover_new_datasets_finds_missing_directories():
     assert new_datasets == ["brand_new_dataset"]
 
 
+def test_discover_new_datasets_excludes_dummy_and_fisher_prefixes():
+    with tempfile.TemporaryDirectory() as results_dir:
+        new_datasets = run_new_datasets.discover_new_datasets(
+            ["dummy_retrieval", "fisher_speaker_attribution_ldc_base", "authbench_attribution_en"],
+            results_dir,
+        )
+
+    assert new_datasets == ["authbench_attribution_en"]
+
+
 def test_discover_new_datasets_empty_when_all_present():
     with tempfile.TemporaryDirectory() as results_dir:
         os.makedirs(os.path.join(results_dir, "a"))
