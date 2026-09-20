@@ -1,0 +1,53 @@
+{
+  "dataset_name": "authbench_attribution_fr",
+  "type": "custom",
+  "data_dir": "authbench_attribution_fr",
+  "loader_module": "steb.loaders.retrieval",
+  "loader_function": "default_retrieval_loader",
+  "record_handler": {
+    "text_getter": "text",
+    "label_getter": "label",
+    "custom_record_handler_function": "default_retrieval_record_handler"
+  },
+  "tasks": {
+    "retrieval": {
+      "submetrics": {
+        "length_short": {
+          "field": "length_bucket",
+          "value": "short",
+          "sides": "query"
+        },
+        "length_medium": {
+          "field": "length_bucket",
+          "value": "medium",
+          "sides": "query"
+        },
+        "length_long": {
+          "field": "length_bucket",
+          "value": "long",
+          "sides": "query"
+        },
+        "length_extra_long": {
+          "field": "length_bucket",
+          "value": "extra_long",
+          "sides": "query"
+        },
+        "topic_pool_literature": {
+          "field": "primary_genre",
+          "value": "literature",
+          "sides": "both"
+        },
+        "topic_pool_news": {
+          "field": "primary_genre",
+          "value": "news",
+          "sides": "both"
+        },
+        "topic_pool_social_media": {
+          "field": "primary_genre",
+          "value": "social_media",
+          "sides": "both"
+        }
+      }
+    }
+  }
+}

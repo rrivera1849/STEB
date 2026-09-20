@@ -3,7 +3,9 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
-from prepare_authbench_en import (
+from prepare_authbench import (
+    AUTHBENCH_LANGUAGES,
+    dataset_name,
     length_bucket,
     primary_genre,
     build_query_author_map,
@@ -11,6 +13,16 @@ from prepare_authbench_en import (
     build_submetrics_config,
     build_config,
 )
+
+
+def test_dataset_name_per_language():
+    assert dataset_name("en") == "authbench_attribution_en"
+    assert dataset_name("ja") == "authbench_attribution_ja"
+
+
+def test_authbench_languages_has_ten_entries_including_en():
+    assert len(AUTHBENCH_LANGUAGES) == 10
+    assert "en" in AUTHBENCH_LANGUAGES
 
 
 def test_length_bucket_thresholds():
@@ -138,7 +150,16 @@ def test_build_config_inlines_submetrics_as_predicates():
     records = build_retrieval_records(
         _sample_query_rows()[:1], _sample_candidate_rows()[:1], {"q1": "a1"},
     )
-    config = build_config(records)
+    config = build_config("en", records)
     submetrics = config["tasks"]["retrieval"]["submetrics"]
     assert isinstance(submetrics, dict)
     assert all(isinstance(spec, dict) for spec in submetrics.values())
+
+
+def test_build_config_uses_language_specific_dataset_name():
+    records = build_retrieval_records(
+        _sample_query_rows()[:1], _sample_candidate_rows()[:1], {"q1": "a1"},
+    )
+    config = build_config("ja", records)
+    assert config["dataset_name"] == "authbench_attribution_ja"
+    assert config["data_dir"] == "authbench_attribution_ja"
