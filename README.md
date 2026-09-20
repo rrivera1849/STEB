@@ -1,6 +1,6 @@
 # STEB: Style Text Embedding Benchmark
 
-STEB is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is modular and extensible, making it straightforward to add new models, datasets, and evaluation tasks. Read the paper [here](https://arxiv.org/abs/2606.31741).
+STEB is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is modular and extensible, making it straightforward to add new models, datasets, and evaluation tasks. Read the paper [here](https://arxiv.org/abs/2606.31741). STEB also includes [AuthBench](https://arxiv.org/abs/2609.06771), a large-scale multilingual authorship retrieval benchmark, as ten per-language datasets with built-in length and topic breakdowns — see [Running AuthBench in STEB](#running-authbench-in-steb) below.
 
 **[Leaderboard](https://rrivera1849.github.io/STEB/leaderboard/)** — current results for every benchmarked model under both the Operational and Definitional STEB scores. New submissions land here automatically when a contributor's PR merges; see [Submitting your model](#submitting-your-model) below.
 
@@ -38,6 +38,46 @@ Run a specific task on a specific dataset, for example, the PAN13 authorship ver
 steb pre_defined_pair_classification "rrivera1849/LUAR-MUD" \
     --dataset pan13_authorship_verification_english_test
 ```
+
+## Running AuthBench in STEB
+
+[AuthBench](https://arxiv.org/abs/2609.06771) is a large-scale multilingual authorship benchmark (428k documents, 10 languages, 9 genres, 4 document-length buckets). Its authorship-attribution task maps directly onto STEB's `retrieval` task and ships as ten per-language datasets: `authbench_attribution_en`, `_ar`, `_de`, `_es`, `_fr`, `_hi`, `_ja`, `_ko`, `_ru`, `_zh`.
+
+<details>
+<summary>Examples</summary>
+
+Run retrieval on the English subset:
+
+```bash
+steb retrieval "rrivera1849/LUAR-MUD" --dataset authbench_attribution_en
+```
+
+Any other language works the same way:
+
+```bash
+steb retrieval "rrivera1849/LUAR-MUD" --dataset authbench_attribution_ja
+```
+
+Every AuthBench dataset also reports **length-bucket** and **topic-controlled retrieval** breakdowns automatically, via STEB's `submetrics` mechanism — no extra flags needed. They show up alongside the overall metrics in the run's `metrics.json`:
+
+```json
+{
+  "mrr": 0.194,
+  "recall@1": 0.144,
+  "submetrics": {
+    "length_short": { "mrr": 0.158, "recall@1": 0.102 },
+    "length_extra_long": { "mrr": 0.413, "recall@1": 0.330 },
+    "topic_pool_news": { "mrr": 0.184, "recall@1": 0.127 },
+    "topic_pool_social_media": { "mrr": 0.256, "recall@1": 0.202 }
+  }
+}
+```
+
+`length_*` restricts which queries are scored to one of AuthBench's four token-length buckets (short/medium/long/extra_long) while keeping the full candidate pool, matching the paper's own per-bucket protocol. `topic_pool_*` restricts both queries and candidates to a single genre, isolating retrieval performance from topic/genre shortcuts. See `steb/steb_datasets/authbench_attribution_en/config.json` for how a dataset defines its own submetrics.
+
+Note: AuthBench's authorship-*verification* task is intentionally not included — the paper builds it dynamically by re-scoring the full query/candidate similarity matrix rather than shipping fixed pairs, which doesn't map onto STEB's pair-classification format.
+
+</details>
 
 ## Configuration
 
