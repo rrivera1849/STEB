@@ -2,7 +2,7 @@
 
 STEB is a framework for evaluating style text embeddings across a variety of tasks and datasets. It is modular and extensible, making it straightforward to add new models, datasets, and evaluation tasks. Read the paper [here](https://arxiv.org/abs/2606.31741). STEB also includes [AuthBench](https://arxiv.org/abs/2609.06771), a large-scale multilingual authorship retrieval benchmark, as ten per-language datasets with built-in length and topic breakdowns — see [Running AuthBench in STEB](#running-authbench-in-steb) below.
 
-**[Leaderboard](https://rrivera1849.github.io/STEB/leaderboard/)** — current results for every benchmarked model under both the Operational and Definitional STEB scores. New submissions land here automatically when a contributor's PR merges; see [Submitting your model](#submitting-your-model) below.
+**[Leaderboard](https://rrivera1849.github.io/STEB/leaderboard/)** ([also on Hugging Face](https://huggingface.co/spaces/steb-benchmark/steb-leaderboard)) — current results for every benchmarked model under both the Operational and Definitional STEB scores. New submissions land here automatically when a contributor's PR merges; see [Submitting your model](#submitting-your-model) below.
 
 ## Installation
 
