@@ -1,6 +1,6 @@
 # Style-Specific Models
 rrivera1849/LUAR-MUD
-rivera1849/LUAR-CRUD
+rrivera1849/LUAR-CRUD
 StyleDistance/styledistance
 StyleDistance/mstyledistance
 StyleDistance/styledistance_synthetic_only
@@ -42,7 +42,7 @@ Qwen/Qwen3.5-2B-Base
 Qwen/Qwen3.5-4B-Base
 
 # Pre-defined Features
-neurobiber
+Blablablab/neurobiber
 surface_pos.yaml
 tfidfngrams_fineweb_sample10bt_1-2grams.pkl
 tfidfngrams_fineweb_sample10bt_1-3grams.pkl
